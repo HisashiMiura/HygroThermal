@@ -274,12 +274,12 @@ class TestMoistureResidual:
         g = _one_layer_geometry()
         t = 20.0 + ATP
         dt = 180.0
-        t_is, mu_is_n = _uniform(g, t, 50.0)
-        _, mu_is = _uniform(g, t, 60.0)
+        t_is_npls, mu_is_n = _uniform(g, t, 50.0)
+        _, mu_is_npls = _uniform(g, t, 60.0)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=60.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=60.0))
-        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
-        expected = (water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_is, mu_is_n)) / dt
+        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_npls, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        expected = (water_amount_is(g, t_is_npls, mu_is_npls) - water_amount_is(g, t_is_npls, mu_is_n)) / dt
         np.testing.assert_allclose(res_is, expected)
         assert np.all(res_is > 0.0)
 
@@ -290,13 +290,13 @@ class TestMoistureResidual:
         dt = 180.0
         t_is_n = np.linspace(5.0, 15.0, n) + ATP
         mu_is_n = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(60.0, 80.0, n), t_is_n)])
-        t_is = np.linspace(6.0, 16.0, n) + ATP
-        mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(99.5, 70.0, n), t_is)])
+        t_is_npls = np.linspace(6.0, 16.0, n) + ATP
+        mu_is_npls = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(99.5, 70.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = moisture_residual_is(g, t_is, mu_is, t_is_n, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
-        storage = ((water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_is_n, mu_is_n)) / dt).sum()
-        j_ks = vapour_flow_ks(g, t_is, mu_is, outdoor, indoor) + liquid_flow_ks(g, t_is, mu_is, outdoor, indoor)
+        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        storage = ((water_amount_is(g, t_is_npls, mu_is_npls) - water_amount_is(g, t_is_n, mu_is_n)) / dt).sum()
+        j_ks = vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor) + liquid_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (j_ks[0] - j_ks[-1]), rel=1e-9, abs=1e-18)
 
 
@@ -316,13 +316,13 @@ class TestHeatResidual:
         n = len(g.nodes)
         dt = 180.0
         t_is_n = np.linspace(5.0, 15.0, n) + ATP
-        t_is = np.linspace(6.0, 16.0, n) + ATP
-        mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is)])
+        t_is_npls = np.linspace(6.0, 16.0, n) + ATP
+        mu_is_npls = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
-        q_ks = heat_flow_ks(g, t_is, outdoor, indoor) + RW * vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
-        expected = heat_capacity_is(g, t_is, mu_is) * (t_is - t_is_n) / dt - (q_ks[:-1] - q_ks[1:])
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor) + RW * vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
+        expected = heat_capacity_is(g, t_is_npls, mu_is_npls) * (t_is_npls - t_is_n) / dt - (q_ks[:-1] - q_ks[1:])
         np.testing.assert_allclose(res_is, expected)
 
     def test_latent_heat(self):
@@ -347,12 +347,12 @@ class TestHeatResidual:
         dt = 180.0
         t_n = 20.0 + ATP
         t = t_n + 1.0
-        t_is, mu_is = _uniform(g, t, 80.0)
+        t_is_npls, mu_is_npls = _uniform(g, t, 80.0)
         t_is_n = np.full(len(g.nodes), t_n)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=80.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=80.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
-        c_is = heat_capacity_is(g, t_is, mu_is)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        c_is = heat_capacity_is(g, t_is_npls, mu_is_npls)
         np.testing.assert_allclose(res_is, c_is * 1.0 / dt, rtol=1e-9)
         assert np.all(c_is > np.array([node.heat_capacity_dry for node in g.nodes]))
 
@@ -362,13 +362,13 @@ class TestHeatResidual:
         n = len(g.nodes)
         dt = 180.0
         t_is_n = np.linspace(5.0, 15.0, n) + ATP
-        t_is = np.linspace(6.0, 18.0, n) + ATP
-        mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is)])
+        t_is_npls = np.linspace(6.0, 18.0, n) + ATP
+        mu_is_npls = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
-        storage = (heat_capacity_is(g, t_is, mu_is) * (t_is - t_is_n) / dt).sum()
-        q_ks = heat_flow_ks(g, t_is, outdoor, indoor) + RW * vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        storage = (heat_capacity_is(g, t_is_npls, mu_is_npls) * (t_is_npls - t_is_n) / dt).sum()
+        q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor) + RW * vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (q_ks[0] - q_ks[-1]))
 
 
@@ -389,11 +389,11 @@ def _air_layer_geometry() -> WallGeometry:
 def _air_layer_state(g: WallGeometry) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """通気層の壁の、次の時刻の仮の値と前の時刻の値（温度・相対湿度が質点ごとに違う）。"""
     n = len(g.nodes)
-    t_is = np.linspace(5.0, 18.0, n) + ATP
-    mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(70.0, 50.0, n), t_is)])
-    t_is_n = t_is - 0.3
-    mu_is_n = mu_is * 1.01
-    return t_is, mu_is, t_is_n, mu_is_n
+    t_is_npls = np.linspace(5.0, 18.0, n) + ATP
+    mu_is_npls = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(70.0, 50.0, n), t_is_npls)])
+    t_is_n = t_is_npls - 0.3
+    mu_is_n = mu_is_npls * 1.01
+    return t_is_npls, mu_is_npls, t_is_n, mu_is_n
 
 
 class TestVentilation:
@@ -401,33 +401,33 @@ class TestVentilation:
     def test_rate(self):
         # 換気量は通気層の空気の質点（2 番目）だけ正で、材料の質点は 0
         g = _air_layer_geometry()
-        t_is = np.full(len(g.nodes), 293.15)
-        q_v_is = ventilation_rate_is(g, t_is, outdoor=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
+        t_is_npls = np.full(len(g.nodes), 293.15)
+        q_v_is = ventilation_rate_is(g, t_is_npls, outdoor=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
         assert q_v_is[2] > 0.0
         assert np.count_nonzero(q_v_is) == 1
 
     def test_heat(self):
         # 換気量を渡すと、空気の質点の熱の残差だけが -cρ q_v (T_o - T_i) だけ変わる
         g = _air_layer_geometry()
-        t_is, mu_is, t_is_n, _ = _air_layer_state(g)
+        t_is_npls, mu_is_npls, t_is_n, _ = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
         q_v_is = np.array([0.0, 0.0, 1.0e-3, 0.0, 0.0])
-        without = heat_residual_is(g, t_is, mu_is, t_is_n, 180.0, outdoor, indoor)
-        with_v = heat_residual_is(g, t_is, mu_is, t_is_n, 180.0, outdoor, indoor, q_v_is=q_v_is)
+        without = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, 180.0, outdoor, indoor)
+        with_v = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, 180.0, outdoor, indoor, q_v_is=q_v_is)
         expected = np.zeros(5)
-        expected[2] = -ROW_CP * 1.0e-3 * (273.15 - t_is[2])
+        expected[2] = -ROW_CP * 1.0e-3 * (273.15 - t_is_npls[2])
         np.testing.assert_allclose(with_v - without, expected)
 
     def test_moisture(self):
         # 換気量を渡すと、空気の質点の水分の残差だけが -q_v (ρ_v,o - ρ_v,i) だけ変わる
         g = _air_layer_geometry()
-        t_is, mu_is, t_is_n, mu_is_n = _air_layer_state(g)
+        t_is_npls, mu_is_npls, t_is_n, mu_is_n = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
         q_v_is = np.array([0.0, 0.0, 1.0e-3, 0.0, 0.0])
-        without = moisture_residual_is(g, t_is, mu_is, t_is_n, mu_is_n, 180.0, outdoor, indoor)
-        with_v = moisture_residual_is(g, t_is, mu_is, t_is_n, mu_is_n, 180.0, outdoor, indoor, q_v_is=q_v_is)
+        without = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, 180.0, outdoor, indoor)
+        with_v = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, 180.0, outdoor, indoor, q_v_is=q_v_is)
         rho_v_o = outdoor.state.p_v / (RG * outdoor.state.t)
-        rho_v_i = State(t=t_is[2], mu=mu_is[2]).p_v / (RG * t_is[2])
+        rho_v_i = State(t=t_is_npls[2], mu=mu_is_npls[2]).p_v / (RG * t_is_npls[2])
         expected = np.zeros(5)
         expected[2] = -1.0e-3 * (rho_v_o - rho_v_i)
         np.testing.assert_allclose(with_v - without, expected, atol=1e-20)
@@ -435,13 +435,13 @@ class TestVentilation:
     def test_no_condensation_heat_in_air(self):
         # 空気の質点では、水蒸気の出入りに差があっても凝縮熱を数えない（熱伝導の出入りだけ）。材料の質点では数える
         g = _air_layer_geometry()
-        t_is, mu_is, t_is_n, _ = _air_layer_state(g)
+        t_is_npls, mu_is_npls, t_is_n, _ = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
         dt = 180.0
-        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt, outdoor, indoor)
-        c_is = heat_capacity_is(g, t_is, mu_is)
-        q_ks = heat_flow_ks(g, t_is, outdoor, indoor)
-        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt, outdoor, indoor)
+        c_is = heat_capacity_is(g, t_is_npls, mu_is_npls)
+        q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor)
+        j_v_ks = vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         assert j_v_ks[2] != pytest.approx(j_v_ks[3])
-        assert res_is[2] == pytest.approx(c_is[2] * (t_is[2] - t_is_n[2]) / dt - (q_ks[2] - q_ks[3]))
-        assert res_is[1] == pytest.approx(c_is[1] * (t_is[1] - t_is_n[1]) / dt - (q_ks[1] - q_ks[2]) - RW * (j_v_ks[1] - j_v_ks[2]))
+        assert res_is[2] == pytest.approx(c_is[2] * (t_is_npls[2] - t_is_n[2]) / dt - (q_ks[2] - q_ks[3]))
+        assert res_is[1] == pytest.approx(c_is[1] * (t_is_npls[1] - t_is_n[1]) / dt - (q_ks[1] - q_ks[2]) - RW * (j_v_ks[1] - j_v_ks[2]))

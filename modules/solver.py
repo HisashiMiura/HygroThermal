@@ -72,13 +72,13 @@ def step(
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:
 
-        # 温度は 0 番目から 1 つおき、水分化学ポテンシャルは 1 番目から 1 つおき
-        t_is, mu_is = x_ps[0::2], x_ps[1::2]
+        # ステップ n + 1 の温度は 0 番目から 1 つおき、水分化学ポテンシャルは 1 番目から 1 つおき
+        t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
         res_h_is = heat_residual_is(
-            geometry, t_is, mu_is, state_n.t_is, dt, outdoor, indoor, q_sol, q_v_is) / HEAT_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor, indoor, q_sol, q_v_is) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is, mu_is, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         f_ps = np.empty(len(x_ps))
