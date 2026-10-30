@@ -584,3 +584,33 @@ class TestWaterAmountAndHeatCapacity:
         # 空気の質点は、水蒸気の分を足さない（乾燥した値と同じ）
         node = AirNode(thickness=0.025, alpha=0.085, layer_index=1)
         assert node.heat_capacity(_state(80.0)) == node.heat_capacity_dry
+
+
+class TestVentilationRate:
+
+    def test_hand_calculation(self):
+        # 厚さ 25 mm、α 0.085、高さ 7 m、縦 7 m、外気 0 deg.C、通気層 20 deg.C：
+        # q_v = α d / L_v × √(2 g H |ρ_o - ρ_i| / ρ_o)、ρ = 353 / T
+        node = AirNode(thickness=0.025, alpha=0.085, layer_index=1)
+        rho_o, rho_i = 353.0 / 273.15, 353.0 / 293.15
+        expected = 0.085 * 0.025 / 7.0 * (2 * 9.8 * 7.0 * (rho_o - rho_i) / rho_o) ** 0.5
+        assert node.ventilation_rate(293.15, 273.15, height=7.0, len_vertical=7.0) == pytest.approx(expected)
+        # 目安：√ の中は 2 × 9.8 × 7 × 0.068 ≈ 9.4 で、q_v ≈ 3.0e-4 × 3.06 ≈ 9.3e-4 m3/(m2 s)（通気層の中の風速は α × 3.06 ≈ 0.26 m/s）
+        assert expected == pytest.approx(9.3e-4, rel=0.01)
+
+    def test_same_temperature(self):
+        # 外気と同じ温度なら浮力がないので 0
+        node = AirNode(thickness=0.025, alpha=0.085, layer_index=1)
+        assert node.ventilation_rate(283.15, 283.15, height=7.0, len_vertical=7.0) == 0.0
+
+    def test_direction_does_not_matter(self):
+        # 通気層が外気より冷たくても（夜）、温度差の大きさが同じなら同じ量（向きは考えない）
+        node = AirNode(thickness=0.025, alpha=0.085, layer_index=1)
+        warm = node.ventilation_rate(293.15, 283.15, height=7.0, len_vertical=7.0)
+        cold = node.ventilation_rate(273.15, 283.15, height=7.0, len_vertical=7.0)
+        assert warm == pytest.approx(cold, rel=0.1)
+
+    def test_no_opening(self):
+        # 流量係数 0（換気のない空気層）なら 0
+        node = AirNode(thickness=0.025, alpha=0.0, layer_index=1)
+        assert node.ventilation_rate(293.15, 273.15, height=7.0, len_vertical=7.0) == 0.0

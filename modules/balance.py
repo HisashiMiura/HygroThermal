@@ -7,8 +7,8 @@ import numpy as np
 
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.state import State
-from modules.thermo_dynamics import RW
-from modules.wall_geometry import WallGeometry
+from modules.thermo_dynamics import RG, ROW_CP, RW
+from modules.wall_geometry import AirNode, WallGeometry
 
 
 def heat_flow_ks(
@@ -165,6 +165,22 @@ def heat_capacity_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray
     ])
 
 
+def ventilation_rate_is(geometry: WallGeometry, t_is: np.ndarray, outdoor: OutdoorBoundary) -> np.ndarray:
+    """各質点の、壁 1 m2 あたりの換気量 q_v,i, m3/(m2 s), [i]（通気層の空気の質点だけ。材料の質点は 0）。
+
+    上流の空気は外気とする（壁が 1 枚なので）。
+
+    Args:
+        geometry: 壁の形
+        t_is: 各質点の温度, K, [i]（solver.step では、前の時刻の温度を渡す）
+        outdoor: 外気の境界条件
+    """
+    return np.array([
+        node.ventilation_rate(t_i, outdoor.state.t, geometry.height, geometry.len_vertical) if isinstance(node, AirNode) else 0.0
+        for node, t_i in zip(geometry.nodes, t_is)
+    ])
+
+
 def moisture_residual_is(
         geometry: WallGeometry,
         t_is: np.ndarray,
@@ -173,12 +189,14 @@ def moisture_residual_is(
         mu_is_n: np.ndarray,
         dt: float,
         outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        indoor: IndoorBoundary,
+        q_v_is: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
 
-    res_m,i = (W_i - W_i^n) / Δt - (j_in,i - j_out,i)（たまる量 -（入ってくる水分 - 出ていく水分））。
+    res_m,i = (W_i - W_i^n) / Δt - (j_in,i - j_out,i + j_vent,i)（たまる量 -（入ってくる水分 - 出ていく水分 + 換気で入る水分））。
     水分の流れ j = 水蒸気の流れ j_v + 液水の流れ j_l。たまる量を水分量の変化で書くので、水分量が厳密に保存される。
+    換気で入る水分 j_vent,i = q_v,i (ρ_v,o - ρ_v,i)（水蒸気の密度 ρ_v = p_v / (R_v T) の差。通気層の空気の質点だけ）。
     正しい次の時刻の温度・水分化学ポテンシャルを入れると 0 になる（docs/governing_equations.md の式 6.2）。
 
     Args:
@@ -190,7 +208,12 @@ def moisture_residual_is(
         dt: 時間刻み, s
         outdoor: 次の時刻の外気の境界条件
         indoor: 次の時刻の室内の境界条件
+        q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
     """
+
+    # 換気量を省いたときは、換気なし（どの質点も 0）
+    if q_v_is is None:
+        q_v_is = np.zeros(len(t_is))
 
     # 次の時刻と前の時刻の水分量, kg/m2, [i]
     w_is = water_amount_is(geometry, t_is, mu_is)
@@ -206,8 +229,15 @@ def moisture_residual_is(
     # 質点 i の右のつながり（つながり i + 1）へ出ていく水分, kg/(m2 s), [i]（j_ks の先頭を除く）
     j_out_is = j_ks[1:]
 
-    # たまる量 -（入ってくる水分 - 出ていく水分）
-    return (w_is - w_is_n) / dt - (j_in_is - j_out_is)
+    # 外気と各質点の水蒸気の密度, kg/m3（次の時刻の値）
+    rho_v_o = outdoor.state.p_v / (RG * outdoor.state.t)
+    rho_v_is = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is, mu_is)]) / (RG * t_is)
+
+    # 換気で入る水分, kg/(m2 s), [i]（換気量が 0 の質点は 0）
+    j_vent_is = q_v_is * (rho_v_o - rho_v_is)
+
+    # たまる量 -（入ってくる水分 - 出ていく水分 + 換気で入る水分）
+    return (w_is - w_is_n) / dt - (j_in_is - j_out_is + j_vent_is)
 
 
 def heat_residual_is(
@@ -218,15 +248,21 @@ def heat_residual_is(
         dt: float,
         outdoor: OutdoorBoundary,
         indoor: IndoorBoundary,
-        q_sol: float = 0.0
+        q_sol: float = 0.0,
+        q_v_is: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]（docs/governing_equations.md の式 6.3）。
 
-    res_h,i = C_i (T_i - T_i^n) / Δt - (Q_in,i - Q_out,i + q_sol,i)（たまる量 -（入ってくる熱 - 出ていく熱 + 外から直接入る熱））。
-    つながりの熱の流れ Q_k = q_k + r j_v,k（熱伝導 + 水蒸気が運ぶ潜熱）。r は蒸発潜熱。
-    C_i は水の分を足した熱容量で、次の時刻の仮の値で計算する。液水が運ぶ顕熱は入れない（量が非常に小さい）。
+    res_h,i = C_i (T_i - T_i^n) / Δt - (q_in,i - q_out,i + r (j_v,in,i - j_v,out,i) + q_sol,i + q_vent,i)
+    （たまる量 -（熱伝導で入ってくる熱 - 出ていく熱 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱））。
+    凝縮熱 r (j_v,in - j_v,out) は、その質点の凝縮量（蒸発量）を水蒸気の収支から見積もったもの（材料では、水蒸気のまま
+    たまる量はわずかなので、凝縮量 ≈ 入ってくる水蒸気 - 出ていく水蒸気）。r は蒸発潜熱。
+    通気層の空気の質点では、たまる水分はすべて水蒸気のままで相変化は起きないので、凝縮熱は 0 にする
+    （換気で入った水蒸気がつながりから出ていくとき、通気層で蒸発したと見積もらないため）。
+    C_i は水の分を足した熱容量で、次の時刻の仮の値で計算する。移動する水が運ぶ顕熱は入れない（量が非常に小さい）。
     「入る」「出る」は外気側から室内側へ流れる向きで見た言い方で、流れが負のときも式はそのまま正しく働く。
     外表面の質点（0 番目）には、外から直接入る熱 q_sol（日射の吸収 - 夜間放射）も入る。
+    通気層の空気の質点には、換気で入る熱 q_vent,i = cρ q_v,i (T_o - T_i) も入る（上流の空気は外気）。
     正しい次の時刻の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
@@ -238,13 +274,19 @@ def heat_residual_is(
         outdoor: 次の時刻の外気の境界条件
         indoor: 次の時刻の室内の境界条件
         q_sol: 外表面に外から直接入る熱, W/m2（wall_geometry.Surface.solar_heat_gain）
+        q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
     """
+
+    # 換気量を省いたときは、換気なし（どの質点も 0）
+    if q_v_is is None:
+        q_v_is = np.zeros(len(t_is))
 
     # 各質点の熱容量 C_i, J/(m2 K), [i]（乾燥した材料 + 含まれる水。次の時刻の仮の値で計算する）
     c_is = heat_capacity_is(geometry, t_is, mu_is)
 
-    # 各つながりの熱の流れ（熱伝導 + 水蒸気が運ぶ潜熱）, W/m2, [k]（次の時刻の値で計算する：後退差分）
-    q_ks = heat_flow_ks(geometry, t_is, outdoor, indoor) + RW * vapour_flow_ks(geometry, t_is, mu_is, outdoor, indoor)
+    # 各つながりの熱伝導の流れと水蒸気の流れ, W/m2・kg/(m2 s), [k]（次の時刻の値で計算する：後退差分）
+    q_ks = heat_flow_ks(geometry, t_is, outdoor, indoor)
+    j_v_ks = vapour_flow_ks(geometry, t_is, mu_is, outdoor, indoor)
 
     # 質点 i の左のつながり（つながり i）から入ってくる熱, W/m2, [i]（q_ks の最後を除く）
     q_in_is = q_ks[:-1]
@@ -252,9 +294,16 @@ def heat_residual_is(
     # 質点 i の右のつながり（つながり i + 1）へ出ていく熱, W/m2, [i]（q_ks の先頭を除く）
     q_out_is = q_ks[1:]
 
+    # 凝縮熱, W/m2, [i]（凝縮量 ≈ 入ってくる水蒸気 - 出ていく水蒸気。通気層の空気の質点は相変化しないので 0）
+    is_material_is = np.array([not isinstance(node, AirNode) for node in geometry.nodes])
+    q_cond_is = np.where(is_material_is, RW * (j_v_ks[:-1] - j_v_ks[1:]), 0.0)
+
     # 外から直接入る熱（日射の吸収 - 夜間放射）, W/m2, [i]（外表面の質点 0 だけ）
     q_sol_is = np.zeros(len(t_is))
     q_sol_is[0] = q_sol
 
-    # たまる量 -（入ってくる熱 - 出ていく熱 + 外から直接入る熱）
-    return c_is * (t_is - t_is_n) / dt - (q_in_is - q_out_is + q_sol_is)
+    # 換気で入る熱, W/m2, [i]（換気量が 0 の質点は 0）
+    q_vent_is = ROW_CP * q_v_is * (outdoor.state.t - t_is)
+
+    # たまる量 -（熱伝導で入ってくる熱 - 出ていく熱 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）
+    return c_is * (t_is - t_is_n) / dt - (q_in_is - q_out_is + q_cond_is + q_sol_is + q_vent_is)

@@ -81,7 +81,7 @@ main.py ── InputRoom → Room（室内の条件）
 3. 計算の設定（`NDVD`、`OMG`、`EPS1` など）が `config.py` の定数で、入力から変えられない。
 
 **F. 小さなバグ**（直すときに一緒に直す）
-- `Wall.get_wp_n_pls`（水分の式）で、通気層の換気による水分の項（`j_wtr_vent_wp`・`j_wtr_vent_k`）が、換気量（m³/s）を壁の面積で割っていない。熱の式（`get_t_next_is`）は `ROW_CP * v_air / self.area` と 1 m² あたりにしているので、水分の式のこの項だけ壁全体の量になっている（単位の食い違いの疑い。2026-10-22 発見、段階 7 で扱う）。水膜からの水分移動（`j_dsh_vap_i_*`）も `* self.area` を掛けていて、1 m² あたりの他の項と単位が合っていない可能性がある。
+- `Wall.get_wp_n_pls`（水分の式）で、通気層の換気による水分の項（`j_wtr_vent_wp`・`j_wtr_vent_k`）が、換気量（m³/s）を壁の面積で割っていない。熱の式（`get_t_next_is`）は `ROW_CP * v_air / self.area` と 1 m² あたりにしているので、水分の式のこの項だけ壁全体の量になっている（単位の食い違いの疑い。2026-10-22 発見。新しい構造では、換気量を壁 1 m² あたりで求め（`AirNode.ventilation_rate`）、熱・水分とも 1 m² あたりにした（2026-10-31））。水膜からの水分移動（`j_dsh_vap_i_*`）も `* self.area` を掛けていて、1 m² あたりの他の項と単位が合っていない可能性がある。
 - `Wall.get_wp_n_pls` で `cap_m(state=self.state_n_is)` と、リストをそのまま渡している。
 - 雨水の設定 `get_nrains_of_walls(wall_index=i)` の `i` が、前の行のループの変数の残り（たまたま 0）。
 

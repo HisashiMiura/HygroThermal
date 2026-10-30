@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from modules.balance import heat_residual_is, moisture_residual_is
+from modules.balance import heat_residual_is, moisture_residual_is, ventilation_rate_is
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
 from modules.thermo_dynamics import RW
@@ -65,6 +65,10 @@ def step(
     # 外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
     q_sol = geometry.surface.solar_heat_gain(outdoor.solar)
 
+    # 通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
+    # 換気量は √|ρ_o - ρ_i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
+    q_v_is = ventilation_rate_is(geometry, state_n.t_is, outdoor)
+
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:
 
@@ -72,9 +76,9 @@ def step(
         t_is, mu_is = x_ps[0::2], x_ps[1::2]
 
         res_h_is = heat_residual_is(
-            geometry, t_is, mu_is, state_n.t_is, dt, outdoor, indoor, q_sol) / HEAT_RESIDUAL_TOL
+            geometry, t_is, mu_is, state_n.t_is, dt, outdoor, indoor, q_sol, q_v_is) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is, mu_is, state_n.t_is, state_n.mu_is, dt, outdoor, indoor) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is, mu_is, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         f_ps = np.empty(len(x_ps))

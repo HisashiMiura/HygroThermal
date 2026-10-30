@@ -229,16 +229,30 @@ $$
 **水分の残差** [kg/(m² s)]
 
 $$
-\mathrm{res}_{m,i} = \frac{W_i - W_i^n}{\Delta t} - \left\lbrace  (j_{v,i} + j_{l,i}) - (j_{v,i+1} + j_{l,i+1}) \right\rbrace  \qquad (6.2)
+\mathrm{res}_{m,i} = \frac{W_i - W_i^n}{\Delta t} - \left\lbrace  (j_{v,i} + j_{l,i}) - (j_{v,i+1} + j_{l,i+1}) \right\rbrace  - j_{vent,i} \qquad (6.2)
 $$
 
 **熱の残差** [W/m²]
 
 $$
-\mathrm{res}_{h,i} = C_i \thinspace \frac{T_i - T_i^n}{\Delta t} - \left\lbrace  (q_i + r j_{v,i}) - (q_{i+1} + r j_{v,i+1}) \right\rbrace  - Q_i \qquad (6.3)
+\mathrm{res}_{h,i} = C_i \thinspace \frac{T_i - T_i^n}{\Delta t} - (q_i - q_{i+1}) - \delta_i \thinspace r (j_{v,i} - j_{v,i+1}) - Q_i \qquad (6.3)
 $$
 
-$Q_i$：質点 i に外から入る熱 [W/m²]（外表面の日射・夜間放射、通気層の換気など。段階 6・7）。
+- $r (j_{v,i} - j_{v,i+1})$ は、質点 i の凝縮熱（負なら蒸発の熱）。凝縮量を水蒸気の収支から見積もっている：凝縮量 ＝ 入ってくる水蒸気 − 出ていく水蒸気 − 水蒸気のままたまる量。材料では、水蒸気のままたまる量（空隙の中の水蒸気）は吸着水・液水に比べてごくわずかなので、凝縮量 ≈ 入ってくる水蒸気 − 出ていく水蒸気、と近似する。
+- $\delta_i$ は、材料の質点で 1、通気層の空気の質点で 0。空気の質点では、たまる水分はすべて水蒸気のままで相変化は起きないので、凝縮熱を数えない。材料と同じ近似を使うと、換気で入った水蒸気がつながりから出ていくとき、通気層で蒸発したと見積もってしまう。
+- $Q_i$：質点 i に外から入る熱 [W/m²]。外表面の質点では日射・夜間放射 $q_{sol}$、通気層の空気の質点では換気で入る熱 $q_{vent,i}$（下）。
+
+**通気層の換気**（空気の質点だけ。上流の空気は外気とする）
+
+$$
+q_{v,i} = \frac{\alpha d_i}{L_v} \sqrt{\frac{2 g H |\rho_o - \rho_i|}{\rho_o}}, \qquad
+j_{vent,i} = q_{v,i} (\rho_{v,o} - \rho_{v,i}), \qquad
+q_{vent,i} = c_a \rho_a \thinspace q_{v,i} (T_o - T_i) \qquad (6.4)
+$$
+
+- $q_{v,i}$ は壁 1 m² あたりの換気量 [m³/(m² s)]。温度差による浮力の換気（換気量 ＝ 相当開口面積 × √(2 × 浮力の圧力差 / 外気の密度)）を壁の面積で割ったもの。 $\alpha$ は流量係数、 $L_v$ は壁の縦の長さ、 $H$ は通気層の高さ、 $\rho$ は空気の密度（353 / T）。風による換気は入れていない。
+- 換気量は前の時刻の温度で求め、1 ステップの中では一定にする（√ の中が 0 になる所で傾きが無限大になり、ニュートン法が収束しにくくなるため）。
+- $\rho_v = p_v / (R_v T)$ は水蒸気の密度。換気で入る水分は、水蒸気の密度の差で書く（偏微分に分けない）。
 
 - 水分は、たまる量を「含水量の変化」で書くので、水分量が厳密に保存される（水分容量 × μ の変化で書く近似は使わない）。
 - 熱容量 $C_i$ は、次の時刻の含水量で計算する。
@@ -266,6 +280,12 @@ $Q_i$：質点 i に外から入る熱 [W/m²]（外表面の日射・夜間放�
 | $\rho_w$ | 水の密度 | kg/m³ | `thermo_dynamics.ROW`（998） |
 | $q_k$ | つながりの熱の流れ | W/m² | `heat_flow_ks` |
 | $C_i$ | 質点の熱容量 | J/(m² K) | `heat_capacity` |
+| $q_{sol}$ | 外表面に外から直接入る熱（日射の吸収 − 夜間放射） | W/m² | `Surface.solar_heat_gain`、`q_sol` |
+| $q_{v,i}$ | 壁 1 m² あたりの換気量 | m³/(m² s) | `ventilation_rate_is`、`q_v_is` |
+| $j_{vent,i}$ | 換気で入る水分 | kg/(m² s) | `j_vent_is`（`moisture_residual_is` の中） |
+| $q_{vent,i}$ | 換気で入る熱 | W/m² | `q_vent_is`（`heat_residual_is` の中） |
+| $c_a \rho_a$ | 空気の容積比熱 | J/(m³ K) | `thermo_dynamics.ROW_CP`（1300） |
+| α | 通気層の流量係数 | − | `AirNode.alpha` |
 | $\Delta t$ | 時間刻み | s | `dt` |
 
 ---

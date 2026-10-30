@@ -21,8 +21,12 @@ from modules.direction import Direction
 from modules.material_loaders import load_materials
 from modules.materials import Material, Materials
 from modules.state import State
-from modules.thermo_dynamics import CPL, RG, ROW_CP
+from modules.thermo_dynamics import CPL, RG, ROW_CP, get_rho
 from modules.wall_input import AirLayerInput, InterfaceInput, LayerInput, WallInput
+
+
+# 重力加速度, m/s2
+_G = 9.8
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -161,6 +165,31 @@ class AirNode:
             state: この質点の状態
         """
         return state.p_v / (RG * state.t) * self.thickness
+
+    def ventilation_rate(
+            self,
+            t: float,
+            t_outdoor: float,
+            height: float,
+            len_vertical: float
+        ) -> float:
+        """壁 1 m2 あたりの換気量 q_v, m3/(m2 s)（温度差による浮力換気）。
+
+        q_v = α d / L_v × √(2 g H |ρ_o - ρ_i| / ρ_o)。換気量 Q = αA √(2 ΔP / ρ_o)（相当開口面積 αA = α d × 横の長さ、
+        浮力の圧力差 ΔP = g H |ρ_o - ρ_i|）を壁の面積（縦 × 横の長さ）で割ると、横の長さは消える（設計の文書 2.5 節）。
+        Fortran の Whamcavity は αA √(8 g H |Δρ|) で、ρ_o で割る所がない（単位が合わない）ので、ふつうの式にした。
+
+        Args:
+            t: 通気層の空気の温度, K
+            t_outdoor: 外気温, K
+            height: 通気層の高さ（壁の下端と上端の高さの差）, m
+            len_vertical: 壁の縦の長さ, m
+        """
+
+        # 外気と通気層の空気の密度, kg/m3
+        rho_o, rho_i = get_rho(t=t_outdoor), get_rho(t=t)
+
+        return self.alpha * self.thickness / len_vertical * (2.0 * _G * height * abs(rho_o - rho_i) / rho_o) ** 0.5
 
     def heat_capacity(self, state: State) -> float:
         """熱容量 C_i, J/(m2 K)（空気の容積比熱 × 厚さ。水蒸気の分は小さいので足さない）
