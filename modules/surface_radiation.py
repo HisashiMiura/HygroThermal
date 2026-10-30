@@ -19,6 +19,9 @@ def get_solar_heat_gain(surface: Surface, solar: SolarRadiation) -> float:
     Args:
         surface: 外表面（向き・傾斜角・アルベド・日射吸収率・長波長放射率）
         solar: 太陽の位置と、日射・夜間放射
+
+    Returns:
+        外表面に外から直接入る熱 q_sol, W/m2
     """
 
     # 外表面の傾斜角 β_w, rad
