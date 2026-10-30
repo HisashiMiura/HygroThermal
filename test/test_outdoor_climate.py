@@ -25,7 +25,7 @@ def _weather(kind: RadiationKind, interval: RadiationInterval = RadiationInterva
         p_v_hs=np.full(HOURS_PER_YEAR, 500.0),
         i_dn_hs=h_hs,
         i_sky_hs=2.0 * h_hs,
-        r_n_hs=-h_hs,
+        r_eff_hs=-h_hs,
         radiation_kind=kind,
         radiation_interval=interval,
     )
@@ -59,7 +59,7 @@ class TestInterval:
     def test_before(self, hour):
         # 「h 時」の欄が h - 1 〜 h 時の値：11 時 00 分 01 秒〜12 時 00 分 00 秒は、どれも 12 時の欄の値
         s = _weather(RadiationKind.INTERVAL, RadiationInterval.BEFORE)._get_solar(hour * _H)
-        assert (s.i_dn, s.i_sky, s.r_n) == (12.0, 24.0, -12.0)
+        assert (s.i_dn, s.i_sky, s.r_eff) == (12.0, 24.0, -12.0)
 
     def test_before_next(self):
         # 12 時 00 分 01 秒からは 13 時の欄の値
@@ -120,7 +120,7 @@ class TestAt:
         p_v_hs = np.array([GOFF(th + ATP)[1] for th in theta_hs])
         w = WeatherOutdoor(latitude=36.7, longitude=137.21, theta_hs=theta_hs, p_v_hs=p_v_hs,
                            i_dn_hs=np.zeros(HOURS_PER_YEAR), i_sky_hs=np.zeros(HOURS_PER_YEAR),
-                           r_n_hs=np.zeros(HOURS_PER_YEAR), radiation_kind=RadiationKind.INTERVAL)
+                           r_eff_hs=np.zeros(HOURS_PER_YEAR), radiation_kind=RadiationKind.INTERVAL)
         assert w.get_outdoor_boundary(0.5 * _H).state.rh == pytest.approx(100.0)
 
 
@@ -172,7 +172,7 @@ class TestInvalid:
     def test_invalid(self, kwargs, match):
         args = {'latitude': 36.7, 'longitude': 137.21, 'theta_hs': np.zeros(HOURS_PER_YEAR),
                 'p_v_hs': np.full(HOURS_PER_YEAR, 500.0), 'i_dn_hs': np.zeros(HOURS_PER_YEAR),
-                'i_sky_hs': np.zeros(HOURS_PER_YEAR), 'r_n_hs': np.zeros(HOURS_PER_YEAR),
+                'i_sky_hs': np.zeros(HOURS_PER_YEAR), 'r_eff_hs': np.zeros(HOURS_PER_YEAR),
                 'radiation_kind': RadiationKind.INTERVAL} | kwargs
         with pytest.raises(ValueError, match=match):
             WeatherOutdoor(**args)

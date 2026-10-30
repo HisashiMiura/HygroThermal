@@ -72,10 +72,10 @@ class TestSolarRadiation:
         # 外気の日射の既定は、日射も夜間放射もない
         outdoor = OutdoorBoundary.from_theta_rh(theta=0.0, rh=80.0)
         assert outdoor.solar is NO_SUN
-        assert (NO_SUN.i_dn, NO_SUN.i_sky, NO_SUN.r_n) == (0.0, 0.0, 0.0)
+        assert (NO_SUN.i_dn, NO_SUN.i_sky, NO_SUN.r_eff) == (0.0, 0.0, 0.0)
 
     def test_with_solar(self):
-        solar = SolarRadiation(sin_h=0.5, cos_h=0.866, sin_a=0.0, cos_a=1.0, i_dn=600.0, i_sky=150.0, r_n=40.0)
+        solar = SolarRadiation(sin_h=0.5, cos_h=0.866, sin_a=0.0, cos_a=1.0, i_dn=600.0, i_sky=150.0, r_eff=40.0)
         outdoor = OutdoorBoundary.from_theta_rh(theta=0.0, rh=80.0, solar=solar)
         assert outdoor.solar is solar
 
@@ -83,7 +83,7 @@ class TestSolarRadiation:
     def test_negative(self, i_dn, i_sky):
         # 日射量が負ならエラー
         with pytest.raises(ValueError, match='日射量'):
-            SolarRadiation(sin_h=0.5, cos_h=0.866, sin_a=0.0, cos_a=1.0, i_dn=i_dn, i_sky=i_sky, r_n=0.0)
+            SolarRadiation(sin_h=0.5, cos_h=0.866, sin_a=0.0, cos_a=1.0, i_dn=i_dn, i_sky=i_sky, r_eff=0.0)
 
     def test_not_solar(self):
         # 外気の solar に SolarRadiation 以外を渡すとエラー

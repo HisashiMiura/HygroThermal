@@ -417,11 +417,11 @@ def _surface(direction: Direction, angle: float) -> Surface:
     return Surface(direction=direction, angle=angle, albedo=0.2, absorptance=0.8, emissivity=0.9, eva_height=4.2)
 
 
-def _sun(altitude: float, azimuth: float, i_dn: float, i_sky: float, r_n: float = 0.0) -> SolarRadiation:
+def _sun(altitude: float, azimuth: float, i_dn: float, i_sky: float, r_eff: float = 0.0) -> SolarRadiation:
     """太陽高度 altitude・方位角 azimuth（度、南が 0、西回りが正）の太陽と、日射・夜間放射。"""
     h, a = math.radians(altitude), math.radians(azimuth)
     return SolarRadiation(sin_h=math.sin(h), cos_h=math.cos(h), sin_a=math.sin(a), cos_a=math.cos(a),
-                          i_dn=i_dn, i_sky=i_sky, r_n=r_n)
+                          i_dn=i_dn, i_sky=i_sky, r_eff=r_eff)
 
 
 class TestSolarHeatGain:
@@ -432,13 +432,13 @@ class TestSolarHeatGain:
 
     def test_roof_zenith(self):
         # 水平の屋根、太陽が真上：I = 直達 800 + 天空 100 = 900（地面は見えない）。q = 0.8 × 900 - 0.9 × 1 × 50
-        q = _surface(Direction.TOP, 0.0).solar_heat_gain(_sun(90.0, 0.0, i_dn=800.0, i_sky=100.0, r_n=50.0))
+        q = _surface(Direction.TOP, 0.0).solar_heat_gain(_sun(90.0, 0.0, i_dn=800.0, i_sky=100.0, r_eff=50.0))
         assert q == pytest.approx(0.8 * 900.0 - 0.9 * 50.0)
 
     def test_south_wall(self):
         # 南向きの垂直の壁、太陽が真南・高度 30 度：
         # I = 直達 × cos 30° + 天空 × 0.5 +（直達 × sin 30° + 天空）× アルベド × 0.5
-        q = _surface(Direction.S, 90.0).solar_heat_gain(_sun(30.0, 0.0, i_dn=600.0, i_sky=150.0, r_n=40.0))
+        q = _surface(Direction.S, 90.0).solar_heat_gain(_sun(30.0, 0.0, i_dn=600.0, i_sky=150.0, r_eff=40.0))
         i = 600.0 * math.cos(math.radians(30.0)) + 150.0 * 0.5 + (600.0 * 0.5 + 150.0) * 0.2 * 0.5
         assert q == pytest.approx(0.8 * i - 0.9 * 0.5 * 40.0)
 
@@ -450,7 +450,7 @@ class TestSolarHeatGain:
 
     def test_bottom(self):
         # 下向きの面（軒裏など）：直達と天空は 0、地面の反射だけが全部入る。夜間放射も出ていかない
-        q = _surface(Direction.BOTTOM, 180.0).solar_heat_gain(_sun(30.0, 0.0, i_dn=600.0, i_sky=150.0, r_n=40.0))
+        q = _surface(Direction.BOTTOM, 180.0).solar_heat_gain(_sun(30.0, 0.0, i_dn=600.0, i_sky=150.0, r_eff=40.0))
         assert q == pytest.approx(0.8 * (600.0 * 0.5 + 150.0) * 0.2)
 
     def test_sun_below_horizon(self):
@@ -462,7 +462,7 @@ class TestSolarHeatGain:
 
     def test_night(self):
         # 夜（日射 0）の垂直の壁：夜間放射の半分（天空の形態係数 0.5）× 放射率だけ熱が出ていく
-        q = _surface(Direction.N, 90.0).solar_heat_gain(_sun(-10.0, 0.0, i_dn=0.0, i_sky=0.0, r_n=60.0))
+        q = _surface(Direction.N, 90.0).solar_heat_gain(_sun(-10.0, 0.0, i_dn=0.0, i_sky=0.0, r_eff=60.0))
         assert q == pytest.approx(-0.9 * 0.5 * 60.0)
 
 

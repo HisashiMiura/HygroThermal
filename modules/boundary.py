@@ -48,8 +48,8 @@ class SolarRadiation:
     # 水平面天空日射量, W/m2
     i_sky: float
 
-    # 夜間放射量（水平面）, W/m2
-    r_n: float
+    # 夜間放射量（水平面）, W/m2（実効放射量：地表面からの上向きの長波長放射と、下向きの大気放射の差。昼間にも値がある）
+    r_eff: float
 
     def __post_init__(self):
         """作るときに値を確かめる。"""
@@ -60,7 +60,7 @@ class SolarRadiation:
 
 
 # 日射も夜間放射もない（太陽は地平線の上、真南にあるとしておく。日射が 0 なので位置は答えに効かない）
-NO_SUN = SolarRadiation(sin_h=0.0, cos_h=1.0, sin_a=0.0, cos_a=1.0, i_dn=0.0, i_sky=0.0, r_n=0.0)
+NO_SUN = SolarRadiation(sin_h=0.0, cos_h=1.0, sin_a=0.0, cos_a=1.0, i_dn=0.0, i_sky=0.0, r_eff=0.0)
 
 
 def _check_state(state: State, where: str):

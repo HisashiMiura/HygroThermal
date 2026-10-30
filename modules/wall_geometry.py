@@ -371,9 +371,9 @@ class Surface:
     eva_height: float
 
     def solar_heat_gain(self, solar: SolarRadiation) -> float:
-        """外表面に外から直接入る熱 q_sol = a I - ε F_sky RN, W/m2（日射の吸収 - 夜間放射）。
+        """外表面に外から直接入る熱 q_sol = a I - ε F_sky R_eff, W/m2（日射の吸収 - 夜間放射）。
 
-        I は壁面に当たる日射（直達 ＋ 天空 ＋ 地面の反射）、F_sky = (1 + cos β) / 2 は天空に対する形態係数。
+        I は壁面に当たる日射（直達 ＋ 天空 ＋ 地面の反射）、R_eff は水平面の夜間放射量（実効放射量）、F_sky = (1 + cos β) / 2 は天空に対する形態係数。
         下向きの面も特別扱いしない（直達と天空は 0 になり、地面の反射だけが入る）。
 
         Args:
@@ -407,7 +407,7 @@ class Surface:
         # 地面の反射, W/m2（水平面全天日射 × アルベド × 地面に対する形態係数）
         i_r = i_t * self.albedo * (1.0 - f_sky)
 
-        return float(self.absorptance * (i_d + i_s + i_r) - self.emissivity * f_sky * solar.r_n)
+        return float(self.absorptance * (i_d + i_s + i_r) - self.emissivity * f_sky * solar.r_eff)
 
 
 # 材料を探す関数：(出どころ, 名称) → 材料

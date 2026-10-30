@@ -96,8 +96,8 @@ class WeatherOutdoor:
     # 水平面天空日射量, W/m2, [h]
     i_sky_hs: np.ndarray
 
-    # 夜間放射量, W/m2, [h]（負の値もある）
-    r_n_hs: np.ndarray
+    # 夜間放射量（実効放射量）, W/m2, [h]（負の値もある）
+    r_eff_hs: np.ndarray
 
     # 日射・夜間放射の値の種類
     radiation_kind: RadiationKind
@@ -124,7 +124,7 @@ class WeatherOutdoor:
             raise ValueError(f'radiation_interval は RadiationInterval にしてください（{self.radiation_interval}）。')
 
         # frozen の dataclass の項目は、ふつうの代入ができないので、この書き方で写しに入れ直す
-        for name in ('theta_hs', 'p_v_hs', 'i_dn_hs', 'i_sky_hs', 'r_n_hs'):
+        for name in ('theta_hs', 'p_v_hs', 'i_dn_hs', 'i_sky_hs', 'r_eff_hs'):
             object.__setattr__(self, name, _readonly_copy(getattr(self, name), name))
 
         # 日射量が負ならエラー（夜間放射は負の値もあるので確かめない）
@@ -181,7 +181,7 @@ class WeatherOutdoor:
             p_v_hs=p_v_hs,
             i_dn_hs=d['法線面直達日射量'].to_numpy(dtype=float) * f,
             i_sky_hs=d['水平面天空日射量'].to_numpy(dtype=float) * f,
-            r_n_hs=d['夜間放射'].to_numpy(dtype=float) * f,
+            r_eff_hs=d['夜間放射'].to_numpy(dtype=float) * f,
             radiation_kind=radiation_kind,
             radiation_interval=radiation_interval,
             n_rh_clamped=int(over_hs.sum()),
@@ -251,7 +251,7 @@ class WeatherOutdoor:
             cos_a=float(cos_a),
             i_dn=self._radiation(self.i_dn_hs, time),
             i_sky=self._radiation(self.i_sky_hs, time),
-            r_n=self._radiation(self.r_n_hs, time),
+            r_eff=self._radiation(self.r_eff_hs, time),
         )
 
     def get_outdoor_boundary(self, time: float) -> OutdoorBoundary:

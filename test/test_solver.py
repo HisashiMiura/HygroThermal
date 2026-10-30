@@ -165,7 +165,7 @@ class TestStep:
         # 外気の水蒸気圧はそろえる。外表面の質点の熱の収支が、式の上で同じになるため
         g, state_a = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         state_b = state_a
-        solar = SolarRadiation(sin_h=0.5, cos_h=3 ** 0.5 / 2, sin_a=0.0, cos_a=1.0, i_dn=600.0, i_sky=150.0, r_n=40.0)
+        solar = SolarRadiation(sin_h=0.5, cos_h=3 ** 0.5 / 2, sin_a=0.0, cos_a=1.0, i_dn=600.0, i_sky=150.0, r_eff=40.0)
         q_sol = g.surface.solar_heat_gain(solar)
         assert q_sol > 0.0
 
