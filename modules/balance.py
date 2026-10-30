@@ -274,7 +274,7 @@ def heat_residual_is(
         dt: 時間刻み, s
         outdoor: ステップ n + 1 の外気の境界条件
         indoor: ステップ n + 1 の室内の境界条件
-        q_sol: 外表面に外から直接入る熱, W/m2（wall_geometry.Surface.solar_heat_gain）
+        q_sol: 外表面に外から直接入る熱, W/m2（surface_radiation.get_solar_heat_gain）
         q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
     """
 

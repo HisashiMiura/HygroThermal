@@ -8,6 +8,7 @@ import numpy as np
 from modules.balance import heat_residual_is, moisture_residual_is, ventilation_rate_is
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
+from modules.surface_radiation import get_solar_heat_gain
 from modules.thermo_dynamics import RW
 from modules.wall_geometry import WallGeometry
 from modules.wall_state import WallState
@@ -63,7 +64,7 @@ def step(
     """
 
     # 外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
-    q_sol = geometry.surface.solar_heat_gain(outdoor.solar)
+    q_sol = get_solar_heat_gain(geometry.surface, outdoor.solar)
 
     # 通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
     # 換気量は √|ρ_o - ρ_i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）

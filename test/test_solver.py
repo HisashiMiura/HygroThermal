@@ -6,6 +6,7 @@ from modules.boundary import IndoorBoundary, OutdoorBoundary, SolarRadiation
 from modules.newton import NewtonNotConverged
 from modules.solver import HEAT_RESIDUAL_TOL, MOISTURE_RESIDUAL_TOL, Condensation, step
 from modules.state import State
+from modules.surface_radiation import get_solar_heat_gain
 from modules.thermo_dynamics import ATP, GOFF, ROW_CP, RW, get_wp
 from modules.wall_builder import build_wall
 from modules.wall_geometry import AirNode, WallGeometry
@@ -178,7 +179,7 @@ class TestStep:
         g, state_a = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         state_b = state_a
         solar = SolarRadiation(sin_h=0.5, cos_h=3 ** 0.5 / 2, sin_a=0.0, cos_a=1.0, i_dn=600.0, i_sky=150.0, r_eff=40.0)
-        q_sol = g.surface.solar_heat_gain(solar)
+        q_sol = get_solar_heat_gain(g.surface, solar)
         assert q_sol > 0.0
 
         # 外表面の熱伝達率 α_o, W/(m2 K)（外気と質点 0 のつながりの熱抵抗の逆数）

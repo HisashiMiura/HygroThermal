@@ -31,7 +31,7 @@ def _state_from_theta_rh(theta: float, rh: float) -> State:
 class SolarRadiation:
     """ある時刻の太陽の位置と、日射・夜間放射（壁の向きによらない値）。
 
-    壁面に当たる量は、壁の外表面（wall_geometry.Surface.solar_heat_gain）が向きと傾斜から求める。
+    壁面に当たる量は、surface_radiation.get_solar_heat_gainが向きと傾斜から求める。
     """
 
     # 太陽高度の正弦・余弦, -

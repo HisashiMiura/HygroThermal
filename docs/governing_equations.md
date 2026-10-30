@@ -280,7 +280,7 @@ $$
 | $\rho_w$ | 水の密度 | kg/m³ | `thermo_dynamics.ROW`（998） |
 | $q_k$ | つながりの熱の流れ | W/m² | `heat_flow_ks` |
 | $C_i$ | 質点の熱容量 | J/(m² K) | `heat_capacity` |
-| $q_{sol}$ | 外表面に外から直接入る熱（日射の吸収 − 夜間放射） | W/m² | `Surface.solar_heat_gain`、`q_sol` |
+| $q_{sol}$ | 外表面に外から直接入る熱（日射の吸収 − 夜間放射） | W/m² | `surface_radiation.get_solar_heat_gain`、`q_sol` |
 | $q_{v,i}$ | 壁 1 m² あたりの換気量 | m³/(m² s) | `ventilation_rate_is`、`q_v_is` |
 | $j_{vent,i}$ | 換気で入る水分 | kg/(m² s) | `j_vent_is`（`moisture_residual_is` の中） |
 | $q_{vent,i}$ | 換気で入る熱 | W/m² | `q_vent_is`（`heat_residual_is` の中） |
