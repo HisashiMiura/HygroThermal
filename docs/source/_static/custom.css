@@ -1,0 +1,43 @@
+/* 計算方法のサイトの見た目の調整 */
+
+/* 式の番号を、式と同じ行の右端に置く（MathJax の式が 1 行を占めて、番号が上の行に押し出されるのを防ぐ） */
+div.math {
+    display: flex;
+    align-items: center;
+}
+div.math mjx-container[display="true"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* 長い式は、はみ出さずに横に送って読めるようにする */
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 0.5em 0 !important;
+}
+div.math span.eqno {
+    order: 2;
+    flex: 0 0 auto;
+    float: none;
+    margin-left: 1em;
+}
+
+/* 記号及び添え字の一覧：「記号　：説明（単位）」を 2 列にそろえる */
+div.symbols dl {
+    display: grid;
+    grid-template-columns: max-content auto;
+    column-gap: 1.5em;
+    row-gap: 0.3em;
+    margin-bottom: 1.5em;
+}
+div.symbols dl dt {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    font-weight: normal !important;
+}
+div.symbols dl dd {
+    margin: 0 !important;
+}
+div.symbols dl dd p {
+    margin: 0 !important;
+}

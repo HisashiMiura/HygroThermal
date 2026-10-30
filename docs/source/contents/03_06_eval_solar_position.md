@@ -1,0 +1,140 @@
+# 太陽位置
+
+## 1 はじめに
+
+本節では、各時刻の太陽の位置（太陽高度と太陽方位角）の計算方法を定める。太陽の位置は、外表面に当たる日射の計算（外表面の日射・夜間放射の節）に使う。
+
+入力は次のとおりとする。
+
+1. 緯度 $\phi_{\mathrm{lat}}$, deg
+2. 経度 $\lambda_{\mathrm{lon}}$, deg
+3. ステップ $n$ の時刻 $t^n$, s（1 月 1 日 0 時からの経過時間）
+
+出力は次のとおりとする。
+
+1. ステップ $n$ の太陽高度の正弦 $\sin h_{\mathrm{sun}}^n$ と余弦 $\cos h_{\mathrm{sun}}^n$
+2. ステップ $n$ の太陽方位角の正弦 $\sin a_{\mathrm{sun}}^n$ と余弦 $\cos a_{\mathrm{sun}}^n$
+
+太陽高度と太陽方位角は、角度そのものではなく、正弦と余弦の組で求める。外表面に当たる日射の計算では、正弦と余弦だけを使うためである。
+
+## 2 記号及び添え字
+
+### 2.1 記号
+
+:::{container} symbols
+$a_{\mathrm{sun}}^n$
+: ：ステップ $n$ の太陽方位角。南を 0、西回りを正とする（rad）
+
+$d^n$
+: ：ステップ $n$ の通算日。1 月 1 日を 1 とする（d）
+
+$e^n$
+: ：ステップ $n$ の均時差（h）
+
+$h_{\mathrm{sun}}^n$
+: ：ステップ $n$ の太陽高度。地平線より下では負（rad）
+
+$t^n$
+: ：ステップ $n$ の時刻。1 月 1 日 0 時からの経過時間（s）
+
+$t_{\mathrm{m}}^n$
+: ：ステップ $n$ の、その日の標準時（日本の標準時）（h）
+
+$\delta^n$
+: ：ステップ $n$ の赤緯（rad）
+
+$\lambda_{\mathrm{lon}}$
+: ：経度。東経を正とする（deg）
+
+$\tau^n$
+: ：ステップ $n$ の時角（rad）
+
+$\phi_{\mathrm{lat}}$
+: ：緯度。北緯を正とする（deg）
+
+$\omega^n$
+: ：ステップ $n$ の日角（rad）
+:::
+
+### 2.2 添え字
+
+:::{container} symbols
+$n$
+: ：時刻のステップ
+:::
+
+## 3 通算日と標準時
+
+1 年は 365 日とし、2 年目以降も同じ暦を繰り返す。ステップ $n$ の通算日 $d^n$ と、その日の標準時 $t_{\mathrm{m}}^n$ は、式 {eq}`sp-day` と式 {eq}`sp-time` により計算される。
+
+$$
+d^n = \left\lfloor \frac{t^n \bmod (365 \times 86400)}{86400} \right\rfloor + 1
+$$ (sp-day)
+
+$$
+t_{\mathrm{m}}^n = \frac{t^n \bmod 86400}{3600}
+$$ (sp-time)
+
+ここで、 $\lfloor x \rfloor$ は $x$ を超えない最大の整数、 $x \bmod y$ は $x$ を $y$ で割った余りを表す。
+
+## 4 赤緯と均時差
+
+ステップ $n$ の日角 $\omega^n$ は、式 {eq}`sp-omega` により計算される。
+
+$$
+\omega^n = \frac{2 \pi d^n}{366}
+$$ (sp-omega)
+
+ステップ $n$ の赤緯 $\delta^n$ は、式 {eq}`sp-delta` により計算される。
+
+$$
+\begin{aligned}
+\delta^n = \ & 0.006322 - 0.405748 \cos(\omega^n + 0.153231) \\
+& - 0.005880 \cos(2 \omega^n + 0.207099) - 0.003233 \cos(3 \omega^n + 0.620129)
+\end{aligned}
+$$ (sp-delta)
+
+ステップ $n$ の均時差 $e^n$ は、式 {eq}`sp-eot` により計算される。
+
+$$
+\begin{aligned}
+e^n = \ & -0.000279 + 0.122772 \cos(\omega^n + 1.498311) \\
+& - 0.165458 \cos(2 \omega^n - 1.261546) - 0.005354 \cos(3 \omega^n - 1.157100)
+\end{aligned}
+$$ (sp-eot)
+
+## 5 時角
+
+ステップ $n$ の時角 $\tau^n$ は、式 {eq}`sp-tau` により計算される。経度 135 deg（日本の標準時の子午線）との経度の差の分だけ、太陽の南中の時刻がずれることを考える。
+
+$$
+\tau^n = \frac{\pi}{12} \left\lbrace \left( t_{\mathrm{m}}^n + e^n - 12 \right) + \frac{\lambda_{\mathrm{lon}} - 135}{15} \right\rbrace
+$$ (sp-tau)
+
+## 6 太陽高度と太陽方位角
+
+ステップ $n$ の太陽高度の正弦 $\sin h_{\mathrm{sun}}^n$ と余弦 $\cos h_{\mathrm{sun}}^n$ は、式 {eq}`sp-sinh` と式 {eq}`sp-cosh` により計算される。
+
+$$
+\sin h_{\mathrm{sun}}^n = \sin \phi_{\mathrm{lat}} \sin \delta^n + \cos \phi_{\mathrm{lat}} \cos \delta^n \cos \tau^n
+$$ (sp-sinh)
+
+$$
+\cos h_{\mathrm{sun}}^n = \sqrt{1 - \left( \sin h_{\mathrm{sun}}^n \right)^2}
+$$ (sp-cosh)
+
+太陽高度は $-\pi/2$ 以上 $\pi/2$ 以下とするので、余弦は 0 以上である。
+
+ステップ $n$ の太陽方位角の正弦 $\sin a_{\mathrm{sun}}^n$ と余弦 $\cos a_{\mathrm{sun}}^n$ は、式 {eq}`sp-sina` と式 {eq}`sp-cosa` により計算される。
+
+$$
+\sin a_{\mathrm{sun}}^n = \frac{\cos \delta^n \sin \tau^n}{\cos h_{\mathrm{sun}}^n}
+$$ (sp-sina)
+
+$$
+\cos a_{\mathrm{sun}}^n = \frac{\cos \delta^n \sin \phi_{\mathrm{lat}} \cos \tau^n - \sin \delta^n \cos \phi_{\mathrm{lat}}}{\cos h_{\mathrm{sun}}^n}
+$$ (sp-cosa)
+
+なお、太陽が天頂にある場合（ $\cos h_{\mathrm{sun}}^n = 0$ ）は、太陽方位角は定義されない。日本の緯度では、太陽が天頂に来ることはない。
+
+式 {eq}`sp-sinh`〜{eq}`sp-cosa` の三角関数に入れる緯度は、rad に換算した値とする。
