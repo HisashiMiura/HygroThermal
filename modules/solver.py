@@ -91,8 +91,8 @@ def step(
     except NewtonNotConverged as e:
 
         # 前の時刻に、相対湿度が 100% に近い質点の番号
-        rh_n_is = state_n.rh_is
-        i_wet_is = np.flatnonzero(rh_n_is >= CONDENSATION_RH)
+        rh_is_n = state_n.rh_is
+        i_wet_is = np.flatnonzero(rh_is_n >= CONDENSATION_RH)
 
         # 100% に近い質点がなければ、結露ではない理由で収束しなかったので、そのまま例外を出す
         if len(i_wet_is) == 0:
@@ -100,7 +100,7 @@ def step(
 
         # 100% に近い質点があれば、結露したとして、質点の番号・層の番号・相対湿度を伝える
         where = '、'.join(
-            f'質点 {i}（層 {geometry.nodes[i].layer_index}、{rh_n_is[i]:.3f}%）' for i in i_wet_is
+            f'質点 {i}（層 {geometry.nodes[i].layer_index}、{rh_is_n[i]:.3f}%）' for i in i_wet_is
         )
         raise Condensation(f'結露しました（相対湿度 100% 以下では水分の収支が合いません）：{where}。') from e
 

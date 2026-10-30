@@ -32,9 +32,9 @@ class TestSimulate:
         # 毎ステップ記録すると、記録は最初の状態 ＋ 10 個。最初の記録は最初の状態、最後の記録は最後の状態
         g, state_0 = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         result = simulate(g, state_0, dt=180.0, n_steps=10, boundaries_at=_constant(0.0, 80.0, 20.0, 50.0))
-        assert result.t_nis.shape == result.mu_nis.shape == (11, len(g.nodes))
+        assert result.t_is_ns.shape == result.mu_is_ns.shape == (len(g.nodes), 11)
         np.testing.assert_allclose(result.time_ns, 180.0 * np.arange(11))
-        np.testing.assert_array_equal(result.t_nis[0], state_0.t_is)
+        np.testing.assert_array_equal(result.t_is_ns[:, 0], state_0.t_is)
         np.testing.assert_array_equal(result.state(10).t_is, result.state_last.t_is)
         assert len(result.iterations_ns) == 10
         assert np.all(result.iterations_ns >= 1)
@@ -46,7 +46,7 @@ class TestSimulate:
         every_1 = simulate(g, state_0, dt=180.0, n_steps=10, boundaries_at=boundaries_at)
         every_3 = simulate(g, state_0, dt=180.0, n_steps=10, boundaries_at=boundaries_at, record_every=3)
         np.testing.assert_allclose(every_3.time_ns, [0.0, 540.0, 1080.0, 1620.0])
-        np.testing.assert_array_equal(every_3.t_nis, every_1.t_nis[[0, 3, 6, 9]])
+        np.testing.assert_array_equal(every_3.t_is_ns, every_1.t_is_ns[:, [0, 3, 6, 9]])
         np.testing.assert_array_equal(every_3.state_last.t_is, every_1.state_last.t_is)
 
     def test_time_of_boundaries(self):
@@ -73,7 +73,7 @@ class TestSimulate:
         # 0 ステップなら、最初の状態だけ
         g, state_0 = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         result = simulate(g, state_0, dt=180.0, n_steps=0, boundaries_at=_constant(0.0, 80.0, 20.0, 50.0))
-        assert result.t_nis.shape == (1, len(g.nodes))
+        assert result.t_is_ns.shape == (len(g.nodes), 1)
         assert result.state_last is state_0
 
     @pytest.mark.parametrize('kwargs, match', [

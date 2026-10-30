@@ -274,12 +274,12 @@ class TestMoistureResidual:
         g = _one_layer_geometry()
         t = 20.0 + ATP
         dt = 180.0
-        t_is, mu_n_is = _uniform(g, t, 50.0)
+        t_is, mu_is_n = _uniform(g, t, 50.0)
         _, mu_is = _uniform(g, t, 60.0)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=60.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=60.0))
-        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_n_is, dt=dt, outdoor=outdoor, indoor=indoor)
-        expected = (water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_is, mu_n_is)) / dt
+        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        expected = (water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_is, mu_is_n)) / dt
         np.testing.assert_allclose(res_is, expected)
         assert np.all(res_is > 0.0)
 
@@ -288,14 +288,14 @@ class TestMoistureResidual:
         g = _plywood_gw_geometry()
         n = len(g.nodes)
         dt = 180.0
-        t_n_is = np.linspace(5.0, 15.0, n) + ATP
-        mu_n_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(60.0, 80.0, n), t_n_is)])
+        t_is_n = np.linspace(5.0, 15.0, n) + ATP
+        mu_is_n = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(60.0, 80.0, n), t_is_n)])
         t_is = np.linspace(6.0, 16.0, n) + ATP
         mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(99.5, 70.0, n), t_is)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = moisture_residual_is(g, t_is, mu_is, t_n_is, mu_n_is, dt=dt, outdoor=outdoor, indoor=indoor)
-        storage = ((water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_n_is, mu_n_is)) / dt).sum()
+        res_is = moisture_residual_is(g, t_is, mu_is, t_is_n, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        storage = ((water_amount_is(g, t_is, mu_is) - water_amount_is(g, t_is_n, mu_is_n)) / dt).sum()
         j_ks = vapour_flow_ks(g, t_is, mu_is, outdoor, indoor) + liquid_flow_ks(g, t_is, mu_is, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (j_ks[0] - j_ks[-1]), rel=1e-9, abs=1e-18)
 
@@ -315,14 +315,14 @@ class TestHeatResidual:
         g = _plywood_gw_geometry()
         n = len(g.nodes)
         dt = 180.0
-        t_n_is = np.linspace(5.0, 15.0, n) + ATP
+        t_is_n = np.linspace(5.0, 15.0, n) + ATP
         t_is = np.linspace(6.0, 16.0, n) + ATP
         mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_n_is, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
         q_ks = heat_flow_ks(g, t_is, outdoor, indoor) + RW * vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
-        expected = heat_capacity_is(g, t_is, mu_is) * (t_is - t_n_is) / dt - (q_ks[:-1] - q_ks[1:])
+        expected = heat_capacity_is(g, t_is, mu_is) * (t_is - t_is_n) / dt - (q_ks[:-1] - q_ks[1:])
         np.testing.assert_allclose(res_is, expected)
 
     def test_latent_heat(self):
@@ -348,10 +348,10 @@ class TestHeatResidual:
         t_n = 20.0 + ATP
         t = t_n + 1.0
         t_is, mu_is = _uniform(g, t, 80.0)
-        t_n_is = np.full(len(g.nodes), t_n)
+        t_is_n = np.full(len(g.nodes), t_n)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=80.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=80.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_n_is, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
         c_is = heat_capacity_is(g, t_is, mu_is)
         np.testing.assert_allclose(res_is, c_is * 1.0 / dt, rtol=1e-9)
         assert np.all(c_is > np.array([node.heat_capacity_dry for node in g.nodes]))
@@ -361,12 +361,12 @@ class TestHeatResidual:
         g = _plywood_gw_geometry()
         n = len(g.nodes)
         dt = 180.0
-        t_n_is = np.linspace(5.0, 15.0, n) + ATP
+        t_is_n = np.linspace(5.0, 15.0, n) + ATP
         t_is = np.linspace(6.0, 18.0, n) + ATP
         mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + ATP, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + ATP, rh=50.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_n_is, dt=dt, outdoor=outdoor, indoor=indoor)
-        storage = (heat_capacity_is(g, t_is, mu_is) * (t_is - t_n_is) / dt).sum()
+        res_is = heat_residual_is(g, t_is, mu_is, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        storage = (heat_capacity_is(g, t_is, mu_is) * (t_is - t_is_n) / dt).sum()
         q_ks = heat_flow_ks(g, t_is, outdoor, indoor) + RW * vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (q_ks[0] - q_ks[-1]))

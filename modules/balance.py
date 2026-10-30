@@ -169,8 +169,8 @@ def moisture_residual_is(
         geometry: WallGeometry,
         t_is: np.ndarray,
         mu_is: np.ndarray,
-        t_n_is: np.ndarray,
-        mu_n_is: np.ndarray,
+        t_is_n: np.ndarray,
+        mu_is_n: np.ndarray,
         dt: float,
         outdoor: OutdoorBoundary,
         indoor: IndoorBoundary
@@ -185,8 +185,8 @@ def moisture_residual_is(
         geometry: 壁の形
         t_is: 各質点の次の時刻の温度（仮の値）, K, [i]
         mu_is: 各質点の次の時刻の水分化学ポテンシャル（仮の値）, J/kg, [i]
-        t_n_is: 各質点の前の時刻（ステップ n）の温度, K, [i]
-        mu_n_is: 各質点の前の時刻の水分化学ポテンシャル, J/kg, [i]
+        t_is_n: 各質点の前の時刻（ステップ n）の温度, K, [i]
+        mu_is_n: 各質点の前の時刻の水分化学ポテンシャル, J/kg, [i]
         dt: 時間刻み, s
         outdoor: 次の時刻の外気の境界条件
         indoor: 次の時刻の室内の境界条件
@@ -194,7 +194,7 @@ def moisture_residual_is(
 
     # 次の時刻と前の時刻の水分量, kg/m2, [i]
     w_is = water_amount_is(geometry, t_is, mu_is)
-    w_n_is = water_amount_is(geometry, t_n_is, mu_n_is)
+    w_is_n = water_amount_is(geometry, t_is_n, mu_is_n)
 
     # 各つながりの水分の流れ（水蒸気 + 液水）, kg/(m2 s), [k]（次の時刻の値で計算する：後退差分）
     j_ks = (vapour_flow_ks(geometry, t_is, mu_is, outdoor, indoor)
@@ -207,14 +207,14 @@ def moisture_residual_is(
     j_out_is = j_ks[1:]
 
     # たまる量 -（入ってくる水分 - 出ていく水分）
-    return (w_is - w_n_is) / dt - (j_in_is - j_out_is)
+    return (w_is - w_is_n) / dt - (j_in_is - j_out_is)
 
 
 def heat_residual_is(
         geometry: WallGeometry,
         t_is: np.ndarray,
         mu_is: np.ndarray,
-        t_n_is: np.ndarray,
+        t_is_n: np.ndarray,
         dt: float,
         outdoor: OutdoorBoundary,
         indoor: IndoorBoundary,
@@ -233,7 +233,7 @@ def heat_residual_is(
         geometry: 壁の形
         t_is: 各質点の次の時刻の温度（仮の値）, K, [i]
         mu_is: 各質点の次の時刻の水分化学ポテンシャル（仮の値）, J/kg, [i]
-        t_n_is: 各質点の前の時刻（ステップ n）の温度, K, [i]
+        t_is_n: 各質点の前の時刻（ステップ n）の温度, K, [i]
         dt: 時間刻み, s
         outdoor: 次の時刻の外気の境界条件
         indoor: 次の時刻の室内の境界条件
@@ -257,4 +257,4 @@ def heat_residual_is(
     q_sol_is[0] = q_sol
 
     # たまる量 -（入ってくる熱 - 出ていく熱 + 外から直接入る熱）
-    return c_is * (t_is - t_n_is) / dt - (q_in_is - q_out_is + q_sol_is)
+    return c_is * (t_is - t_is_n) / dt - (q_in_is - q_out_is + q_sol_is)

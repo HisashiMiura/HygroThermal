@@ -23,16 +23,17 @@ class SimulationResult:
     """時間を進めた結果。
 
     記録は最初の状態（経過時間 0）と、record_every ステップごとの状態（添え字 n は記録の番号）。
+    質点ごと・記録ごとの配列は、数式の T_i^n と同じ並び（下付きの i が先、上付きの n があと）で、形は [i, n]。
     """
 
     # 記録した時刻（計算を始めてからの経過時間）, s, [n]
     time_ns: np.ndarray
 
-    # 記録した時刻の各質点の温度, K, [n, i]
-    t_nis: np.ndarray
+    # 各質点の、記録した時刻の温度, K, [i, n]
+    t_is_ns: np.ndarray
 
-    # 記録した時刻の各質点の水分化学ポテンシャル, J/kg, [n, i]
-    mu_nis: np.ndarray
+    # 各質点の、記録した時刻の水分化学ポテンシャル, J/kg, [i, n]
+    mu_is_ns: np.ndarray
 
     # 各ステップのニュートン法の修正の回数, [ステップ]
     iterations_ns: np.ndarray
@@ -42,7 +43,7 @@ class SimulationResult:
 
     def state(self, n: int) -> WallState:
         """記録 n の壁の状態。"""
-        return WallState(t_is=self.t_nis[n], mu_is=self.mu_nis[n])
+        return WallState(t_is=self.t_is_ns[:, n], mu_is=self.mu_is_ns[:, n])
 
 
 def simulate(
@@ -90,12 +91,12 @@ def simulate(
     n_records = 1 + n_steps // record_every
 
     time_ns = np.empty(n_records)
-    t_nis = np.empty((n_records, len(state_0)))
-    mu_nis = np.empty((n_records, len(state_0)))
+    t_is_ns = np.empty((len(state_0), n_records))
+    mu_is_ns = np.empty((len(state_0), n_records))
     iterations_ns = np.empty(n_steps, dtype=int)
 
     # 最初の状態を記録する
-    time_ns[0], t_nis[0], mu_nis[0] = 0.0, state_0.t_is, state_0.mu_is
+    time_ns[0], t_is_ns[:, 0], mu_is_ns[:, 0] = 0.0, state_0.t_is, state_0.mu_is
 
     state = state_0
 
@@ -111,12 +112,12 @@ def simulate(
         # record_every ステップごとに記録する
         if (n + 1) % record_every == 0:
             r = (n + 1) // record_every
-            time_ns[r], t_nis[r], mu_nis[r] = time_end, state.t_is, state.mu_is
+            time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = time_end, state.t_is, state.mu_is
 
     return SimulationResult(
         time_ns=time_ns,
-        t_nis=t_nis,
-        mu_nis=mu_nis,
+        t_is_ns=t_is_ns,
+        mu_is_ns=mu_is_ns,
         iterations_ns=iterations_ns,
         state_last=state,
     )
