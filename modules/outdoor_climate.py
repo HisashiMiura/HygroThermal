@@ -16,7 +16,7 @@ import pandas as pd
 from modules import solar_position
 from modules.boundary import OutdoorBoundary, SolarRadiation
 from modules.thermo_dynamics import ATP, GOFF
-from modules.time_axis import HOURS_PER_YEAR, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_YEAR
+from modules.time_axis import HOURS_PER_YEAR, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 
 
 class RadiationKind(Enum):
@@ -234,15 +234,8 @@ class WeatherOutdoor:
     def _get_solar(self, time: float) -> SolarRadiation:
         """経過時間 time（s）の太陽の位置と、日射・夜間放射。太陽の位置は、その時刻で式から求める。"""
 
-        # 1 年の中での経過時間, s
-        time_in_year = time % SECONDS_PER_YEAR
-
-        # 通算日（1 月 1 日が 1）と、その日の時刻, h
-        d = int(time_in_year // SECONDS_PER_DAY) + 1
-        t = (time_in_year % SECONDS_PER_DAY) / SECONDS_PER_HOUR
-
         sin_h, cos_h, sin_a, cos_a = solar_position.get_solar_position(
-            d=d, t=t, phi_lon=np.radians(self.longitude), phi_lat=np.radians(self.latitude))
+            t=time, phi_lat=self.latitude, lambda_lon=self.longitude)
 
         return SolarRadiation(
             sin_h=float(sin_h),

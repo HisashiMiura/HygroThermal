@@ -145,12 +145,9 @@ class Weather:
 
         d = get_step_d(month=month, day=day)
 
-        phi_lon = np.radians(self.longitude)
-
-        phi_lat = np.radians(self.latitude)
-
+        # 太陽位置は、1 月 1 日 0 時からの経過時間, s で求める（solar_position を計算方法の文書に合わせて書き直したため）
         sin_h_d_t, cos_h_d_t, sin_a_d_t, cos_a_d_t = solar_position.get_solar_position(
-            d=d, t=t, phi_lon=phi_lon, phi_lat=phi_lat
+            t=((d - 1) * 24 + t) * 3600.0, phi_lat=self.latitude, lambda_lon=self.longitude
         )
 
         n = get_step_d_t(month=month, day=day, hour=hour)
