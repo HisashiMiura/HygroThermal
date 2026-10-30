@@ -1,6 +1,6 @@
 """室内の気候：経過時間から、室内の境界条件を作る（段階 6）。
 
-経過時間の起点は 1 月 1 日 0 時。1 年は 365 日（うるう年なし）で、2 年目以降も同じ周期で続く。
+経過時間の起点は 1 月 1 日 0 時、1 年は 365 日（time_axis.py）。
 今の room.Room（ステップ番号で配列から取り出す）は、置き換えが終わったら消す。
 """
 
@@ -9,12 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from modules.boundary import IndoorBoundary
-
-# 1 日, s
-SECONDS_PER_DAY = 86400.0
-
-# 1 年（365 日）, s
-SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY
+from modules.time_axis import SECONDS_PER_DAY, SECONDS_PER_YEAR
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,10 +53,10 @@ class CosineIndoor:
         """いちばん暑い時刻（1 月 1 日 0 時からの経過時間）, s。通算日 peak_day の 12 時。"""
         return (self.peak_day - 1 + 0.5) * SECONDS_PER_DAY
 
-    def theta(self, time: float) -> float:
-        """1 月 1 日 0 時からの経過時間 time（s）の室温, deg.C。"""
-        return self.theta_average + self.theta_amplitude * np.cos(2.0 * np.pi * (time - self.time_peak) / SECONDS_PER_YEAR)
-
-    def at(self, time: float) -> IndoorBoundary:
+    def get_indoor_boundary(self, time: float) -> IndoorBoundary:
         """1 月 1 日 0 時からの経過時間 time（s）の室内の境界条件。"""
-        return IndoorBoundary.from_theta_rh(theta=self.theta(time), rh=self.rh)
+
+        # 室温, deg.C
+        theta = self.theta_average + self.theta_amplitude * np.cos(2.0 * np.pi * (time - self.time_peak) / SECONDS_PER_YEAR)
+
+        return IndoorBoundary.from_theta_rh(theta=theta, rh=self.rh)

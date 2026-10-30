@@ -390,8 +390,9 @@ class Surface:
         cos_i = (np.cos(beta) * solar.sin_h
                  + np.sin(beta) * solar.cos_h * (solar.cos_a * np.cos(alpha) + solar.sin_a * np.sin(alpha)))
 
-        # 直達日射, W/m2（太陽が面の裏側にあれば 0）
-        i_d = max(solar.i_dn * cos_i, 0.0)
+        # 直達日射, W/m2（太陽が地平線の下か、面の裏側にあれば 0。
+        # 垂直の面では、地平線の下の太陽でも入射角の余弦が正になるので、太陽高度も確かめる）
+        i_d = solar.i_dn * cos_i if solar.sin_h > 0.0 and cos_i > 0.0 else 0.0
 
         # 天空に対する形態係数, -
         f_sky = (1.0 + np.cos(beta)) / 2.0
@@ -399,8 +400,12 @@ class Surface:
         # 天空日射, W/m2
         i_s = solar.i_sky * f_sky
 
+        # 水平面全天日射, W/m2（直達の分は、太陽が地平線の上にあるときだけ。
+        # 1 時間の値を一定として使うと、日の出・日の入りをまたぐ 1 時間では、太陽が地平線の下でも直達日射が残るため）
+        i_t = solar.i_dn * max(solar.sin_h, 0.0) + solar.i_sky
+
         # 地面の反射, W/m2（水平面全天日射 × アルベド × 地面に対する形態係数）
-        i_r = (solar.i_dn * solar.sin_h + solar.i_sky) * self.albedo * (1.0 - f_sky)
+        i_r = i_t * self.albedo * (1.0 - f_sky)
 
         return float(self.absorptance * (i_d + i_s + i_r) - self.emissivity * f_sky * solar.r_n)
 

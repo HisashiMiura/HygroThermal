@@ -1,7 +1,8 @@
 import pytest
 
 from modules.boundary import IndoorBoundary
-from modules.indoor_climate import SECONDS_PER_DAY, SECONDS_PER_YEAR, CosineIndoor
+from modules.indoor_climate import CosineIndoor
+from modules.time_axis import SECONDS_PER_DAY, SECONDS_PER_YEAR
 
 # 今の Python 版の既定値（平均 22.5 deg.C、振幅 4.5 K、相対湿度 60%）
 _INDOOR = CosineIndoor(theta_average=22.5, theta_amplitude=4.5, rh=60.0)
@@ -15,33 +16,33 @@ class TestCosineIndoor:
     def test_peak(self):
         # 7 月 31 日 12 時に、平均 + 振幅
         assert _INDOOR.time_peak == _PEAK
-        assert _INDOOR.at(_PEAK).state.theta == pytest.approx(27.0)
+        assert _INDOOR.get_indoor_boundary(_PEAK).state.theta == pytest.approx(27.0)
 
     def test_bottom(self):
         # 極大の半年後に、平均 - 振幅
-        assert _INDOOR.at(_PEAK + SECONDS_PER_YEAR / 2).state.theta == pytest.approx(18.0)
+        assert _INDOOR.get_indoor_boundary(_PEAK + SECONDS_PER_YEAR / 2).state.theta == pytest.approx(18.0)
 
     def test_average(self):
         # 極大の 1/4 年前と 1/4 年後は、年平均
-        assert _INDOOR.theta(_PEAK - SECONDS_PER_YEAR / 4) == pytest.approx(22.5)
-        assert _INDOOR.theta(_PEAK + SECONDS_PER_YEAR / 4) == pytest.approx(22.5)
+        assert _INDOOR.get_indoor_boundary(_PEAK - SECONDS_PER_YEAR / 4).state.theta == pytest.approx(22.5)
+        assert _INDOOR.get_indoor_boundary(_PEAK + SECONDS_PER_YEAR / 4).state.theta == pytest.approx(22.5)
 
     def test_period(self):
         # 365 日後（2 年目の同じ時刻）は同じ値
         time = 40.3 * SECONDS_PER_DAY
-        assert _INDOOR.theta(time + SECONDS_PER_YEAR) == pytest.approx(_INDOOR.theta(time))
+        assert _INDOOR.get_indoor_boundary(time + SECONDS_PER_YEAR).state.theta == pytest.approx(_INDOOR.get_indoor_boundary(time).state.theta)
 
     def test_rh(self):
         # 相対湿度はいつでも一定。返すのは室内の境界条件
         for time in (0.0, _PEAK, 300.0 * SECONDS_PER_DAY):
-            indoor = _INDOOR.at(time)
+            indoor = _INDOOR.get_indoor_boundary(time)
             assert isinstance(indoor, IndoorBoundary)
             assert indoor.state.rh == pytest.approx(60.0)
 
     def test_peak_day(self):
         # いちばん暑い日を変えると、その日の 12 時が極大
         indoor = CosineIndoor(theta_average=20.0, theta_amplitude=5.0, rh=50.0, peak_day=1)
-        assert indoor.theta(0.5 * SECONDS_PER_DAY) == pytest.approx(25.0)
+        assert indoor.get_indoor_boundary(0.5 * SECONDS_PER_DAY).state.theta == pytest.approx(25.0)
 
     @pytest.mark.parametrize('kwargs, match', [
         ({'theta_amplitude': -1.0}, 'theta_amplitude'),

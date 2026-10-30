@@ -453,6 +453,13 @@ class TestSolarHeatGain:
         q = _surface(Direction.BOTTOM, 180.0).solar_heat_gain(_sun(30.0, 0.0, i_dn=600.0, i_sky=150.0, r_n=40.0))
         assert q == pytest.approx(0.8 * (600.0 * 0.5 + 150.0) * 0.2)
 
+    def test_sun_below_horizon(self):
+        # 太陽が地平線の下（高度 -5 度）で直達日射が残っていても（1 時間の値を一定に使う日の出の前など）、
+        # 直達も、地面の反射の直達の分も 0 で、地面の反射が負にならない。
+        # 垂直の面では、地平線の下の太陽でも入射角の余弦が正（cos 5°）になるので、それだけでは 0 にならない
+        q = _surface(Direction.S, 90.0).solar_heat_gain(_sun(-5.0, 0.0, i_dn=300.0, i_sky=50.0))
+        assert q == pytest.approx(0.8 * (50.0 * 0.5 + 50.0 * 0.2 * 0.5))
+
     def test_night(self):
         # 夜（日射 0）の垂直の壁：夜間放射の半分（天空の形態係数 0.5）× 放射率だけ熱が出ていく
         q = _surface(Direction.N, 90.0).solar_heat_gain(_sun(-10.0, 0.0, i_dn=0.0, i_sky=0.0, r_n=60.0))
