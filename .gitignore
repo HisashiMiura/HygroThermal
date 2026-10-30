@@ -5,3 +5,6 @@ docs/reference/papers/
 # 材料物性レビューのレポートは Markdown と図だけを入れる（PDF は作らない）
 docs/reference/material_review/*.pdf
 *.egg-info/
+
+# 例のスクリプトが書き出す結果（図・数値）
+examples/output/
