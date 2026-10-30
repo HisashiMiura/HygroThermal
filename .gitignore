@@ -8,3 +8,6 @@ docs/reference/material_review/*.pdf
 
 # 例のスクリプトが書き出す結果（図・数値）
 examples/output/
+
+# 計算方法のサイト（Sphinx が作るもの）
+docs/build/
