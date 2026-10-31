@@ -37,13 +37,13 @@ class TestInstant:
         # ちょうどの時刻は、その行の値
         w = _weather(RadiationKind.INSTANT)
         assert w.get_outdoor_boundary(12 * _H).state.theta == pytest.approx(0.012)
-        assert w._get_solar(12 * _H).i_dn == pytest.approx(12.0)
+        assert w.get_outdoor_boundary(12 * _H).solar.i_dn == pytest.approx(12.0)
 
     def test_between(self):
         # 11 時 30 分は、11 時と 12 時の行の平均（気温も日射も直線で補う）
         w = _weather(RadiationKind.INSTANT)
         assert w.get_outdoor_boundary(11.5 * _H).state.theta == pytest.approx(0.0115)
-        assert w._get_solar(11.5 * _H).i_dn == pytest.approx(11.5)
+        assert w.get_outdoor_boundary(11.5 * _H).solar.i_dn == pytest.approx(11.5)
 
     def test_new_year(self):
         # 12 月 31 日 23 時 30 分は、最後の行と最初の行の平均。365 日後は同じ値（2 年目も同じデータを繰り返す）
@@ -58,24 +58,24 @@ class TestInterval:
     @pytest.mark.parametrize('hour', [11.0 + 1 / 3600, 11.5, 12.0])
     def test_before(self, hour):
         # 「h 時」の欄が h - 1 〜 h 時の値：11 時 00 分 01 秒〜12 時 00 分 00 秒は、どれも 12 時の欄の値
-        s = _weather(RadiationKind.INTERVAL, RadiationInterval.BEFORE)._get_solar(hour * _H)
+        s = _weather(RadiationKind.INTERVAL, RadiationInterval.BEFORE).get_outdoor_boundary(hour * _H).solar
         assert (s.i_dn, s.i_sky, s.r_eff) == (12.0, 24.0, -12.0)
 
     def test_before_next(self):
         # 12 時 00 分 01 秒からは 13 時の欄の値
-        assert _weather(RadiationKind.INTERVAL)._get_solar(12 * _H + 1.0).i_dn == 13.0
+        assert _weather(RadiationKind.INTERVAL).get_outdoor_boundary(12 * _H + 1.0).solar.i_dn == 13.0
 
     @pytest.mark.parametrize('hour, expected', [(11.5 + 1 / 3600, 12.0), (12.0, 12.0), (12.5, 12.0), (12.5 + 1 / 3600, 13.0)])
     def test_centered(self, hour, expected):
         # 「h 時」の欄が h - 0.5 〜 h + 0.5 時の値：11 時 30 分 01 秒〜12 時 30 分 00 秒は 12 時の欄の値
         w = _weather(RadiationKind.INTERVAL, RadiationInterval.CENTERED)
-        assert w._get_solar(hour * _H).i_dn == expected
+        assert w.get_outdoor_boundary(hour * _H).solar.i_dn == expected
 
     @pytest.mark.parametrize('hour, expected', [(12.0 + 1 / 3600, 12.0), (12.5, 12.0), (13.0, 12.0), (13.0 + 1 / 3600, 13.0)])
     def test_after(self, hour, expected):
         # 「h 時」の欄が h 〜 h + 1 時の値：12 時 00 分 01 秒〜13 時 00 分 00 秒は 12 時の欄の値
         w = _weather(RadiationKind.INTERVAL, RadiationInterval.AFTER)
-        assert w._get_solar(hour * _H).i_dn == expected
+        assert w.get_outdoor_boundary(hour * _H).solar.i_dn == expected
 
     def test_temperature_is_instant(self):
         # 日射が 1 時間の値でも、気温は瞬時値として直線で補う
@@ -85,14 +85,14 @@ class TestInterval:
         # 1 月 1 日の直達日射を 3 分刻み（ステップの終わりの時刻の値）で足し合わせると、1〜24 時の欄の合計 × 1 時間と一致する
         w = _weather(RadiationKind.INTERVAL)
         dt = 180.0
-        total = sum(w._get_solar((n + 1) * dt).i_dn * dt for n in range(int(24 * _H / dt)))
+        total = sum(w.get_outdoor_boundary((n + 1) * dt).solar.i_dn * dt for n in range(int(24 * _H / dt)))
         assert total == pytest.approx(sum(range(1, 25)) * _H)
 
     def test_new_year(self):
         # BEFORE では、1 月 1 日 0 時の欄は前の年の 12 月 31 日 23〜24 時の値（2 年目の 0 時ちょうども同じ欄）
         w = _weather(RadiationKind.INTERVAL)
-        assert w._get_solar(SECONDS_PER_YEAR - 0.5 * _H).i_dn == 0.0
-        assert w._get_solar(SECONDS_PER_YEAR).i_dn == 0.0
+        assert w.get_outdoor_boundary(SECONDS_PER_YEAR - 0.5 * _H).solar.i_dn == 0.0
+        assert w.get_outdoor_boundary(SECONDS_PER_YEAR).solar.i_dn == 0.0
 
 
 class TestAt:
@@ -109,7 +109,7 @@ class TestAt:
     def test_sun(self):
         # 1 月 1 日の正午ごろは太陽が南の空にあり、真夜中は地平線の下
         w = _weather(RadiationKind.INTERVAL)
-        noon, midnight = w._get_solar(12 * _H), w._get_solar(0.0)
+        noon, midnight = w.get_outdoor_boundary(12 * _H).solar, w.get_outdoor_boundary(0.0).solar
         assert noon.sin_h > 0.4
         assert abs(noon.sin_a) < 0.2 and noon.cos_a > 0.9
         assert midnight.sin_h < 0.0
@@ -135,7 +135,7 @@ class TestFromCsv:
         # 1 月 1 日 12 時の気温は CSV の 12 時の行、11 時 30 分の直達日射は 12 時の行（MJ/(m2 h) を W/m2 に直したもの）
         d = pd.read_csv(_CSV, encoding='shift_jis')
         assert weather.get_outdoor_boundary(12 * _H).state.theta == pytest.approx(d['気温'][12])
-        assert weather._get_solar(11.5 * _H).i_dn == pytest.approx(d['法線面直達日射量'][12] * 1e6 / 3600)
+        assert weather.get_outdoor_boundary(11.5 * _H).solar.i_dn == pytest.approx(d['法線面直達日射量'][12] * 1e6 / 3600)
 
     def test_no_clamp(self, weather):
         # 今のデータには、相対湿度が 100% を超える行はない

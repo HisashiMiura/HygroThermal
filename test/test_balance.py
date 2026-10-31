@@ -311,7 +311,7 @@ class TestHeatResidual:
         np.testing.assert_allclose(res_is, 0.0, atol=1e-12)
 
     def test_formula(self):
-        # 残差 = C_i (T_i - T_i^n)/Δt -（(q + r j_v)_入 -（q + r j_v)_出）を、別に計算した値と比べる
+        # 残差 = C_i (T_i - T_i,n)/Δt -（(q + r j_v)_入 -（q + r j_v)_出）を、別に計算した値と比べる
         g = _plywood_gw_geometry()
         n = len(g.nodes)
         dt = 180.0

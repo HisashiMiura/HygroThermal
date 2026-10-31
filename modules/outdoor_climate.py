@@ -2,7 +2,7 @@
 
 各値のコメントは、1 行目に「名前 記号, 単位」（無次元は -）、2 行目に「式 (k)」と補足を書く。
 コメントの「式 (k)」は、計算方法の文書の外気の条件の節（docs/source/contents/03_07_eval_outdoor.md）の式の番号。
-変数の名前は、その節の記号に合わせる。ステップ n の値には、記号と同じく _n を付ける（例：t_y^n は t_y_n）。
+変数の名前は、その節の記号に合わせる。ステップ n の値には、記号と同じく _n を付ける（例：t_y,n は t_y_n）。
 経過時間の起点は 1 月 1 日 0 時、1 年は 365 日（time_axis.py）。2 年目以降も同じデータを繰り返す。
 日射・夜間放射の値がどの時刻の値かは、データによって違うので設定で受け取る（その節の 6 節）。
 今の weather.Weather・OutdoorCondition は、置き換えが終わったら消す。風・雨は段階 7 で足す。
@@ -187,98 +187,109 @@ class WeatherOutdoor:
         # 3 節の表
         f_u = radiation_unit.value
 
+        # 法線面直達日射量 I_dn,h, W/m2, [h]
+        # 式 (2)。気象データに書かれた値 Î_dn,h に f_u を掛ける
+        i_dn_hs = f_u * d['法線面直達日射量'].to_numpy(dtype=float)
+
+        # 水平面天空日射量 I_sky,h, W/m2, [h]
+        # 式 (3)。気象データに書かれた値 Î_sky,h に f_u を掛ける
+        i_sky_hs = f_u * d['水平面天空日射量'].to_numpy(dtype=float)
+
+        # 夜間放射量 R_eff,h, W/m2, [h]
+        # 式 (4)。気象データに書かれた値 R̂_eff,h に f_u を掛ける
+        r_eff_hs = f_u * d['夜間放射'].to_numpy(dtype=float)
+
         return cls(
             latitude=latitude,
             longitude=longitude,
             theta_hs=theta_ex_hs,
             p_v_hs=p_v_ex_hs,
-            # 法線面直達日射量 I_dn,h, W/m2, [h]：式 (2)
-            i_dn_hs=f_u * d['法線面直達日射量'].to_numpy(dtype=float),
-            # 水平面天空日射量 I_sky,h, W/m2, [h]：式 (3)
-            i_sky_hs=f_u * d['水平面天空日射量'].to_numpy(dtype=float),
-            # 夜間放射量 R_eff,h, W/m2, [h]：式 (4)
-            r_eff_hs=f_u * d['夜間放射'].to_numpy(dtype=float),
+            i_dn_hs=i_dn_hs,
+            i_sky_hs=i_sky_hs,
+            r_eff_hs=r_eff_hs,
             radiation_kind=radiation_kind,
             radiation_interval=radiation_interval,
             n_rh_clamped=int(over_hs.sum()),
         )
 
-    def _get_instant(self, x_hs: np.ndarray, t_n: float) -> float:
+    def _get_instant(self, x_hs: np.ndarray, t_y_n: float) -> float:
         """瞬時値の並び x_hs の、ステップ n の値（前後の行の間を直線で補う。最後の行の次は最初の行）。
 
         Args:
             x_hs: 行 h の値 X_h, [h]
-            t_n: ステップ n の時刻 t^n（1 月 1 日 0 時からの経過時間）, s
+            t_y_n: ステップ n の、1 年の中での時刻 t_y,n（式 (5)）, h
 
         Returns:
-            ステップ n の値 X^n
+            ステップ n の値 X_n
+
+        Notes:
+            計算方法の文書の外気の条件の節の 5 節「瞬時値の補い方」の式 (6)〜(9) に対応する。
         """
 
-        # 1 年の中での時刻 t_y^n, h
-        # 式 (5)。2 年目以降も同じデータを繰り返す
-        t_y_n = (t_n % SECONDS_PER_YEAR) / SECONDS_PER_HOUR
-
-        # 前の行の番号 h_0^n, -
-        # 式 (6)。丸めの誤差で t_y^n が 8760 になっても行の外に出ないように、8760 で割った余りをとる
+        # 前の行の番号 h_0,n, -
+        # 式 (6)。丸めの誤差で t_y,n が 8760 になっても行の外に出ないように、8760 で割った余りをとる
         h_0_n = int(math.floor(t_y_n)) % HOURS_PER_YEAR
 
-        # 次の行の番号 h_1^n, -
+        # 次の行の番号 h_1,n, -
         # 式 (7)
         h_1_n = (h_0_n + 1) % HOURS_PER_YEAR
 
-        # 前の行の時刻から測った割合 f^n, -
+        # 前の行の時刻から測った割合 f_n, -
         # 式 (8)
         f_n = t_y_n - math.floor(t_y_n)
 
-        # ステップ n の値 X^n
+        # ステップ n の値 X_n
         # 式 (9)
         x_n = float(x_hs[h_0_n] + f_n * (x_hs[h_1_n] - x_hs[h_0_n]))
 
         return x_n
 
-    def _get_interval(self, x_hs: np.ndarray, t_n: float) -> float:
+    def _get_interval(self, x_hs: np.ndarray, t_y_n: float) -> float:
         """1 時間の値の並び x_hs の、ステップ n の時刻を含む 1 時間の値（区間は始まりを含まず、終わりを含む）。
 
         Args:
             x_hs: 行 h の値 X_h, [h]
-            t_n: ステップ n の時刻 t^n（1 月 1 日 0 時からの経過時間）, s
+            t_y_n: ステップ n の、1 年の中での時刻 t_y,n（式 (5)）, h
 
         Returns:
-            ステップ n の値 X^n
+            ステップ n の値 X_n
+
+        Notes:
+            計算方法の文書の外気の条件の節の 6 節「1 時間の値の取り出し方」の式 (10)・(11) に対応する。
         """
 
-        # 1 年の中での時刻 t_y^n, h
-        # 式 (5)。丸めの誤差で、ちょうどの時刻が次の 1 時間に入らないように、ごく小さく引いてから切り上げる
-        t_y_n = (t_n % SECONDS_PER_YEAR) / SECONDS_PER_HOUR - 1.0e-9
+        # 切り上げに使う、1 年の中での時刻, h
+        # 丸めの誤差で、ちょうどの時刻が次の 1 時間に入らないように、ごく小さく引いておく（文書の式にはない、計算の都合）
+        t_y_n_ceil = t_y_n - 1.0e-9
 
-        # ステップ n の時刻を含む 1 時間の値が書かれた行の番号 h_I^n, -
+        # ステップ n の時刻を含む 1 時間の値が書かれた行の番号 h_I,n, -
         # 式 (10)
         match self.radiation_interval:
 
             # 前：h - 1 〜 h 時。時刻を含む 1 時間の終わりの時刻の行
             case RadiationInterval.BEFORE:
-                h_i_n = math.ceil(t_y_n) % HOURS_PER_YEAR
+                h_i_n = math.ceil(t_y_n_ceil) % HOURS_PER_YEAR
 
             # 中央：h - 0.5 〜 h + 0.5 時。30 分ずらして同じように数える
             case RadiationInterval.CENTERED:
-                h_i_n = math.ceil(t_y_n - 0.5) % HOURS_PER_YEAR
+                h_i_n = math.ceil(t_y_n_ceil - 0.5) % HOURS_PER_YEAR
 
             # 後：h 〜 h + 1 時。時刻を含む 1 時間の始まりの時刻の行
             case RadiationInterval.AFTER:
-                h_i_n = (math.ceil(t_y_n) - 1) % HOURS_PER_YEAR
+                h_i_n = (math.ceil(t_y_n_ceil) - 1) % HOURS_PER_YEAR
 
-        # ステップ n の値 X^n
+        # ステップ n の値 X_n
         # 式 (11)
         x_n = float(x_hs[h_i_n])
 
         return x_n
 
-    def _get_radiation(self, x_hs: np.ndarray, t_n: float) -> float:
-        """日射・夜間放射の並び x_hs の、ステップ n の値（値の種類に合わせて、式 (9) か式 (11) で求める）。
+    def _get_radiation(self, x_hs: np.ndarray, t_y_n: float) -> float:
+        """日射・夜間放射の並び x_hs の、ステップ n の値（値の種類に合わせて、式 (6)〜(9) か式 (10)・(11) で求める）。
 
         Args:
             x_hs: 行 h の日射・夜間放射, W/m2, [h]
-            t_n: ステップ n の時刻 t^n（1 月 1 日 0 時からの経過時間）, s
+            t_y_n: ステップ n の、1 年の中での時刻 t_y,n（式 (5)）, h
 
         Returns:
             ステップ n の日射・夜間放射, W/m2
@@ -286,21 +297,25 @@ class WeatherOutdoor:
 
         # 瞬時値なら直線で補い、1 時間の値なら、その 1 時間の中は一定
         if self.radiation_kind == RadiationKind.INSTANT:
-            return self._get_instant(x_hs, t_n)
-        return self._get_interval(x_hs, t_n)
+            return self._get_instant(x_hs, t_y_n)
+        return self._get_interval(x_hs, t_y_n)
 
-    def _get_solar(self, t_n: float) -> SolarRadiation:
+    def _get_solar(self, t_n: float, t_y_n: float) -> SolarRadiation:
         """ステップ n の太陽の位置と、日射・夜間放射。
 
         Args:
-            t_n: ステップ n の時刻 t^n（1 月 1 日 0 時からの経過時間）, s
+            t_n: ステップ n の時刻 t_n（1 月 1 日 0 時からの経過時間。太陽位置に使う）, s
+            t_y_n: ステップ n の、1 年の中での時刻 t_y,n（式 (5)。日射・夜間放射の行を探すのに使う）, h
 
         Returns:
             ステップ n の太陽の位置（太陽位置の節の式で求める）と、日射・夜間放射
+
+        Notes:
+            計算方法の文書の外気の条件の節の 8 節「太陽の位置」と、7 節の日射・夜間放射に対応する。
         """
 
-        # 太陽高度・太陽方位角の正弦と余弦 sin h_sun^n・cos h_sun^n・sin a_sun^n・cos a_sun^n, -
-        # 太陽位置の節
+        # 太陽高度・太陽方位角の正弦と余弦 sin h_sun,n・cos h_sun,n・sin a_sun,n・cos a_sun,n, -
+        # 8 節。太陽位置の節の方法で、t_y,n ではなく t_n から求める
         sin_h_sun_n, cos_h_sun_n, sin_a_sun_n, cos_a_sun_n = solar_position.get_solar_position(
             t_n=t_n, phi_lat=self.latitude, lambda_lon=self.longitude)
 
@@ -309,34 +324,38 @@ class WeatherOutdoor:
             cos_h=cos_h_sun_n,
             sin_a=sin_a_sun_n,
             cos_a=cos_a_sun_n,
-            # 法線面直達日射量 I_dn^n, W/m2：式 (9) か式 (11)
-            i_dn=self._get_radiation(self.i_dn_hs, t_n),
-            # 水平面天空日射量 I_sky^n, W/m2：式 (9) か式 (11)
-            i_sky=self._get_radiation(self.i_sky_hs, t_n),
-            # 夜間放射量 R_eff^n, W/m2：式 (9) か式 (11)
-            r_eff=self._get_radiation(self.r_eff_hs, t_n),
+            # 法線面直達日射量 I_dn,n, W/m2：式 (6)〜(9) か式 (10)・(11)
+            i_dn=self._get_radiation(self.i_dn_hs, t_y_n),
+            # 水平面天空日射量 I_sky,n, W/m2：式 (6)〜(9) か式 (10)・(11)
+            i_sky=self._get_radiation(self.i_sky_hs, t_y_n),
+            # 夜間放射量 R_eff,n, W/m2：式 (6)〜(9) か式 (10)・(11)
+            r_eff=self._get_radiation(self.r_eff_hs, t_y_n),
         )
 
     def get_outdoor_boundary(self, t_n: float) -> OutdoorBoundary:
         """ステップ n の外気の境界条件（太陽の位置と日射・夜間放射を含む）。
 
         Args:
-            t_n: ステップ n の時刻 t^n（1 月 1 日 0 時からの経過時間）, s
+            t_n: ステップ n の時刻 t_n（1 月 1 日 0 時からの経過時間）, s
 
         Returns:
             ステップ n の外気の境界条件
         """
 
-        # 外気の温度 θ_ex^n, deg.C
-        # 式 (9)（瞬時値）
-        theta_ex_n = self._get_instant(self.theta_hs, t_n)
+        # 1 年の中での時刻 t_y,n, h
+        # 式 (5)。2 年目以降も同じデータを繰り返す
+        t_y_n = (t_n % SECONDS_PER_YEAR) / SECONDS_PER_HOUR
 
-        # 外気の水蒸気圧 p_v,ex^n, Pa
-        # 式 (9)（瞬時値）
-        p_v_ex_n = self._get_instant(self.p_v_hs, t_n)
+        # 外気の温度 θ_ex,n, deg.C
+        # 式 (6)〜(9)（瞬時値）
+        theta_ex_n = self._get_instant(self.theta_hs, t_y_n)
 
-        # 外気の相対湿度 φ_ex^n, %
+        # 外気の水蒸気圧 p_v,ex,n, Pa
+        # 式 (6)〜(9)（瞬時値）
+        p_v_ex_n = self._get_instant(self.p_v_hs, t_y_n)
+
+        # 外気の相対湿度 φ_ex,n, %
         # 式 (12)。行の間を補った時刻でも 100% を超えないようにする
         rh_ex_n = min(100.0 * p_v_ex_n / GOFF(theta_ex_n + ATP)[1], 100.0)
 
-        return OutdoorBoundary.from_theta_rh(theta=theta_ex_n, rh=rh_ex_n, solar=self._get_solar(t_n))
+        return OutdoorBoundary.from_theta_rh(theta=theta_ex_n, rh=rh_ex_n, solar=self._get_solar(t_n, t_y_n))
