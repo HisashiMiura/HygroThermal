@@ -21,8 +21,8 @@ def _weather(kind: RadiationKind, interval: RadiationInterval = RadiationInterva
     return WeatherOutdoor(
         latitude=36.7,
         longitude=137.21,
-        theta_hs=0.001 * h_hs,
-        p_v_hs=np.full(HOURS_PER_YEAR, 500.0),
+        theta_ex_hs=0.001 * h_hs,
+        p_v_ex_hs=np.full(HOURS_PER_YEAR, 500.0),
         i_dn_hs=h_hs,
         i_sky_hs=2.0 * h_hs,
         r_eff_hs=-h_hs,
@@ -116,9 +116,9 @@ class TestAt:
 
     def test_rh_not_over_100(self):
         # 行の間を補った時刻でも、相対湿度は 100% を超えない（どちらの行も飽和でも、間の時刻の飽和水蒸気圧は直線より低い）
-        theta_hs = np.where(np.arange(HOURS_PER_YEAR) % 2 == 0, 0.0, 20.0)
-        p_v_hs = np.array([GOFF(th + ATP)[1] for th in theta_hs])
-        w = WeatherOutdoor(latitude=36.7, longitude=137.21, theta_hs=theta_hs, p_v_hs=p_v_hs,
+        theta_ex_hs = np.where(np.arange(HOURS_PER_YEAR) % 2 == 0, 0.0, 20.0)
+        p_v_ex_hs = np.array([GOFF(th + ATP)[1] for th in theta_ex_hs])
+        w = WeatherOutdoor(latitude=36.7, longitude=137.21, theta_ex_hs=theta_ex_hs, p_v_ex_hs=p_v_ex_hs,
                            i_dn_hs=np.zeros(HOURS_PER_YEAR), i_sky_hs=np.zeros(HOURS_PER_YEAR),
                            r_eff_hs=np.zeros(HOURS_PER_YEAR), radiation_kind=RadiationKind.INTERVAL)
         assert w.get_outdoor_boundary(0.5 * _H).state.rh == pytest.approx(100.0)
@@ -143,7 +143,7 @@ class TestFromCsv:
 
     def test_readonly(self, weather):
         with pytest.raises(ValueError):
-            weather.theta_hs[0] = 99.0
+            weather.theta_ex_hs[0] = 99.0
 
     def test_clamp(self, tmp_path):
         # 相対湿度が 100% を超える行は、水蒸気圧を飽和水蒸気圧に丸め、行の数を数える
@@ -166,12 +166,12 @@ class TestInvalid:
         ({'latitude': 137.21}, 'latitude'),
         ({'longitude': 200.0}, 'longitude'),
         ({'radiation_kind': 'interval'}, 'radiation_kind'),
-        ({'theta_hs': np.zeros(10)}, 'theta_hs'),
+        ({'theta_ex_hs': np.zeros(10)}, 'theta_ex_hs'),
         ({'i_dn_hs': np.full(HOURS_PER_YEAR, -1.0)}, '日射量'),
     ])
     def test_invalid(self, kwargs, match):
-        args = {'latitude': 36.7, 'longitude': 137.21, 'theta_hs': np.zeros(HOURS_PER_YEAR),
-                'p_v_hs': np.full(HOURS_PER_YEAR, 500.0), 'i_dn_hs': np.zeros(HOURS_PER_YEAR),
+        args = {'latitude': 36.7, 'longitude': 137.21, 'theta_ex_hs': np.zeros(HOURS_PER_YEAR),
+                'p_v_ex_hs': np.full(HOURS_PER_YEAR, 500.0), 'i_dn_hs': np.zeros(HOURS_PER_YEAR),
                 'i_sky_hs': np.zeros(HOURS_PER_YEAR), 'r_eff_hs': np.zeros(HOURS_PER_YEAR),
                 'radiation_kind': RadiationKind.INTERVAL} | kwargs
         with pytest.raises(ValueError, match=match):

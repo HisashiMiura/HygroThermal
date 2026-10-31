@@ -81,25 +81,25 @@ class WeatherOutdoor:
     numpy の配列どうしの == は True/False の配列を返すので、自動の == は作らない（eq=False）。
     """
 
-    # 緯度, 度（北緯が正）
+    # 緯度 φ_lat, deg（北緯が正）
     latitude: float
 
-    # 経度, 度（東経が正）
+    # 経度 λ_lon, deg（東経が正）
     longitude: float
 
-    # 気温, deg.C, [h]
-    theta_hs: np.ndarray
+    # 行 h の外気の温度 θ_ex,h, deg.C, [h]
+    theta_ex_hs: np.ndarray
 
-    # 水蒸気圧, Pa, [h]（飽和水蒸気圧を超える行は、読み込むときに飽和水蒸気圧に丸めてある）
-    p_v_hs: np.ndarray
+    # 行 h の外気の水蒸気圧 p_v,ex,h, Pa, [h]（式 (1)。飽和水蒸気圧を超える行は、飽和水蒸気圧に丸めてある）
+    p_v_ex_hs: np.ndarray
 
-    # 法線面直達日射量, W/m2, [h]
+    # 行 h の法線面直達日射量 I_dn,h, W/m2, [h]
     i_dn_hs: np.ndarray
 
-    # 水平面天空日射量, W/m2, [h]
+    # 行 h の水平面天空日射量 I_sky,h, W/m2, [h]
     i_sky_hs: np.ndarray
 
-    # 夜間放射量（実効放射量）, W/m2, [h]（負の値もある）
+    # 行 h の夜間放射量（実効放射量） R_eff,h, W/m2, [h]（負の値もある）
     r_eff_hs: np.ndarray
 
     # 日射・夜間放射の値の種類
@@ -127,7 +127,7 @@ class WeatherOutdoor:
             raise ValueError(f'radiation_interval は RadiationInterval にしてください（{self.radiation_interval}）。')
 
         # frozen の dataclass の項目は、ふつうの代入ができないので、この書き方で写しに入れ直す
-        for name in ('theta_hs', 'p_v_hs', 'i_dn_hs', 'i_sky_hs', 'r_eff_hs'):
+        for name in ('theta_ex_hs', 'p_v_ex_hs', 'i_dn_hs', 'i_sky_hs', 'r_eff_hs'):
             object.__setattr__(self, name, _readonly_copy(getattr(self, name), name))
 
         # 日射量が負ならエラー（夜間放射は負の値もあるので確かめない）
@@ -202,8 +202,8 @@ class WeatherOutdoor:
         return cls(
             latitude=latitude,
             longitude=longitude,
-            theta_hs=theta_ex_hs,
-            p_v_hs=p_v_ex_hs,
+            theta_ex_hs=theta_ex_hs,
+            p_v_ex_hs=p_v_ex_hs,
             i_dn_hs=i_dn_hs,
             i_sky_hs=i_sky_hs,
             r_eff_hs=r_eff_hs,
@@ -348,11 +348,11 @@ class WeatherOutdoor:
 
         # 外気の温度 θ_ex,n, deg.C
         # 式 (6)〜(9)（瞬時値）
-        theta_ex_n = self._get_instant(self.theta_hs, t_y_n)
+        theta_ex_n = self._get_instant(self.theta_ex_hs, t_y_n)
 
         # 外気の水蒸気圧 p_v,ex,n, Pa
         # 式 (6)〜(9)（瞬時値）
-        p_v_ex_n = self._get_instant(self.p_v_hs, t_y_n)
+        p_v_ex_n = self._get_instant(self.p_v_ex_hs, t_y_n)
 
         # 外気の相対湿度 φ_ex,n, %
         # 式 (12)。行の間を補った時刻でも 100% を超えないようにする
