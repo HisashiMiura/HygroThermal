@@ -61,4 +61,6 @@ def get_solar_heat_gain(surface: Surface, solar_n: SolarRadiation) -> float:
 
     # 外表面に外から直接入る熱 q_sol^n, W/m2
     # 式 (7)
-    return float(surface.absorptance * (i_d_n + i_s_n + i_r_n) - surface.emissivity * f_sky * solar_n.r_eff)
+    q_sol_n = float(surface.absorptance * (i_d_n + i_s_n + i_r_n) - surface.emissivity * f_sky * solar_n.r_eff)
+
+    return q_sol_n
