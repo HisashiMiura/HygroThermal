@@ -63,12 +63,13 @@ def step(
         NewtonNotConverged: それ以外の理由で収束しなかったとき
     """
 
-    # 外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
-    q_sol = get_solar_heat_gain(geometry.surface, outdoor.solar)
+    # ステップ n + 1 の、外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
+    # 評価方法の外表面の日射・夜間放射の節のステップ n に、ここではステップ n + 1 の外気の値を入れる（後退差分）
+    q_sol_npls = get_solar_heat_gain(geometry.surface, outdoor.solar)
 
-    # 通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
+    # ステップ n の、通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
     # 換気量は √|ρ_o - ρ_i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
-    q_v_is = ventilation_rate_is(geometry, state_n.t_is, outdoor)
+    q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor)
 
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:
@@ -77,9 +78,9 @@ def step(
         t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
         res_h_is = heat_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor, indoor, q_sol, q_v_is) / HEAT_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor, indoor, q_sol_npls, q_v_is_n) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is_n) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         f_ps = np.empty(len(x_ps))

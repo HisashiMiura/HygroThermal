@@ -235,7 +235,7 @@ class WeatherOutdoor:
         """経過時間 time（s）の太陽の位置と、日射・夜間放射。太陽の位置は、その時刻で式から求める。"""
 
         sin_h, cos_h, sin_a, cos_a = solar_position.get_solar_position(
-            t=time, phi_lat=self.latitude, lambda_lon=self.longitude)
+            t_n=time, phi_lat=self.latitude, lambda_lon=self.longitude)
 
         return SolarRadiation(
             sin_h=float(sin_h),
