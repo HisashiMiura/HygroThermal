@@ -262,21 +262,21 @@ class WeatherOutdoor:
         # 丸めの誤差で、ちょうどの時刻が次の 1 時間に入らないように、ごく小さく引いておく（文書の式にはない、計算の都合）
         t_y_n_ceil = t_y_n - 1.0e-9
 
-        # ステップ n の時刻を含む 1 時間の値が書かれた行の番号 h_I,n, -
+        # ステップ n の時刻を含む 1 時間の値が書かれた行の番号 h_n, -
         # 式 (10)
         match self.radiation_interval:
 
             # 前：h - 1 〜 h 時。時刻を含む 1 時間の終わりの時刻の行
             case RadiationInterval.BEFORE:
-                h_i_n = math.ceil(t_y_n_ceil) % HOURS_PER_YEAR
+                h_n = math.ceil(t_y_n_ceil) % HOURS_PER_YEAR
 
             # 中央：h - 0.5 〜 h + 0.5 時。30 分ずらして同じように数える
             case RadiationInterval.CENTERED:
-                h_i_n = math.ceil(t_y_n_ceil - 0.5) % HOURS_PER_YEAR
+                h_n = math.ceil(t_y_n_ceil - 0.5) % HOURS_PER_YEAR
 
             # 後：h 〜 h + 1 時。時刻を含む 1 時間の始まりの時刻の行
             case RadiationInterval.AFTER:
-                h_i_n = (math.ceil(t_y_n_ceil) - 1) % HOURS_PER_YEAR
+                h_n = (math.ceil(t_y_n_ceil) - 1) % HOURS_PER_YEAR
 
             # 上のどれでもなければエラー（RadiationInterval に値を足して、ここを直し忘れたとき）
             case _:
@@ -284,7 +284,7 @@ class WeatherOutdoor:
 
         # ステップ n の値 X_n
         # 式 (11)
-        x_n = float(x_hs[h_i_n])
+        x_n = float(x_hs[h_n])
 
         return x_n
 

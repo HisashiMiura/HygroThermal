@@ -85,7 +85,7 @@ $f_{\mathrm{u}}$
 $h_{0,n}$, $h_{1,n}$
 : ：ステップ $n$ の時刻の前の行と次の行の番号（-）
 
-$h_{\mathrm{I},n}$
+$h_n$
 : ：ステップ $n$ の時刻を含む 1 時間の値が書かれた行の番号（-）
 
 $h_{\mathrm{sun},n}$
@@ -242,10 +242,10 @@ $$ (oc-instant)
 | 中央 | $h - 0.5$ 時 〜 $h + 0.5$ 時 |
 | 後 | $h$ 時 〜 $h + 1$ 時 |
 
-ステップ $n$ の時刻を含む 1 時間の値が書かれた行の番号 $h_{\mathrm{I},n}$ は、式 {eq}`oc-hi` により計算される。
+ステップ $n$ の時刻を含む 1 時間の値が書かれた行の番号 $h_n$ は、式 {eq}`oc-hi` により計算される。
 
 $$
-h_{\mathrm{I},n} =
+h_n =
 \begin{cases}
 \left\lceil t_{\mathrm{y},n} \right\rceil \bmod 8760 & (\text{前}) \\
 \left\lceil t_{\mathrm{y},n} - 0.5 \right\rceil \bmod 8760 & (\text{中央}) \\
@@ -256,7 +256,7 @@ $$ (oc-hi)
 1 時間の値のステップ $n$ の値 $X_n$ は、式 {eq}`oc-interval` により計算される。
 
 $$
-X_n = X_{h_{\mathrm{I},n}}
+X_n = X_{h_n}
 $$ (oc-interval)
 
 ## 7 ステップ n の外気の条件
