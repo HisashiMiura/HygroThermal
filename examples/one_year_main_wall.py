@@ -110,7 +110,7 @@ def run(dt: float, years: int) -> tuple[WallGeometry, SimulationResult, WeatherO
         radiation_interval=RadiationInterval.BEFORE,
         radiation_unit=RadiationUnit.MJ_PER_M2_H,
     )
-    indoor = CosineIndoor(theta_average=22.5, theta_amplitude=4.5, rh=60.0)
+    indoor = CosineIndoor(theta_in_ave=22.5, theta_in_amp=4.5, rh_in=60.0)
 
     def boundaries_at(time_s: float) -> Boundaries:
         return Boundaries(outdoor=weather.get_outdoor_boundary(time_s), indoor=indoor.get_indoor_boundary(time_s))

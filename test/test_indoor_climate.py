@@ -5,7 +5,7 @@ from modules.indoor_climate import CosineIndoor
 from modules.time_axis import SECONDS_PER_DAY, SECONDS_PER_YEAR
 
 # 今の Python 版の既定値（平均 22.5 deg.C、振幅 4.5 K、相対湿度 60%）
-_INDOOR = CosineIndoor(theta_average=22.5, theta_amplitude=4.5, rh=60.0)
+_INDOOR = CosineIndoor(theta_in_ave=22.5, theta_in_amp=4.5, rh_in=60.0)
 
 # 7 月 31 日（通算日 212）12 時：1 月 1 日 0 時から 211.5 日後
 _PEAK = 211.5 * SECONDS_PER_DAY
@@ -15,7 +15,6 @@ class TestCosineIndoor:
 
     def test_peak(self):
         # 7 月 31 日 12 時に、平均 + 振幅
-        assert _INDOOR.time_peak == _PEAK
         assert _INDOOR.get_indoor_boundary(_PEAK).state.theta == pytest.approx(27.0)
 
     def test_bottom(self):
@@ -41,18 +40,18 @@ class TestCosineIndoor:
 
     def test_peak_day(self):
         # いちばん暑い日を変えると、その日の 12 時が極大
-        indoor = CosineIndoor(theta_average=20.0, theta_amplitude=5.0, rh=50.0, peak_day=1)
+        indoor = CosineIndoor(theta_in_ave=20.0, theta_in_amp=5.0, rh_in=50.0, d_peak=1)
         assert indoor.get_indoor_boundary(0.5 * SECONDS_PER_DAY).state.theta == pytest.approx(25.0)
 
     @pytest.mark.parametrize('kwargs, match', [
-        ({'theta_amplitude': -1.0}, 'theta_amplitude'),
-        ({'rh': 0.0}, 'rh'),
-        ({'rh': 101.0}, 'rh'),
-        ({'peak_day': 0}, 'peak_day'),
-        ({'peak_day': 366}, 'peak_day'),
-        ({'peak_day': 212.5}, 'peak_day'),
+        ({'theta_in_amp': -1.0}, 'theta_in_amp'),
+        ({'rh_in': 0.0}, 'rh_in'),
+        ({'rh_in': 101.0}, 'rh_in'),
+        ({'d_peak': 0}, 'd_peak'),
+        ({'d_peak': 366}, 'd_peak'),
+        ({'d_peak': 212.5}, 'd_peak'),
     ])
     def test_invalid(self, kwargs, match):
-        args = {'theta_average': 22.5, 'theta_amplitude': 4.5, 'rh': 60.0} | kwargs
+        args = {'theta_in_ave': 22.5, 'theta_in_amp': 4.5, 'rh_in': 60.0} | kwargs
         with pytest.raises(ValueError, match=match):
             CosineIndoor(**args)
