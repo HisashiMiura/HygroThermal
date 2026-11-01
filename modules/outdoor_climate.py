@@ -278,6 +278,10 @@ class WeatherOutdoor:
             case RadiationInterval.AFTER:
                 h_i_n = (math.ceil(t_y_n_ceil) - 1) % HOURS_PER_YEAR
 
+            # 上のどれでもなければエラー（RadiationInterval に値を足して、ここを直し忘れたとき）
+            case _:
+                raise ValueError(f'radiation_interval の {self.radiation_interval} の扱いが決まっていません。')
+
         # ステップ n の値 X_n
         # 式 (11)
         x_n = float(x_hs[h_i_n])
@@ -295,10 +299,19 @@ class WeatherOutdoor:
             ステップ n の日射・夜間放射, W/m2
         """
 
-        # 瞬時値なら直線で補い、1 時間の値なら、その 1 時間の中は一定
-        if self.radiation_kind == RadiationKind.INSTANT:
-            return self._get_instant(x_hs, t_y_n)
-        return self._get_interval(x_hs, t_y_n)
+        match self.radiation_kind:
+
+            # 瞬時値：前後の行の間を直線で補う
+            case RadiationKind.INSTANT:
+                return self._get_instant(x_hs, t_y_n)
+
+            # 1 時間の値：その 1 時間の中は一定
+            case RadiationKind.INTERVAL:
+                return self._get_interval(x_hs, t_y_n)
+
+            # 上のどれでもなければエラー（RadiationKind に値を足して、ここを直し忘れたとき）
+            case _:
+                raise ValueError(f'radiation_kind の {self.radiation_kind} の扱いが決まっていません。')
 
     def _get_solar(self, t_n: float, t_y_n: float) -> SolarRadiation:
         """ステップ n の太陽の位置と、日射・夜間放射。
