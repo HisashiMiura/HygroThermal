@@ -25,7 +25,7 @@ from modules.indoor_climate import CosineIndoor
 from modules.outdoor_climate import RadiationInterval, RadiationKind, RadiationUnit, WeatherOutdoor
 from modules.simulation import SimulationResult, simulate
 from modules.state import State
-from modules.thermo_dynamics import ATP
+from modules.air_water_properties import T_0
 from modules.time_axis import SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 from modules.wall_builder import build_wall
 from modules.wall_geometry import MaterialNode, WallGeometry
@@ -142,9 +142,9 @@ def plot(geometry: WallGeometry, result: SimulationResult, weather: WeatherOutdo
     # 図にする場所（外気・通気層・外側の構造用合板のグラスウール側・内側の構造用合板の外側（防湿層の室内側）・室内）
     places = [
         ('外気', np.array([b.state.theta for b in outdoor_ns]), np.array([b.state.rh for b in outdoor_ns])),
-        ('通気層（質点 5）', t_is[5] - ATP, rh_is[5]),
-        ('外側の合板・GW 側（質点 16）', t_is[16] - ATP, rh_is[16]),
-        ('内側の合板・外側（質点 22）', t_is[22] - ATP, rh_is[22]),
+        ('通気層（質点 5）', t_is[5] - T_0, rh_is[5]),
+        ('外側の合板・GW 側（質点 16）', t_is[16] - T_0, rh_is[16]),
+        ('内側の合板・外側（質点 22）', t_is[22] - T_0, rh_is[22]),
         ('室内', np.array([b.state.theta for b in indoor_ns]), np.array([b.state.rh for b in indoor_ns])),
     ]
     per_day = int(round(SECONDS_PER_DAY / SECONDS_PER_HOUR))

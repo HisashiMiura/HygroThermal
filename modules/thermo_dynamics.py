@@ -1,27 +1,24 @@
+"""古い熱・水分の物性の関数（段階 8 で消す）。
+
+湿り空気と水の定数と関数は air_water_properties.py に移した。ここでは、古いコードのためにそれを使う。
+含水率の微分（get_dpsi_dmu）と液相水分伝導率（get_lambda_dsh_mu_l）は、計算方法の文書の「材料の性質」を書くときに移す。
+"""
+
 import math
 from typing import Callable
 
+from modules.air_water_properties import C_W, L_V, R_V, RHO_W, T_0, get_mu, get_p_vs, get_rh, get_rho_a
 
-ATP = 273.15
-"""絶対温度, K"""
-
-RG = 461.5
-"""水蒸気の比気体定数, J / (kg K)"""
+# 古いコードのための、Fortran から引き継いだ名前
+ATP = T_0
+RG = R_V
+RW = L_V
+CPL = C_W
+ROW = RHO_W
+ROW_CP = 1300.0  # 空気の容積比熱, J/(m3 K)（新しいコードは、空気の比熱 C_A と密度 get_rho_a に分けた）
 
 RMVA = 0.6217
 """乾き空気の平均分子量(約28.966)に対する水蒸気の分子量(約18.015)の比"""
-
-ROW_CP = 1300.0
-"""空気の容積比熱, J / (m3 K)"""
-
-RW = 2.512 * 10**6
-"""水の蒸発潜熱, J / kg"""
-
-CPL = 4200.0
-"""水の比熱, J / (kg K)"""
-
-ROW = 998.0
-"""水の密度, kg / m3"""
 
 P_ATM = 101325.0
 """標準大気圧, Pa"""
@@ -60,66 +57,31 @@ def get_x(p_v: float) -> float:
     return 0.622 * p_v / (P_ATM - p_v)
 
 def get_rho(t: float) -> float:
-    """絶対温度tにおける空気の密度を求める。
+    """空気の密度, kg/m3（古いコードのため。air_water_properties.get_rho_a を使う）。"""
 
-    Args:
-        t: 絶対温度, K
-    Returns:
-        float: 空気の密度, kg / m3
-    
-    Notes:
-        PV = nRT より、密度ρは以下のように求められる。
-        P: 大気圧, Pa (約101325 Pa)
-        V: 体積, m3
-        n: モル数, mol
-        R: 気体定数, J/(mol K) (約8.314 J/(mol K))
-        T: 絶対温度, K
-        空気の密度は、
-        ρ = m / V
-        m: 質量, kg
-        空気の質量は、
-        m = n * M
-        M: 空気の平均分子量, kg/mol (約0.028966 kg/mol)
-        よって、
-        ρ = (n * M) / V
-          = PM / RT
-        P=101325 Pa, M=0.028966 kg/mol, R=8.314 J/(mol K) を代入すると、
-        ρ = (101325 * 0.028966) / (8.314 * t) ≈ 353.0 / t
-    """
-
-    return 353.0 / t
+    return get_rho_a(t)
 
 
 def get_wp(rh: float, t: float) -> float:
-    """水分化学ポテンシャルを求める。
+    """水分化学ポテンシャル, J/kg（古いコードのため。air_water_properties.get_mu を使う）。"""
 
-    Args:
-        rh: 相対湿度, %
-        t: 絶対温度, K
-
-    Returns:
-        水分化学ポテンシャル, J / kg
-    """
-
-    return RG * t * math.log(rh * 0.01)
+    return get_mu(rh, t)
 
 
 def GOFF(t: float) -> tuple[float, float]:
-    """飽和水蒸気圧を求める。
-    
+    """飽和水蒸気圧（古いコードのため。air_water_properties.get_p_vs を使う）。
+
     Args:
-        TMP: 絶対温度, K
-    
+        t: 絶対温度, K
+
     Returns:
         FS: mmHg
         VP: Pa
     """
 
-    ew = - 6096.938 / t + 21.2409642 - t * 2.711193E-2 + t * t * 1.673952E-5 + 2.433502 * math.log(t) 
-    
-    vp = math.exp(ew)
-    
-    FS = vp / 133.322 
+    vp = get_p_vs(t)
+
+    FS = vp / 133.322
 
     return FS, vp
 
@@ -204,24 +166,6 @@ def get_dpv_dt(rh: float, t: float) -> float:
     dgdt = abs((x1_t - x2_t) / (tp1 - tp2))
 
     return dgdt
-
-
-def get_rh(mu: float, t: float) -> float:
-    """水分化学ポテンシャルから平衡相対湿度 (RH) を計算する。
-
-    Args:
-        mu: 水分化学ポテンシャル, J / kg
-        t: 絶対温度, K
-    
-    Returns:
-        相対湿度, %
-
-    """
-    
-    rh = math.exp(mu / RG / t) * 100.0
-    
-    # 相対湿度は100%を超えることはないので、上限を設定する
-    return min(rh, 100.0) 
 
 
 def get_lambda_dsh_mu_l(

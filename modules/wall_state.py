@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from modules.state import State
-from modules.thermo_dynamics import ATP
+from modules.air_water_properties import T_0
 
 
 @dataclass(frozen=True, eq=False)
@@ -57,7 +57,7 @@ class WallState:
     @property
     def theta_is(self) -> np.ndarray:
         """温度 θ_i, deg.C, [i]"""
-        return self.t_is - ATP
+        return self.t_is - T_0
 
     @property
     def rh_is(self) -> np.ndarray:

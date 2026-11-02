@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from modules.thermo_dynamics import ATP, get_wp
+from modules.air_water_properties import T_0, get_mu
 from modules.wall_geometry import FindMaterial, WallGeometry
 from modules.wall_input import WallInput
 from modules.wall_state import WallState
@@ -31,9 +31,9 @@ def build_wall(wall_input: WallInput, find_material: FindMaterial | None = None)
     layers = wall_input.layers
 
     # 各質点の初期の温度, K, [i]（その質点の層の初期の温度）
-    t_is = np.array([layers[node.layer_index].initial_temperature + ATP for node in geometry.nodes])
+    t_is = np.array([layers[node.layer_index].initial_temperature + T_0 for node in geometry.nodes])
 
     # 各質点の初期の水分化学ポテンシャル, J/kg, [i]（その質点の層の初期の相対湿度と、温度から）
-    mu_is = np.array([get_wp(rh=layers[node.layer_index].initial_rh, t=t_i) for node, t_i in zip(geometry.nodes, t_is)])
+    mu_is = np.array([get_mu(rh=layers[node.layer_index].initial_rh, t=t_i) for node, t_i in zip(geometry.nodes, t_is)])
 
     return geometry, WallState(t_is=t_is, mu_is=mu_is)

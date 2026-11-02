@@ -7,7 +7,7 @@ from modules.newton import NewtonNotConverged
 from modules.solver import HEAT_RESIDUAL_TOL, MOISTURE_RESIDUAL_TOL, Condensation, step
 from modules.state import State
 from modules.surface_radiation import get_solar_heat_gain
-from modules.thermo_dynamics import ATP, GOFF, ROW_CP, RW, get_wp
+from modules.air_water_properties import C_A, L_V, T_0, get_mu, get_p_vs, get_rho_a
 from modules.wall_builder import build_wall
 from modules.wall_geometry import AirNode, WallGeometry
 from modules.wall_input import WallInput
@@ -72,7 +72,7 @@ def _moisture_flow_ks(g, state, outdoor, indoor):
 def _total_heat_flow_ks(g, state, outdoor, indoor):
     """つながりごとの熱の流れ（熱伝導 + 水蒸気が運ぶ潜熱）, W/m2, [k]。"""
     return (heat_flow_ks(g, state.t_is, outdoor, indoor)
-            + RW * vapour_flow_ks(g, state.t_is, state.mu_is, outdoor, indoor))
+            + L_V * vapour_flow_ks(g, state.t_is, state.mu_is, outdoor, indoor))
 
 
 class TestStep:
@@ -131,7 +131,7 @@ class TestStep:
         outdoor, indoor = _outdoor(20.0, 30.0), _indoor(20.0, 70.0)
         for _ in range(365):
             state, _ = step(g, state, dt=86400.0, outdoor=outdoor, indoor=indoor)
-        state_any = State.init(t=20.0 + ATP, rh=50.0)
+        state_any = State.init(t=20.0 + T_0, rh=50.0)
         r_m_total = sum(link.r_m(state_any, state_any) for link in g.links)
         j_v_ks = vapour_flow_ks(g, state.t_is, state.mu_is, outdoor, indoor)
         np.testing.assert_allclose(j_v_ks, (outdoor.state.p_v - indoor.state.p_v) / r_m_total, rtol=1e-4)
@@ -156,7 +156,7 @@ class TestStep:
         # 通気層の熱の収支（熱伝導だけ + 換気）。換気で外気に熱が逃げるので、内側から入る熱のほうが外側へ出る熱より大きい
         q_h_ks = heat_flow_ks(g, state.t_is, outdoor, indoor)
         q_v_is = ventilation_rate_is(g, state.t_is, outdoor)
-        q_vent = ROW_CP * q_v_is[i_air] * (outdoor.state.t - state.t_is[i_air])
+        q_vent = C_A * get_rho_a(outdoor.state.t) * q_v_is[i_air] * (outdoor.state.t - state.t_is[i_air])
         assert q_v_is[i_air] > 0.0
         assert q_h_ks[i_air] - q_h_ks[i_air + 1] + q_vent == pytest.approx(0.0, abs=1e-4)
 
@@ -187,7 +187,7 @@ class TestStep:
 
         outdoor_a = OutdoorBoundary(state=_outdoor(0.0, 80.0).state, solar=solar)
         t_sol_air = outdoor_a.state.t + q_sol / alpha_o
-        outdoor_b = OutdoorBoundary(state=State.init(t=t_sol_air, rh=100.0 * outdoor_a.state.p_v / GOFF(t_sol_air)[1]))
+        outdoor_b = OutdoorBoundary(state=State.init(t=t_sol_air, rh=100.0 * outdoor_a.state.p_v / get_p_vs(t_sol_air)))
         assert outdoor_b.state.p_v == pytest.approx(outdoor_a.state.p_v)
         indoor = _indoor(20.0, 50.0)
 
@@ -264,6 +264,6 @@ class TestVentilation:
         q_h_ks = heat_flow_ks(g, state.t_is, outdoor, indoor)
         j_v_ks = vapour_flow_ks(g, state.t_is, state.mu_is, outdoor, indoor)
         is_material_is = np.array([not isinstance(node, AirNode) for node in g.nodes])
-        q_cond = (RW * (j_v_ks[:-1] - j_v_ks[1:]))[is_material_is].sum()
-        q_vent = (ROW_CP * q_v_is * (outdoor.state.t - state.t_is)).sum()
+        q_cond = (L_V * (j_v_ks[:-1] - j_v_ks[1:]))[is_material_is].sum()
+        q_vent = (C_A * get_rho_a(outdoor.state.t) * q_v_is * (outdoor.state.t - state.t_is)).sum()
         assert h_stored == pytest.approx((q_h_ks[0] - q_h_ks[-1] + q_cond + q_vent) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)

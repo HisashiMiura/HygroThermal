@@ -4,7 +4,7 @@ import pytest
 
 from modules.boundary import NO_SUN, Boundaries, IndoorBoundary, OutdoorBoundary, SolarRadiation
 from modules.state import State
-from modules.thermo_dynamics import ATP
+from modules.air_water_properties import T_0
 
 
 class TestBoundary:
@@ -12,7 +12,7 @@ class TestBoundary:
     def test_outdoor(self):
         # 0 deg.C・80% から作ると、温度 273.15 K・相対湿度 80%
         outdoor = OutdoorBoundary.from_theta_rh(theta=0.0, rh=80.0)
-        assert outdoor.state.t == pytest.approx(ATP)
+        assert outdoor.state.t == pytest.approx(T_0)
         assert outdoor.state.rh == pytest.approx(80.0)
 
     def test_indoor(self):

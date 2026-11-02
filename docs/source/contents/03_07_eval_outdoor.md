@@ -119,7 +119,7 @@ $p_{\mathrm{v,ex},n}$
 : ：ステップ $n$ の外気の水蒸気圧（Pa）
 
 $p_{\mathrm{vs}}(T)$
-: ：温度 $T$ の飽和水蒸気圧（Pa）。「水分の性質」で定める
+: ：温度 $T$ の飽和水蒸気圧（Pa）。「{doc}`湿り空気と水の性質 <03_02_eval_air_water>`」で定める
 
 $R_{\mathrm{eff},h}$
 : ：行 $h$ の夜間放射量（W/m²）
@@ -178,7 +178,7 @@ $n$
 行 $h$ の外気の水蒸気圧 $p_{\mathrm{v,ex},h}$ は、式 {eq}`oc-pv` により計算される。相対湿度が 100 % を超える行は、水蒸気圧を飽和水蒸気圧とする。
 
 $$
-p_{\mathrm{v,ex},h} = \min \left( \frac{P_{\mathrm{ex},h} \, x_{\mathrm{ex},h}}{622 + x_{\mathrm{ex},h}}, \ p_{\mathrm{vs}} \left( \theta_{\mathrm{ex},h} + 273.15 \right) \right)
+p_{\mathrm{v,ex},h} = \min \left( \frac{P_{\mathrm{ex},h} \, x_{\mathrm{ex},h}}{622 + x_{\mathrm{ex},h}}, \ p_{\mathrm{vs}} \left( \theta_{\mathrm{ex},h} + T_0 \right) \right)
 $$ (oc-pv)
 
 行 $h$ の法線面直達日射量 $I_{\mathrm{dn},h}$、水平面天空日射量 $I_{\mathrm{sky},h}$、夜間放射量 $R_{\mathrm{eff},h}$ は、式 {eq}`oc-idn`〜式 {eq}`oc-reff` により計算される。
@@ -266,7 +266,7 @@ $$ (oc-interval)
 ステップ $n$ の外気の相対湿度 $\varphi_{\mathrm{ex},n}$ は、式 {eq}`oc-rh` により計算される。行の間を補った時刻でも 100 % を超えないようにする。
 
 $$
-\varphi_{\mathrm{ex},n} = \min \left( 100 \frac{p_{\mathrm{v,ex},n}}{p_{\mathrm{vs}} \left( \theta_{\mathrm{ex},n} + 273.15 \right)}, \ 100 \right)
+\varphi_{\mathrm{ex},n} = \min \left( 100 \frac{p_{\mathrm{v,ex},n}}{p_{\mathrm{vs}} \left( \theta_{\mathrm{ex},n} + T_0 \right)}, \ 100 \right)
 $$ (oc-rh)
 
 ステップ $n$ の法線面直達日射量 $I_{\mathrm{dn},n}$、水平面天空日射量 $I_{\mathrm{sky},n}$、夜間放射量 $R_{\mathrm{eff},n}$ は、値の種類が瞬時値のときは式 {eq}`oc-instant` により、1 時間の値のときは式 {eq}`oc-interval` により計算される（ $X_h$ をそれぞれ $I_{\mathrm{dn},h}$、 $I_{\mathrm{sky},h}$、 $R_{\mathrm{eff},h}$ とする）。

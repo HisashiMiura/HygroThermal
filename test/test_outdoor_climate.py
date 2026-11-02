@@ -6,7 +6,7 @@ import pytest
 
 from modules.boundary import OutdoorBoundary
 from modules.outdoor_climate import RadiationInterval, RadiationKind, RadiationUnit, WeatherOutdoor
-from modules.thermo_dynamics import ATP, GOFF
+from modules.air_water_properties import T_0, get_p_vs
 from modules.time_axis import HOURS_PER_YEAR, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 
 _H = 3600.0
@@ -117,7 +117,7 @@ class TestAt:
     def test_rh_not_over_100(self):
         # 行の間を補った時刻でも、相対湿度は 100% を超えない（どちらの行も飽和でも、間の時刻の飽和水蒸気圧は直線より低い）
         theta_ex_hs = np.where(np.arange(HOURS_PER_YEAR) % 2 == 0, 0.0, 20.0)
-        p_v_ex_hs = np.array([GOFF(th + ATP)[1] for th in theta_ex_hs])
+        p_v_ex_hs = np.array([get_p_vs(th + T_0) for th in theta_ex_hs])
         w = WeatherOutdoor(latitude=36.7, longitude=137.21, theta_ex_hs=theta_ex_hs, p_v_ex_hs=p_v_ex_hs,
                            i_dn_hs=np.zeros(HOURS_PER_YEAR), i_sky_hs=np.zeros(HOURS_PER_YEAR),
                            r_eff_hs=np.zeros(HOURS_PER_YEAR), radiation_kind=RadiationKind.INTERVAL)

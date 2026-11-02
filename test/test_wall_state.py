@@ -3,14 +3,14 @@ import dataclasses
 import numpy as np
 import pytest
 
-from modules.thermo_dynamics import ATP, get_wp
+from modules.air_water_properties import T_0, get_mu
 from modules.wall_state import WallState
 
 
 def _state() -> WallState:
     """質点 3 個の状態（10・15・20 deg.C、相対湿度 50・80・95%）。"""
-    t_is = np.array([10.0, 15.0, 20.0]) + ATP
-    mu_is = np.array([get_wp(rh=rh_i, t=t_i) for rh_i, t_i in zip((50.0, 80.0, 95.0), t_is)])
+    t_is = np.array([10.0, 15.0, 20.0]) + T_0
+    mu_is = np.array([get_mu(rh=rh_i, t=t_i) for rh_i, t_i in zip((50.0, 80.0, 95.0), t_is)])
     return WallState(t_is=t_is, mu_is=mu_is)
 
 
@@ -19,7 +19,7 @@ class TestWallState:
     def test_values(self):
         state = _state()
         assert len(state) == 3
-        np.testing.assert_allclose(state.t_is, np.array([10.0, 15.0, 20.0]) + ATP)
+        np.testing.assert_allclose(state.t_is, np.array([10.0, 15.0, 20.0]) + T_0)
 
     def test_read_only(self):
         # 配列の中身も、項目の付け替えも、書き換えられない

@@ -7,7 +7,7 @@ import numpy as np
 
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.state import State
-from modules.thermo_dynamics import RG, ROW_CP, RW
+from modules.air_water_properties import C_A, L_V, R_V, get_rho_a
 from modules.wall_geometry import AirNode, WallGeometry
 
 
@@ -230,9 +230,9 @@ def moisture_residual_is(
     # 質点 i の右のつながり（つながり i + 1）の流れ, kg/(m2 s), [i]（j_ks の先頭を除く。正なら質点 i から出ていく）
     j_right_is = j_ks[1:]
 
-    # 外気と各質点の水蒸気の密度, kg/m3（ステップ n + 1 の値）
-    rho_v_ex = outdoor.state.p_v / (RG * outdoor.state.t)
-    rho_v_is = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (RG * t_is_npls)
+    # 外気と各質点の水蒸気の密度, kg/m3（ステップ n + 1 の値。「湿り空気と水の性質」の式 (5)）
+    rho_v_ex = outdoor.state.p_v / (R_V * outdoor.state.t)
+    rho_v_is = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (R_V * t_is_npls)
 
     # 換気で入る水分, kg/(m2 s), [i]（換気量が 0 の質点は 0）
     j_vent_is = q_v_is * (rho_v_ex - rho_v_is)
@@ -254,11 +254,11 @@ def heat_residual_is(
     ) -> np.ndarray:
     """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]（docs/governing_equations.md の式 6.3）。
 
-    res_h,i = C_i,n+1 (T_i,n+1 - T_i,n) / Δt - (q_i - q_(i+1) + δ_i r (j_v,i - j_v,(i+1)) + q_sol,i + q_vent,i)
+    res_h,i = C_i,n+1 (T_i,n+1 - T_i,n) / Δt - (q_i - q_(i+1) + δ_i L_v (j_v,i - j_v,(i+1)) + q_sol,i + q_vent,i)
     （たまる量 -（左のつながりの熱伝導 - 右のつながりの熱伝導 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱））。
     流れはすべてステップ n + 1 の値で計算する（後退差分）。
-    凝縮熱 r (j_v,i - j_v,(i+1)) は、その質点の凝縮量（蒸発量）を水蒸気の収支から見積もったもの（材料では、水蒸気のまま
-    たまる量はわずかなので、凝縮量 ≈ 左から入ってくる水蒸気 - 右へ出ていく水蒸気）。r は蒸発潜熱。
+    凝縮熱 L_v (j_v,i - j_v,(i+1)) は、その質点の凝縮量（蒸発量）を水蒸気の収支から見積もったもの（材料では、水蒸気のまま
+    たまる量はわずかなので、凝縮量 ≈ 左から入ってくる水蒸気 - 右へ出ていく水蒸気）。L_v は蒸発潜熱。
     δ_i は材料の質点で 1、通気層の空気の質点で 0。空気の質点では、たまる水分はすべて水蒸気のままで相変化は起きないので、
     凝縮熱を数えない（換気で入った水蒸気がつながりから出ていくとき、通気層で蒸発したと見積もらないため）。
     C_i は水の分を足した熱容量で、ステップ n + 1 の仮の値で計算する。移動する水が運ぶ顕熱は入れない（量が非常に小さい）。
@@ -297,14 +297,14 @@ def heat_residual_is(
 
     # 凝縮熱, W/m2, [i]（凝縮量 ≈ 左から入ってくる水蒸気 - 右へ出ていく水蒸気。通気層の空気の質点は相変化しないので 0）
     is_material_is = np.array([not isinstance(node, AirNode) for node in geometry.nodes])
-    q_cond_is = np.where(is_material_is, RW * (j_v_ks[:-1] - j_v_ks[1:]), 0.0)
+    q_cond_is = np.where(is_material_is, L_V * (j_v_ks[:-1] - j_v_ks[1:]), 0.0)
 
     # 外から直接入る熱（日射の吸収 - 夜間放射）, W/m2, [i]（外表面の質点 0 だけ）
     q_sol_is = np.zeros(len(t_is_npls))
     q_sol_is[0] = q_sol
 
-    # 換気で入る熱, W/m2, [i]（換気量が 0 の質点は 0）
-    q_vent_is = ROW_CP * q_v_is * (outdoor.state.t - t_is_npls)
+    # 換気で入る熱, W/m2, [i]（換気量が 0 の質点は 0。空気の密度は、入ってくる外気の温度で求める）
+    q_vent_is = C_A * get_rho_a(outdoor.state.t) * q_v_is * (outdoor.state.t - t_is_npls)
 
     # たまる量 -（左のつながりの熱伝導 - 右のつながりの熱伝導 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）
     return c_is_npls * (t_is_npls - t_is_n) / dt - (q_left_is - q_right_is + q_cond_is + q_sol_is + q_vent_is)

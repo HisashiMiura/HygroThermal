@@ -7,7 +7,7 @@
 層の中の質点はコントロールボリュームの中心にあり、層の端の質点は表面・境目の上にある。
 
 つながりは、質点に「質点からコントロールボリュームの端までの抵抗」を聞いて、境目の抵抗と足す。
-材料の質点と空気の質点は、同じ名前（width・heat_capacity_dry・heat_capacity・water_amount・r_h_left・r_h_right・layer_index）で使える。
+材料の質点と空気の質点は、同じ名前（width・heat_capacity・water_amount・r_h_left・r_h_right・layer_index）で使える。
 """
 
 from collections.abc import Callable
@@ -20,7 +20,7 @@ from modules.direction import Direction
 from modules.material_loaders import load_materials
 from modules.materials import Material, Materials
 from modules.state import State
-from modules.thermo_dynamics import CPL, RG, ROW_CP, get_rho
+from modules.air_water_properties import C_A, C_W, R_V, get_rho_a
 from modules.wall_input import AirLayerInput, InterfaceInput, LayerInput, WallInput
 
 
@@ -79,7 +79,7 @@ class MaterialNode:
         Args:
             state: この質点の状態
         """
-        return self.heat_capacity_dry + CPL * self.water_amount(state)
+        return self.heat_capacity_dry + C_W * self.water_amount(state)
 
     @property
     def r_h_left(self) -> float:
@@ -152,18 +152,13 @@ class AirNode:
         """コントロールボリュームの幅, m（通気層の厚さ）"""
         return self.thickness
 
-    @property
-    def heat_capacity_dry(self) -> float:
-        """空気の熱容量, J/(m2 K)（厚さ × 空気の容積比熱）"""
-        return self.thickness * ROW_CP
-
     def water_amount(self, state: State) -> float:
-        """水分量 W_i, kg/m2（空気の中の水蒸気：水蒸気の密度 p_v / (R_v T) × 厚さ）
+        """水分量 W_i, kg/m2（空気の中の水蒸気：水蒸気の密度 p_v / (R_v T)（「湿り空気と水の性質」の式 (5)） × 厚さ）
 
         Args:
             state: この質点の状態
         """
-        return state.p_v / (RG * state.t) * self.thickness
+        return state.p_v / (R_V * state.t) * self.thickness
 
     def ventilation_rate(
             self,
@@ -174,7 +169,7 @@ class AirNode:
         ) -> float:
         """壁 1 m2 あたりの換気量 q_v, m3/(m2 s)（温度差による浮力換気）。
 
-        q_v = α d / L_v × √(2 g H |ρ_o - ρ_i| / ρ_o)。換気量 Q = αA √(2 ΔP / ρ_o)（相当開口面積 αA = α d × 横の長さ、
+        q_v = α d / L_w × √(2 g H |ρ_o - ρ_i| / ρ_o)。換気量 Q = αA √(2 ΔP / ρ_o)（相当開口面積 αA = α d × 横の長さ、
         浮力の圧力差 ΔP = g H |ρ_o - ρ_i|）を壁の面積（縦 × 横の長さ）で割ると、横の長さは消える（設計の文書 2.5 節）。
         Fortran の Whamcavity は αA √(8 g H |Δρ|) で、ρ_o で割る所がない（単位が合わない）ので、ふつうの式にした。
 
@@ -185,18 +180,20 @@ class AirNode:
             len_vertical: 壁の縦の長さ, m
         """
 
-        # 外気と通気層の空気の密度, kg/m3
-        rho_o, rho_i = get_rho(t=t_outdoor), get_rho(t=t)
+        # 外気と通気層の空気の密度, kg/m3（「湿り空気と水の性質」の式 (6)）
+        rho_o, rho_i = get_rho_a(t=t_outdoor), get_rho_a(t=t)
 
         return self.alpha * self.thickness / len_vertical * (2.0 * _G * height * abs(rho_o - rho_i) / rho_o) ** 0.5
 
     def heat_capacity(self, state: State) -> float:
-        """熱容量 C_i, J/(m2 K)（空気の容積比熱 × 厚さ。水蒸気の分は小さいので足さない）
+        """熱容量 C_i, J/(m2 K)（空気の比熱 × 空気の密度 × 厚さ。水蒸気の分は小さいので足さない）
+
+        空気の密度は、この質点の温度で求める（「湿り空気と水の性質」の式 (6)）。
 
         Args:
-            state: この質点の状態（使わないが、材料の質点と呼び方をそろえる）
+            state: この質点の状態
         """
-        return self.heat_capacity_dry
+        return C_A * get_rho_a(state.t) * self.thickness
 
     @property
     def r_h_left(self) -> float:

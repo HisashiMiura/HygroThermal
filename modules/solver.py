@@ -9,7 +9,7 @@ from modules.balance import heat_residual_is, moisture_residual_is, ventilation_
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
 from modules.surface_radiation import get_solar_heat_gain
-from modules.thermo_dynamics import RW
+from modules.air_water_properties import L_V
 from modules.wall_geometry import WallGeometry
 from modules.wall_state import WallState
 
@@ -20,8 +20,8 @@ HEAT_MOISTURE_BAND = (3, 3)
 # 熱の残差の許容値, W/m2（温度にすると、およそ 10^-7 K の精度）
 HEAT_RESIDUAL_TOL = 1.0e-6
 
-# 水分の残差の許容値, kg/(m2 s)（潜熱にすると熱の許容値と同じ大きさ：tol_h / r）
-MOISTURE_RESIDUAL_TOL = HEAT_RESIDUAL_TOL / RW
+# 水分の残差の許容値, kg/(m2 s)（潜熱にすると熱の許容値と同じ大きさ：tol_h / L_v）
+MOISTURE_RESIDUAL_TOL = HEAT_RESIDUAL_TOL / L_V
 
 # 収束しなかったとき、前の時刻の相対湿度がこの値以上の質点があれば、結露したとみなす, %
 CONDENSATION_RH = 99.9

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Self
 
 from modules.state import State
-from modules.thermo_dynamics import ATP
+from modules.air_water_properties import T_0
 
 
 def _state_from_theta_rh(theta: float, rh: float) -> State:
@@ -24,7 +24,7 @@ def _state_from_theta_rh(theta: float, rh: float) -> State:
     if not 0.0 < rh <= 100.0:
         raise ValueError(f'相対湿度 rh は 0 より大きく 100 以下にしてください（{rh}）。')
 
-    return State.init(t=theta + ATP, rh=rh)
+    return State.init(t=theta + T_0, rh=rh)
 
 
 @dataclass(frozen=True, kw_only=True)

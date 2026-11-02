@@ -18,7 +18,7 @@ import pandas as pd
 
 from modules import solar_position
 from modules.boundary import OutdoorBoundary, SolarRadiation
-from modules.thermo_dynamics import ATP, GOFF
+from modules.air_water_properties import T_0, get_p_vs
 from modules.time_axis import HOURS_PER_YEAR, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 
 
@@ -173,7 +173,7 @@ class WeatherOutdoor:
         p_ex_hs = d['気圧'].to_numpy(dtype=float)
 
         # 飽和水蒸気圧 p_vs(θ_ex,h + 273.15), Pa, [h]
-        p_vs_hs = np.array([GOFF(theta_ex_h + ATP)[1] for theta_ex_h in theta_ex_hs])
+        p_vs_hs = np.array([get_p_vs(theta_ex_h + T_0) for theta_ex_h in theta_ex_hs])
 
         # 相対湿度が 100% を超える行, [h]
         # 式 (1) の min で飽和水蒸気圧をとる行。行の数を n_rh_clamped に残す
@@ -369,6 +369,6 @@ class WeatherOutdoor:
 
         # 外気の相対湿度 φ_ex,n, %
         # 式 (12)。行の間を補った時刻でも 100% を超えないようにする
-        rh_ex_n = min(100.0 * p_v_ex_n / GOFF(theta_ex_n + ATP)[1], 100.0)
+        rh_ex_n = min(100.0 * p_v_ex_n / get_p_vs(theta_ex_n + T_0), 100.0)
 
         return OutdoorBoundary.from_theta_rh(theta=theta_ex_n, rh=rh_ex_n, solar=self._get_solar(t_n, t_y_n))

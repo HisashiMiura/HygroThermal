@@ -107,7 +107,7 @@ $$
 材料の実質部・液水・水蒸気のエンタルピーの収支を書き、液水と水蒸気の収支式（4.1・4.2）を使って整理すると、次の式になる（参考文献 [1]）。
 
 $$
-c\rho \thinspace \frac{\partial T}{\partial t} = -\frac{\partial q}{\partial x} + r W \qquad (4.4)
+c\rho \thinspace \frac{\partial T}{\partial t} = -\frac{\partial q}{\partial x} + L_v W \qquad (4.4)
 $$
 
 - $c\rho$：水分を含んだ材料のみかけの容積比熱 [J/(m³ K)]
@@ -115,7 +115,7 @@ $$
   $$c\rho = c_s \rho_s + c_w \rho_w \psi + c_v \rho_v (\Phi_0 - \psi) \qquad (4.5)$$
 
   （ $c_s$・ $c_w$・ $c_v$：材料の実質部・液水・水蒸気の比熱。 $\rho_s$ は材料の乾燥密度で、 $c_s \rho_s$ は乾燥した材料の容積比熱）
-- $r$：水蒸気が液水になるときの相変化熱 [J/kg]（蒸発潜熱）
+- $L_v$：水蒸気が液水になるときの相変化熱 [J/kg]（蒸発潜熱）
 - 整理の途中で、水分の流れが運ぶ顕熱の項（ $J_v \thinspace c_v \thinspace \partial T/\partial x$ と $J_l \thinspace c_w \thinspace \partial T/\partial x$）が出てくるが、量が非常に小さいので省く。
 
 ### 4.3 近似
@@ -129,10 +129,10 @@ $$
 
 **近似 2：相変化の量は、水蒸気の正味の流入から求める**
 
-水蒸気の収支（式 4.2）で、たまる水蒸気の変化を省くと $W = -\partial J_v / \partial x$ になる。これを式 4.4 に入れると、相変化熱の項は「水蒸気が運ぶ潜熱の流れ $r J_v$」の発散になる。
+水蒸気の収支（式 4.2）で、たまる水蒸気の変化を省くと $W = -\partial J_v / \partial x$ になる。これを式 4.4 に入れると、相変化熱の項は「水蒸気が運ぶ潜熱の流れ $L_v J_v$」の発散になる。
 
 $$
-c\rho \thinspace \frac{\partial T}{\partial t} = -\frac{\partial}{\partial x}\left( q + r J_v \right) \qquad (4.6)
+c\rho \thinspace \frac{\partial T}{\partial t} = -\frac{\partial}{\partial x}\left( q + L_v J_v \right) \qquad (4.6)
 $$
 
 ---
@@ -154,7 +154,7 @@ $$
 **熱の収支**
 
 $$
-c\rho \thinspace \frac{\partial T}{\partial t} = \frac{\partial}{\partial x}\left( \lambda \frac{\partial T}{\partial x} + r \lambda_p' \frac{\partial p_v}{\partial x} \right) \qquad (5.2)
+c\rho \thinspace \frac{\partial T}{\partial t} = \frac{\partial}{\partial x}\left( \lambda \frac{\partial T}{\partial x} + L_v \lambda_p' \frac{\partial p_v}{\partial x} \right) \qquad (5.2)
 $$
 
 ここで、 $w = \rho_s u(\varphi)$、 $\varphi = \exp(\mu / (R_v T))$、 $p_v = \varphi \thinspace p_{sat}(T)$、 $c\rho = c_s \rho_s + c_w w$。
@@ -190,7 +190,7 @@ $$
 α：総合熱伝達率 [W/(m² K)]、 $\alpha_p'$：湿気伝達率 [kg/(m² s Pa)]、添字 a は空気、s は表面。
 
 - 空気と表面の間では、液水は移動しない（雨は別に扱う。段階 7）。
-- 表面のエンタルピーの収支から、表面を通る熱の流れには、水蒸気が運ぶ潜熱 $r J_{v,s}$ も入る。これは、式 5.2 の「熱伝導 ＋ 潜熱の流れ」と同じ形である。
+- 表面のエンタルピーの収支から、表面を通る熱の流れには、水蒸気が運ぶ潜熱 $L_v J_{v,s}$ も入る。これは、式 5.2 の「熱伝導 ＋ 潜熱の流れ」と同じ形である。
 - 日射・夜間放射による表面の熱は、表面の質点に入る熱として足す（段階 6）。
 
 ---
@@ -220,7 +220,7 @@ $$
 | | 材料の質点 | 空気の質点 |
 |---|---|---|
 | 水分量 $W_i$ [kg/m²] | $\rho_s \thinspace u(\varphi_i) \thinspace d_i$ | $\rho_{v,i} \thinspace d_i$ |
-| 熱容量 $C_i$ [J/(m² K)] | $(c_s \rho_s + c_w \thinspace \rho_s u(\varphi_i)) \thinspace d_i$ | $c_a \rho_a \thinspace d_i$（空気の容積比熱） |
+| 熱容量 $C_i$ [J/(m² K)] | $(c_s \rho_s + c_w \thinspace \rho_s u(\varphi_i)) \thinspace d_i$ | $c_a \rho_a(T_i) \thinspace d_i$（空気の比熱 × その質点の温度の空気の密度） |
 
 ### 6.3 残差
 
@@ -235,22 +235,22 @@ $$
 **熱の残差** [W/m²]
 
 $$
-\mathrm{res}_{h,i} = C_i \thinspace \frac{T_i - T_{i,n}}{\Delta t} - (q_i - q_{i+1}) - \delta_i \thinspace r (j_{v,i} - j_{v,i+1}) - Q_i \qquad (6.3)
+\mathrm{res}_{h,i} = C_i \thinspace \frac{T_i - T_{i,n}}{\Delta t} - (q_i - q_{i+1}) - \delta_i \thinspace L_v (j_{v,i} - j_{v,i+1}) - Q_i \qquad (6.3)
 $$
 
-- $r (j_{v,i} - j_{v,i+1})$ は、質点 i の凝縮熱（負なら蒸発の熱）。凝縮量を水蒸気の収支から見積もっている：凝縮量 ＝ 入ってくる水蒸気 − 出ていく水蒸気 − 水蒸気のままたまる量。材料では、水蒸気のままたまる量（空隙の中の水蒸気）は吸着水・液水に比べてごくわずかなので、凝縮量 ≈ 入ってくる水蒸気 − 出ていく水蒸気、と近似する。
+- $L_v (j_{v,i} - j_{v,i+1})$ は、質点 i の凝縮熱（負なら蒸発の熱）。凝縮量を水蒸気の収支から見積もっている：凝縮量 ＝ 入ってくる水蒸気 − 出ていく水蒸気 − 水蒸気のままたまる量。材料では、水蒸気のままたまる量（空隙の中の水蒸気）は吸着水・液水に比べてごくわずかなので、凝縮量 ≈ 入ってくる水蒸気 − 出ていく水蒸気、と近似する。
 - $\delta_i$ は、材料の質点で 1、通気層の空気の質点で 0。空気の質点では、たまる水分はすべて水蒸気のままで相変化は起きないので、凝縮熱を数えない。材料と同じ近似を使うと、換気で入った水蒸気がつながりから出ていくとき、通気層で蒸発したと見積もってしまう。
 - $Q_i$：質点 i に外から入る熱 [W/m²]。外表面の質点では日射・夜間放射 $q_{sol}$、通気層の空気の質点では換気で入る熱 $q_{vent,i}$（下）。
 
 **通気層の換気**（空気の質点だけ。上流の空気は外気とする）
 
 $$
-q_{v,i} = \frac{\alpha d_i}{L_v} \sqrt{\frac{2 g H |\rho_o - \rho_i|}{\rho_o}}, \qquad
+q_{v,i} = \frac{\alpha d_i}{L_w} \sqrt{\frac{2 g H |\rho_o - \rho_i|}{\rho_o}}, \qquad
 j_{vent,i} = q_{v,i} (\rho_{v,o} - \rho_{v,i}), \qquad
-q_{vent,i} = c_a \rho_a \thinspace q_{v,i} (T_o - T_i) \qquad (6.4)
+q_{vent,i} = c_a \rho_a(T_o) \thinspace q_{v,i} (T_o - T_i) \qquad (6.4)
 $$
 
-- $q_{v,i}$ は壁 1 m² あたりの換気量 [m³/(m² s)]。温度差による浮力の換気（換気量 ＝ 相当開口面積 × √(2 × 浮力の圧力差 / 外気の密度)）を壁の面積で割ったもの。 $\alpha$ は流量係数、 $L_v$ は壁の縦の長さ、 $H$ は通気層の高さ、 $\rho$ は空気の密度（353 / T）。風による換気は入れていない。
+- $q_{v,i}$ は壁 1 m² あたりの換気量 [m³/(m² s)]。温度差による浮力の換気（換気量 ＝ 相当開口面積 × √(2 × 浮力の圧力差 / 外気の密度)）を壁の面積で割ったもの。 $\alpha$ は流量係数、 $L_w$ は壁の縦の長さ、 $H$ は通気層の高さ、 $\rho$ は空気の密度（353 / T）。風による換気は入れていない。
 - 換気量は前の時刻の温度で求め、1 ステップの中では一定にする（√ の中が 0 になる所で傾きが無限大になり、ニュートン法が収束しにくくなるため）。
 - $\rho_v = p_v / (R_v T)$ は水蒸気の密度。換気で入る水分は、水蒸気の密度の差で書く（偏微分に分けない）。
 
@@ -274,17 +274,18 @@ $$
 | λ | 熱伝導率 | W/(m K) | `Material.lambda_h` |
 | $\lambda_p'$ | 湿気伝導率 | kg/(m s Pa) | `Material.get_lambda_dsh_m` |
 | $\lambda_{\mu l}'$ | 液相水分伝導率 | kg/(m s (J/kg)) | `Material.get_lambda_dsh_mu_l` |
-| $R_v$ | 水蒸気の気体定数 | J/(kg K) | `thermo_dynamics.RG`（461.5） |
-| r | 相変化熱（蒸発潜熱） | J/kg | `thermo_dynamics.RW`（2.512×10⁶） |
-| $c_w$ | 水の比熱 | J/(kg K) | `thermo_dynamics.CPL`（4200） |
-| $\rho_w$ | 水の密度 | kg/m³ | `thermo_dynamics.ROW`（998） |
+| $R_v$ | 水蒸気の気体定数 | J/(kg K) | `air_water_properties.R_V`（461.5） |
+| $L_v$ | 相変化熱（蒸発潜熱） | J/kg | `air_water_properties.L_V`（2.512×10⁶） |
+| $c_w$ | 水の比熱 | J/(kg K) | `air_water_properties.C_W`（4200） |
+| $\rho_w$ | 水の密度 | kg/m³ | `air_water_properties.RHO_W`（998） |
 | $q_k$ | つながりの熱の流れ | W/m² | `heat_flow_ks` |
 | $C_i$ | 質点の熱容量 | J/(m² K) | `heat_capacity` |
 | $q_{sol}$ | 外表面に外から直接入る熱（日射の吸収 − 夜間放射） | W/m² | `surface_radiation.get_solar_heat_gain`、`q_sol` |
 | $q_{v,i}$ | 壁 1 m² あたりの換気量 | m³/(m² s) | `ventilation_rate_is`、`q_v_is` |
 | $j_{vent,i}$ | 換気で入る水分 | kg/(m² s) | `j_vent_is`（`moisture_residual_is` の中） |
 | $q_{vent,i}$ | 換気で入る熱 | W/m² | `q_vent_is`（`heat_residual_is` の中） |
-| $c_a \rho_a$ | 空気の容積比熱 | J/(m³ K) | `thermo_dynamics.ROW_CP`（1300） |
+| $c_a$ | 空気の比熱 | J/(kg K) | `air_water_properties.C_A`（1005） |
+| $\rho_a$ | 空気の密度 | kg/m³ | `air_water_properties.get_rho_a`（353 / T） |
 | α | 通気層の流量係数 | − | `AirNode.alpha` |
 | $\Delta t$ | 時間刻み | s | `dt` |
 
