@@ -24,6 +24,10 @@ from modules.material_props import (
 
 logger = logging.getLogger(__name__)
 
+# 平衡含水率の式の境目で、下側と上側の含水率の差がこの割合を超えたら警告する, -
+# 書き間違い（係数の桁や符号）を見つけるため。今のデータでいちばん大きい段差は、シージングの 89 % の 0.16 %
+ISOTHERM_JUMP_TOL = 0.01
+
 # 旧 Excel（Fortran 版の19材料）
 WHAMCAVITY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'materials_whamcavity.xlsx')
 
@@ -73,6 +77,10 @@ def load_whamcavity(path: str = WHAMCAVITY_FILE) -> list[Material]:
 
     # 1行ずつ取り出して Material を作る
     ms = [_material_from_whamcavity_row(name=name, row=row) for name, row in df.iterrows()]
+
+    # 平衡含水率の式が、境目でつながっているかを確かめる
+    for m in ms:
+        _warn_isotherm_jumps(m)
 
     logger.info('材料物性データの読み込みに成功しました: %s（%d件）', os.path.basename(path), len(ms))
 
@@ -187,6 +195,9 @@ def load_mews_ashrae(path: str = MEWS_ASHRAE_FILE) -> list[Material]:
         names.add(m.name)
         ms.append(m)
 
+        # 平衡含水率の式が、境目でつながっているかを確かめる
+        _warn_isotherm_jumps(m)
+
     logger.info('材料物性データの読み込みに成功しました: %s（%d件）', os.path.basename(path), len(ms))
 
     return ms
@@ -254,6 +265,25 @@ MATERIAL_SOURCES = {
     # 新しい Excel（MEWS 42材料・ASHRAE 38材料と Air）
     'mews_ashrae': load_mews_ashrae,
 }
+
+
+def _warn_isotherm_jumps(m: Material) -> None:
+    """平衡含水率の式の境目で、下側と上側の含水率の差が ISOTHERM_JUMP_TOL を超えていたら警告する。
+
+    計算は止めない（段差があっても計算はできる）。液水拡散係数の区間の境目は、もとのデータに段差があるので確かめない。
+
+    Args:
+        m: 材料
+    """
+
+    for r, u_below, u_above in m.isotherm.get_jumps():
+
+        # 段差の割合, -（下側の含水率に対する差）
+        jump = abs(u_above - u_below) / abs(u_below) if u_below != 0.0 else math.inf
+
+        if jump > ISOTHERM_JUMP_TOL:
+            logger.warning('%s: 平衡含水率の式が相対湿度 %g %% でつながっていません（下側 %.6g、上側 %.6g kg/kg、差 %.2g %%）',
+                           m.name, r * 100, u_below, u_above, jump * 100)
 
 
 def load_materials(source: str) -> list[Material]:

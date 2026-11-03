@@ -446,3 +446,39 @@ def test_material_sources():
     """出どころの一覧に、2つの Excel のローダーが入っていることを確認する。"""
 
     assert MATERIAL_SOURCES == {'whamcavity': load_whamcavity, 'mews_ashrae': load_mews_ashrae}
+
+
+def _material_with_isotherm(isotherm):
+    """平衡含水率の部品だけを替えた材料（ほかの値は確かめに使わない）。"""
+
+    from modules.materials import Material
+    from modules.material_props import ConstantVaporConductivity
+    return Material(name='試しの材料', lambda_h=0.1, c_s=1000.0, rho_s=500.0, isotherm=isotherm,
+                    vapor_conductivity=ConstantVaporConductivity(value=1.0e-11), liquid_diffusivity=NoLiquidDiffusivity())
+
+
+def test_warn_isotherm_jumps(caplog):
+    """平衡含水率の式の境目の段差が 1 % を超えるときだけ警告することを確認する。"""
+
+    from modules.material_loaders import _warn_isotherm_jumps
+    from modules.material_props import FormulaIsotherm
+
+    # 境目 0.5 で、下側 0.5・上側 0.504（0.8 %）：警告しない
+    with caplog.at_level(logging.WARNING, logger='modules.material_loaders'):
+        _warn_isotherm_jumps(_material_with_isotherm(FormulaIsotherm(formula='r', conditional=((0.5, '1.008*r'),))))
+    assert caplog.records == []
+
+    # 境目 0.5 で、下側 0.5・上側 0.51（2 %）：警告する
+    with caplog.at_level(logging.WARNING, logger='modules.material_loaders'):
+        _warn_isotherm_jumps(_material_with_isotherm(FormulaIsotherm(formula='r', conditional=((0.5, '1.02*r'),))))
+    assert len(caplog.records) == 1
+    assert '試しの材料' in caplog.records[0].message and '50 %' in caplog.records[0].message
+
+
+def test_no_isotherm_jump_warnings_in_data(caplog):
+    """今の 2 つの Excel の材料では、平衡含水率の段差の警告が出ないことを確認する。"""
+
+    with caplog.at_level(logging.WARNING, logger='modules.material_loaders'):
+        load_whamcavity()
+        load_mews_ashrae()
+    assert not any('平衡含水率の式が' in r.message for r in caplog.records)

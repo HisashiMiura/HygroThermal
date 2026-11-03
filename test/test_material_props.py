@@ -356,3 +356,31 @@ def test_piecewise_exp_poly_diffusivity_wrong_range():
         PiecewiseExpPolyDiffusivity(ranges=(
             (0.5, 0.1, (-20, 0, 0, 0, 0, 0, 0)),
         ))
+
+
+def test_formula_isotherm_jumps():
+    """式で与える平衡含水率の境目ごとに、下側の式と上側の式の値を返すことを確認する。"""
+
+    # 0.5 以下は u = r、0.5 超 0.8 以下は u = 2r、0.8 超は u = 3r
+    isotherm = FormulaIsotherm(formula='r', conditional=((0.8, '3*r'), (0.5, '2*r')))
+    jumps = isotherm.get_jumps()
+
+    # 境目 0.8：下側は 2r、上側は 3r。境目 0.5：下側は r、上側は 2r
+    assert jumps[0] == pytest.approx((0.8, 1.6, 2.4))
+    assert jumps[1] == pytest.approx((0.5, 0.5, 1.0))
+
+    # 境目がなければ空
+    assert FormulaIsotherm(formula='r').get_jumps() == []
+
+
+def test_power_exp_isotherm_jumps():
+    """直線を使う平衡含水率で、つなぎ目 r_0 の曲線と直線の値を返すことを確認する。"""
+
+    isotherm = PowerExpIsotherm(a=0.027903, b=0.64024, c=-1.5875, d=7.1897, f=87, g=0.022224100929699547)
+    (r_0, u_curve, u_line), = isotherm.get_jumps()
+    assert r_0 == POWER_EXP_ISOTHERM_R0
+    assert u_curve == pytest.approx(isotherm.u(r_0))
+    assert u_line == 0.022224100929699547
+
+    # 直線を使わなければ空
+    assert PowerExpIsotherm(a=0.027903, b=0.64024, c=-1.5875, d=7.1897).get_jumps() == []

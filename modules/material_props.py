@@ -76,6 +76,24 @@ class FormulaIsotherm:
 
         return eval(_compile(self.formula), {'math': math}, {'r': r})
 
+    def get_jumps(self) -> list[tuple[float, float, float]]:
+        """境目ごとの、下側の式と上側の式の含水率（境目で式がつながっているかを確かめるため）。
+
+        Returns:
+            (境目の相対湿度の比, 下側の式の含水率 kg/kg, 上側の式の含水率 kg/kg) の組の並び
+        """
+
+        jumps = []
+
+        # 境目の大きい組から順に並んでいるので、ある境目のすぐ下で使う式は、次の組の式（なければ基本の式）
+        for k, (threshold, formula_above) in enumerate(self.conditional):
+            formula_below = self.conditional[k + 1][1] if k + 1 < len(self.conditional) else self.formula
+            u_below = eval(_compile(formula_below), {'math': math}, {'r': threshold})
+            u_above = eval(_compile(formula_above), {'math': math}, {'r': threshold})
+            jumps.append((threshold, u_below, u_above))
+
+        return jumps
+
 
 # Parameter = 2 の材料で、直線に切り替える相対湿度。
 # materials_mews_ashrae.xlsx の「平衡含水率」シートの O1 と同じ値。変えるときは両方直す。
@@ -143,6 +161,21 @@ class PowerExpIsotherm:
         # 平衡含水率 u, kg/kg
         # 式 (1)
         return self.a * r**self.b * math.exp(self.c * (1 - r**self.d))
+
+    def get_jumps(self) -> list[tuple[float, float, float]]:
+        """直線のつなぎ目 r_0 の、曲線（式 (1)）と直線（式 (2)）の含水率（つながっているかを確かめるため）。
+
+        Returns:
+            (r_0, 曲線の含水率 kg/kg, 直線の含水率 kg/kg) の組の並び（直線を使わない材料は空）
+        """
+
+        # 直線を使わない材料は、つなぎ目がない
+        if self.f is None:
+            return []
+
+        r_0 = POWER_EXP_ISOTHERM_R0
+
+        return [(r_0, self.a * r_0**self.b * math.exp(self.c * (1 - r_0**self.d)), self.g)]
 
 
 @dataclass(frozen=True)
