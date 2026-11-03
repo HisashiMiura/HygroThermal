@@ -133,8 +133,8 @@ def _material_from_whamcavity_row(name: str, row: Series) -> Material:
     return Material(
         name=name,
         lambda_h=thermal_conductivity,
-        c=specific_heat,
-        rho=density,
+        c_s=specific_heat,
+        rho_s=density,
         isotherm=isotherm,
         vapor_conductivity=vapor_conductivity,
         liquid_diffusivity=liquid_diffusivity
@@ -177,7 +177,7 @@ def load_mews_ashrae(path: str = MEWS_ASHRAE_FILE) -> list[Material]:
         m = _material_from_mews_ashrae_row(row=row)
 
         if m.name in names:
-            new_name = f'{m.name} ({m.rho:g} kg/m3)'
+            new_name = f'{m.name} ({m.rho_s:g} kg/m3)'
             logger.warning('No.%d: 同じ名前の材料があるので、名前を「%s」としました（Excel の名前: %s）', int(row[0]), new_name, m.name)
             m.name = new_name
 
@@ -238,8 +238,8 @@ def _material_from_mews_ashrae_row(row: Series) -> Material:
     return Material(
         name=name,
         lambda_h=float(row[4]),
-        c=float(row[3]),
-        rho=float(row[2]),
+        c_s=float(row[3]),
+        rho_s=float(row[2]),
         isotherm=isotherm,
         vapor_conductivity=vapor_conductivity,
         liquid_diffusivity=liquid_diffusivity

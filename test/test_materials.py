@@ -33,8 +33,8 @@ def test_load():
 
     assert m.lambda_h == 0.0586
     assert m.vapor_conductivity.value == 2.61E-11
-    assert m.c == 0.0
-    assert m.rho == 0.0
+    assert m.c_s == 0.0
+    assert m.rho_s == 0.0
 
 
 def test_get_material_not_found():
@@ -190,7 +190,7 @@ def _fortran_diff(m, rh: float, t: float) -> float:
         wd2 = m.get_u(rh2) * 100
         # Fortran は水の密度 998 を掛けるが、Python は材料の乾燥密度を掛けるように意図して変えた
         # （液水拡散係数の定義 J_l = -ρ0 D_w grad u から。docs/note_fortran_diff_density.md）。そのため 998 を m.rho に置き換える
-        return m.rho * dw * abs((wd1 - wd2) * 0.01 / (wp1 - wp2))
+        return m.rho_s * dw * abs((wd1 - wd2) * 0.01 / (wp1 - wp2))
     else:
         return 0.0
 

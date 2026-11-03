@@ -1,3 +1,9 @@
+"""材料の性質の部品：平衡含水率・湿気伝導率・液水拡散係数の式の形（計算方法の文書の評価方法「材料の性質」の 4〜6 節）。
+
+コメントの「式 (k)」は、計算方法の文書の「材料の性質」（docs/source/contents/03_03_eval_materials.md）の式の番号。
+相対湿度は、0〜1 の比 r（= φ / 100）で受け取る。
+"""
+
 import math
 from dataclasses import dataclass
 from functools import lru_cache
@@ -53,11 +59,11 @@ class FormulaIsotherm:
         for _, formula in self.conditional:
             _compile(formula)
 
-    def u(self, x: float) -> float:
+    def u(self, r: float) -> float:
         """相対湿度から質量含水率を求める。
 
         Args:
-            x: 相対湿度(0.0～1.0)
+            r: 相対湿度(0.0～1.0)
 
         Returns:
             質量含水率, kg/kg
@@ -65,29 +71,29 @@ class FormulaIsotherm:
 
         # 境目を超えた最初の式で計算する
         for threshold, formula in self.conditional:
-            if x > threshold:
-                return eval(_compile(formula), {'math': math}, {'r': x})
+            if r > threshold:
+                return eval(_compile(formula), {'math': math}, {'r': r})
 
-        return eval(_compile(self.formula), {'math': math}, {'r': x})
+        return eval(_compile(self.formula), {'math': math}, {'r': r})
 
 
 # Parameter = 2 の材料で、直線に切り替える相対湿度。
 # materials_mews_ashrae.xlsx の「平衡含水率」シートの O1 と同じ値。変えるときは両方直す。
-POWER_EXP_ISOTHERM_X0 = 0.98
+POWER_EXP_ISOTHERM_R0 = 0.98
 
 
 @dataclass(frozen=True)
 class PowerExpIsotherm:
     """係数で与える平衡含水率曲線（materials_mews_ashrae.xlsx 用）。
 
-    u = a · x^b · exp(c · (1 − x^d))    x: 相対湿度(0.0～1.0)
+    u = a · r^b · exp(c · (1 − r^d))    r: 相対湿度(0.0～1.0)
 
-    a は相対湿度 100% のときの含水率になる（x = 1 のとき u = a）。
+    a は相対湿度 100% のときの含水率になる（r = 1 のとき u = a）。
 
-    f・g を指定した材料（Excel の Parameter = 2）は、x > X0（POWER_EXP_ISOTHERM_X0 = 0.98）で
-    点 (X0, g) と点 (1, f) を結ぶ直線を使う。
-        u = (f − g) · (x − X0) / (1 − X0) + g
-    x = X0 ちょうどは、上の式を使う。
+    f・g を指定した材料（Excel の Parameter = 2）は、r > r_0（POWER_EXP_ISOTHERM_R0 = 0.98）で
+    点 (r_0, g) と点 (1, f) を結ぶ直線を使う。
+        u = (f − g) · (r − r_0) / (1 − r_0) + g
+    r = r_0 ちょうどは、上の式を使う。
 
     式は materials_mews_ashrae.xlsx の「平衡含水率」シートの式に合わせた。
     """
@@ -104,11 +110,11 @@ class PowerExpIsotherm:
     # 係数, -
     d: float
 
-    # x > X0 で使う直線の係数（Parameter = 2 の材料だけ）。省略すると直線を使わない。
+    # r > r_0 で使う直線の係数（Parameter = 2 の材料だけ）。省略すると直線を使わない。
     # 相対湿度 100% のときの含水率, kg/kg
     f: float | None = None
 
-    # 相対湿度 X0 のときの含水率, kg/kg
+    # 相対湿度 r_0 のときの含水率, kg/kg
     g: float | None = None
 
     def __post_init__(self):
@@ -117,23 +123,26 @@ class PowerExpIsotherm:
         if (self.f is None) != (self.g is None):
             raise ValueError(f'f と g は両方指定してください: f={self.f}, g={self.g}')
 
-    def u(self, x: float) -> float:
+    def u(self, r: float) -> float:
         """相対湿度から質量含水率を求める。
 
         Args:
-            x: 相対湿度(0.0～1.0)
+            r: 相対湿度(0.0～1.0)
 
         Returns:
             質量含水率, kg/kg
         """
 
-        x0 = POWER_EXP_ISOTHERM_X0
+        r_0 = POWER_EXP_ISOTHERM_R0
 
-        # Parameter = 2 の材料で、相対湿度が X0 を超えるときは直線
-        if self.f is not None and x > x0:
-            return (self.f - self.g) * (x - x0) / (1 - x0) + self.g
+        # 平衡含水率 u, kg/kg
+        # 式 (2)。直線を使う材料で、相対湿度が r_0 を超えるとき
+        if self.f is not None and r > r_0:
+            return (self.f - self.g) * (r - r_0) / (1 - r_0) + self.g
 
-        return self.a * x**self.b * math.exp(self.c * (1 - x**self.d))
+        # 平衡含水率 u, kg/kg
+        # 式 (1)
+        return self.a * r**self.b * math.exp(self.c * (1 - r**self.d))
 
 
 @dataclass(frozen=True)
@@ -143,11 +152,11 @@ class ConstantVaporConductivity:
     # 湿気伝導率, (kg/s)/(m Pa)
     value: float
 
-    def lambda_dsh_m(self, x: float) -> float:
+    def lambda_dsh_m(self, r: float) -> float:
         """湿気伝導率を求める。
 
         Args:
-            x: 相対湿度(0.0～1.0)（一定値なので使わない）
+            r: 相対湿度(0.0～1.0)（一定値なので使わない）
 
         Returns:
             湿気伝導率, (kg/s)/(m Pa)
@@ -160,9 +169,9 @@ class ConstantVaporConductivity:
 class PowerExpVaporConductivity:
     """相対湿度によって変わる湿気伝導率。
 
-    λ' = a · x^b · exp(c · (1 − x^d))    x: 相対湿度(0.0～1.0)
+    λ' = a · r^b · exp(c · (1 − r^d))    r: 相対湿度(0.0～1.0)
 
-    a は相対湿度 100% のときの値になる（x = 1 のとき λ' = a）。
+    a は相対湿度 100% のときの値になる（r = 1 のとき λ' = a）。
     """
 
     # 係数, (kg/s)/(m Pa)
@@ -177,17 +186,19 @@ class PowerExpVaporConductivity:
     # 係数, -
     d: float
 
-    def lambda_dsh_m(self, x: float) -> float:
+    def lambda_dsh_m(self, r: float) -> float:
         """湿気伝導率を求める。
 
         Args:
-            x: 相対湿度(0.0～1.0)
+            r: 相対湿度(0.0～1.0)
 
         Returns:
             湿気伝導率, (kg/s)/(m Pa)
         """
 
-        return self.a * x**self.b * math.exp(self.c * (1 - x**self.d))
+        # 湿気伝導率 λ'_m, kg/(m s Pa)
+        # 式 (3)
+        return self.a * r**self.b * math.exp(self.c * (1 - r**self.d))
 
 
 @dataclass(frozen=True)
@@ -258,6 +269,8 @@ class PiecewiseExpPolyDiffusivity:
 
                 a, b, c, d, e, f, g = coefficients
 
+                # 液水拡散係数 D_w, m2/s
+                # 式 (4)
                 return math.exp(a + b * u + c * u**2 + d * u**3 + e * u**4 + f * u**5 + g * u**6)
 
         # どの区間にも入らない

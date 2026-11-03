@@ -71,7 +71,7 @@ class MaterialNode:
         Args:
             state: この質点の状態
         """
-        return self.material.rho * self.material.get_u(state.rh) * self.width
+        return self.material.rho_s * self.material.get_u(state.rh) * self.width
 
     def heat_capacity(self, state: State) -> float:
         """熱容量 C_i, J/(m2 K)（乾燥した材料 ＋ 含まれる水の熱容量 c_w × W_i）

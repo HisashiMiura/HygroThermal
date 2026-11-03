@@ -1,7 +1,8 @@
 """古い熱・水分の物性の関数（段階 8 で消す）。
 
 湿り空気と水の定数と関数は air_water_properties.py に移した。ここでは、古いコードのためにそれを使う。
-含水率の微分（get_dpsi_dmu）と液相水分伝導率（get_lambda_dsh_mu_l）は、計算方法の文書の「材料の性質」を書くときに移す。
+液相水分伝導率は materials.Material.get_lambda_dsh_mu_l に移した（ここの get_lambda_dsh_mu_l は、古いテストのために残す）。
+含水率の微分（get_dpsi_dmu）は、新しいコードは使わない。
 """
 
 import math

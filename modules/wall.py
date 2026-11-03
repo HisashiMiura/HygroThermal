@@ -628,7 +628,7 @@ class Wall:
         material_is = [material_of_layers[layer_index] for layer_index in lookup_table]
 
         # 質点iの密度, kg/m3, [I]
-        gma_is = np.array([material_i.rho for material_i in material_is])
+        gma_is = np.array([material_i.rho_s for material_i in material_is])
 
         nrains_list: list[NRAIN] = get_nrains_of_walls(wall_index=i)
 

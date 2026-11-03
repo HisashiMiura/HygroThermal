@@ -239,7 +239,7 @@ class TestWaterAmountAndHeatCapacityIs:
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 70.0)
         m = g.nodes[0].material
-        assert water_amount_is(g, t_is, mu_is).sum() == pytest.approx(0.009 * m.rho * m.get_u(70.0))
+        assert water_amount_is(g, t_is, mu_is).sum() == pytest.approx(0.009 * m.rho_s * m.get_u(70.0))
 
 
 class TestMoistureResidual:

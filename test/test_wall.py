@@ -114,8 +114,8 @@ def test_get_materials_of_layers():
     ms = get_materials_of_layers(layers=layers)
 
     assert [m.name for m in ms] == ['サイディング', 'ASHRAE Plywood -1', '構造用合板1']
-    assert ms[1].rho == 445.0
-    assert ms[2].rho == 600.0
+    assert ms[1].rho_s == 445.0
+    assert ms[2].rho_s == 600.0
 
 
 def test_get_materials_of_layers_same_name(monkeypatch):
@@ -128,7 +128,7 @@ def test_get_materials_of_layers_same_name(monkeypatch):
 
     def loader(rho):
         return lambda: [Material(
-            name='合板', lambda_h=plywood.lambda_h, c=plywood.c, rho=rho, isotherm=plywood.isotherm,
+            name='合板', lambda_h=plywood.lambda_h, c_s=plywood.c_s, rho_s=rho, isotherm=plywood.isotherm,
             vapor_conductivity=plywood.vapor_conductivity, liquid_diffusivity=plywood.liquid_diffusivity)]
 
     monkeypatch.setitem(material_loaders.MATERIAL_SOURCES, 'source_a', loader(500.0))
@@ -136,7 +136,7 @@ def test_get_materials_of_layers_same_name(monkeypatch):
 
     ms = get_materials_of_layers(layers=[_layer('合板', source='source_a'), _layer('合板', source='source_b')])
 
-    assert [m.rho for m in ms] == [500.0, 700.0]
+    assert [m.rho_s for m in ms] == [500.0, 700.0]
 
 
 def test_get_materials_of_layers_unknown_source():

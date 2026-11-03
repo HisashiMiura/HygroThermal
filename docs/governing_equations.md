@@ -45,18 +45,18 @@
 **熱伝導**
 
 $$
-q = -\lambda \frac{\partial T}{\partial x} \qquad (3.1)
+q = -\lambda_h \frac{\partial T}{\partial x} \qquad (3.1)
 $$
 
-λ：熱伝導率 [W/(m K)]
+$\lambda_h$：熱伝導率 [W/(m K)]
 
 **水蒸気の流れ**（水蒸気圧の差で流れる）
 
 $$
-J_v = -\lambda_p' \frac{\partial p_v}{\partial x} \qquad (3.2)
+J_v = -\lambda_m' \frac{\partial p_v}{\partial x} \qquad (3.2)
 $$
 
-$\lambda_p'$：湿気伝導率（透湿率）[kg/(m s Pa)]。相対湿度によって変わる。
+$\lambda_m'$：湿気伝導率（透湿率）[kg/(m s Pa)]。相対湿度によって変わる。
 
 **液水の流れ**（水分化学ポテンシャルの差で流れる）
 
@@ -146,7 +146,7 @@ $$
 **水分の収支**
 
 $$
-\frac{\partial w}{\partial t} = \frac{\partial}{\partial x}\left( \lambda_p' \frac{\partial p_v}{\partial x} + \lambda_{\mu l}' \frac{\partial \mu}{\partial x} \right) \qquad (5.1)
+\frac{\partial w}{\partial t} = \frac{\partial}{\partial x}\left( \lambda_m' \frac{\partial p_v}{\partial x} + \lambda_{\mu l}' \frac{\partial \mu}{\partial x} \right) \qquad (5.1)
 $$
 
 （通気層の空気では、左辺は $\partial \rho_v / \partial t$、右辺の液水の項はない）
@@ -154,7 +154,7 @@ $$
 **熱の収支**
 
 $$
-c\rho \thinspace \frac{\partial T}{\partial t} = \frac{\partial}{\partial x}\left( \lambda \frac{\partial T}{\partial x} + L_v \lambda_p' \frac{\partial p_v}{\partial x} \right) \qquad (5.2)
+c\rho \thinspace \frac{\partial T}{\partial t} = \frac{\partial}{\partial x}\left( \lambda_h \frac{\partial T}{\partial x} + L_v \lambda_m' \frac{\partial p_v}{\partial x} \right) \qquad (5.2)
 $$
 
 ここで、 $w = \rho_s u(\varphi)$、 $\varphi = \exp(\mu / (R_v T))$、 $p_v = \varphi \thinspace p_{sat}(T)$、 $c\rho = c_s \rho_s + c_w w$。
@@ -170,8 +170,8 @@ $$
 と分けると、
 
 $$
-\lambda_{\mu g}' = \lambda_p' \left(\frac{\partial p_v}{\partial \mu}\right)_T, \qquad
-\lambda_{Tg}' = \lambda_p' \left(\frac{\partial p_v}{\partial T}\right)_\mu
+\lambda_{\mu g}' = \lambda_m' \left(\frac{\partial p_v}{\partial \mu}\right)_T, \qquad
+\lambda_{Tg}' = \lambda_m' \left(\frac{\partial p_v}{\partial T}\right)_\mu
 $$
 
 （水分化学ポテンシャル勾配・温度勾配に対する気相水分伝導率）を使った形になる。
@@ -209,7 +209,7 @@ j_{v,k} = \frac{p_{v,L} - p_{v,R}}{R_{m,k}}, \qquad
 j_{l,k} = \frac{\mu_L - \mu_R}{R_{l,k}} \qquad (6.1)
 $$
 
-- 材料の中の半分の抵抗は、距離 d を使って $d/\lambda$、 $d/\lambda_p'$、 $d/\lambda_{\mu l}'$。湿気伝導率と液水伝導率は、その側の質点の状態で計算する。
+- 材料の中の半分の抵抗は、距離 d を使って $d/\lambda_h$、 $d/\lambda_m'$、 $d/\lambda_{\mu l}'$。湿気伝導率と液水伝導率は、その側の質点の状態で計算する。
 - 境目（表面・層と層・材料と通気層）の抵抗は、入力のコンダクタンスの逆数（熱 $1/\alpha$、湿気 $1/\alpha_p'$）。**境目では液水は移動しない**（ $R_{l,k} = \infty$、 $j_{l,k} = 0$）。
 - 液水伝導率が 0 の所では、液水の抵抗は無限大（ $j_l = 0$）。
 
@@ -271,8 +271,8 @@ $$
 | u | 質量含水率 | kg/kg | `Material.get_u` |
 | $\rho_s$ | 材料の乾燥密度 | kg/m³ | `Material.rho` |
 | $c_s$ | 材料の比熱 | J/(kg K) | `Material.c` |
-| λ | 熱伝導率 | W/(m K) | `Material.lambda_h` |
-| $\lambda_p'$ | 湿気伝導率 | kg/(m s Pa) | `Material.get_lambda_dsh_m` |
+| $\lambda_h$ | 熱伝導率 | W/(m K) | `Material.lambda_h` |
+| $\lambda_m'$ | 湿気伝導率 | kg/(m s Pa) | `Material.get_lambda_dsh_m` |
 | $\lambda_{\mu l}'$ | 液相水分伝導率 | kg/(m s (J/kg)) | `Material.get_lambda_dsh_mu_l` |
 | $R_v$ | 水蒸気の気体定数 | J/(kg K) | `air_water_properties.R_V`（461.5） |
 | $L_v$ | 相変化熱（蒸発潜熱） | J/kg | `air_water_properties.L_V`（2.512×10⁶） |

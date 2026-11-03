@@ -6,7 +6,7 @@ import pytest
 
 
 from modules.material_props import (
-    POWER_EXP_ISOTHERM_X0,
+    POWER_EXP_ISOTHERM_R0,
     FormulaIsotherm,
     PowerExpIsotherm,
     ConstantVaporConductivity,
@@ -241,7 +241,7 @@ def test_power_exp_isotherm_mews_ashrae(no):
 def test_power_exp_isotherm_x0_matches_excel():
     """直線に切り替える相対湿度が、Excel の「平衡含水率」シートの O1 と同じであることを確認する。"""
 
-    assert POWER_EXP_ISOTHERM_X0 == _wb_mews_ashrae['平衡含水率']['O1'].value
+    assert POWER_EXP_ISOTHERM_R0 == _wb_mews_ashrae['平衡含水率']['O1'].value
 
 
 def test_no_liquid_diffusivity():

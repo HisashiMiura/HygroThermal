@@ -33,7 +33,7 @@ class TestMaterialNode:
         # 幅 2 mm × 容積比熱
         m = _plywood()
         node = MaterialNode(d_left=0.001, d_right=0.001, material=m, layer_index=0)
-        assert node.heat_capacity_dry == pytest.approx(0.002 * m.c * m.rho)
+        assert node.heat_capacity_dry == pytest.approx(0.002 * m.c_s * m.rho_s)
 
     @pytest.mark.parametrize('d_left, d_right', [
         (0.001, 0.001),   # 層の中
@@ -508,7 +508,7 @@ class TestWaterAmountAndHeatCapacity:
         m = _plywood()
         node = MaterialNode(d_left=0.0009, d_right=0.0009, material=m, layer_index=0)
         state = _state(50.0)
-        assert node.water_amount(state) == pytest.approx(m.rho * m.get_u(50.0) * 0.0018)
+        assert node.water_amount(state) == pytest.approx(m.rho_s * m.get_u(50.0) * 0.0018)
 
     def test_air_water_amount(self):
         # 通気層 25 mm、20 deg.C・50%：水蒸気の密度 p_v / (R_v T) × 厚さ（約 0.0002 kg/m2）

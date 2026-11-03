@@ -308,8 +308,8 @@ def test_load_mews_ashrae_basic_values(no):
     m = _mews_ashrae_materials[no]
     row = _data_rows[no]
 
-    assert m.rho == row[2]
-    assert m.c == row[3]
+    assert m.rho_s == row[2]
+    assert m.c_s == row[3]
     assert m.lambda_h == row[4]
 
 
