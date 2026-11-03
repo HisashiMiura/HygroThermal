@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pytest
 from scipy.optimize import fsolve
@@ -35,9 +36,8 @@ class TestBandedJacobian:
         a = _random_banded_matrix(n, l, u)
         b = np.arange(n, dtype=float)
         x_ps = np.linspace(-1.0, 1.0, n)
-        f_ps, ab = _banded_jacobian(lambda x: a @ x - b, x_ps, band=(l, u))
+        ab = _banded_jacobian(lambda x: a @ x - b, x_ps, a @ x_ps - b, band=(l, u))
         np.testing.assert_allclose(ab, _to_banded(a, l, u), rtol=1e-6, atol=1e-6)
-        np.testing.assert_allclose(f_ps, a @ x_ps - b)
 
     def test_nonlinear(self):
         # F_p = x_p^3 + x_(p-1) - 2 x_(p+1)：対角 3 x_p^2、下 1、上 -2
@@ -49,13 +49,13 @@ class TestBandedJacobian:
 
         n = 8
         x_ps = np.linspace(0.5, 2.0, n)
-        _, ab = _banded_jacobian(f, x_ps, band=(1, 1))
+        ab = _banded_jacobian(f, x_ps, f(x_ps.copy()), band=(1, 1))
         expected = np.diag(3.0 * x_ps ** 2) + np.diag(np.ones(n - 1), -1) + np.diag(-2.0 * np.ones(n - 1), 1)
         np.testing.assert_allclose(ab, _to_banded(expected, 1, 1), rtol=1e-6, atol=1e-6)
 
     @pytest.mark.parametrize('l, u, n', [(1, 1, 33), (3, 3, 66)])
     def test_number_of_calls(self, l, u, n):
-        # 残差を計算する回数は「帯の幅 + 1」（未知数の数によらない）
+        # 残差を計算する回数は「帯の幅」（未知数の数によらない。もとの残差は呼ぶ側が渡す）
         calls = []
         a = _random_banded_matrix(n, l, u)
 
@@ -63,8 +63,8 @@ class TestBandedJacobian:
             calls.append(1)
             return a @ x
 
-        _banded_jacobian(f, np.ones(n), band=(l, u))
-        assert len(calls) == l + u + 1 + 1
+        _banded_jacobian(f, np.ones(n), a @ np.ones(n), band=(l, u))
+        assert len(calls) == l + u + 1
 
 
 def _cubic(b_ps: np.ndarray):
@@ -120,6 +120,33 @@ class TestNewtonSolve:
         # 答えのない式 x_p^2 + 1 = 0 は収束しない
         with pytest.raises(NewtonNotConverged):
             newton_solve(lambda x: x ** 2 + 1.0, np.full(3, 0.7), band=(1, 1), tol=1e-10, max_iter=20)
+
+    def test_upper_bound_backward_difference(self):
+        # 上限にいる未知数は、反対の向き（減らす向き）にずらして傾きを測る
+        # F = min(x, 0)：x ≤ 0 では傾き 1、x > 0 では傾き 0。x = 0（上限）で、左の傾き 1 になること
+        f = lambda x: np.minimum(x, 0.0)
+        ab = _banded_jacobian(f, np.zeros(3), np.zeros(3), band=(1, 1), x_max_ps=np.zeros(3))
+        np.testing.assert_allclose(ab[1], 1.0)
+
+    def test_residual_error_is_not_converged(self):
+        # 残差が計算できない点（ここでは x ≤ 0 で対数がエラー）から始めると、NewtonNotConverged になる
+        with pytest.raises(NewtonNotConverged):
+            newton_solve(lambda x: np.array([math.log(v) for v in x]), np.full(3, -1.0), band=(1, 1), tol=1e-10)
+
+    def test_line_search(self):
+        # F = atan(x)：x0 = 2 から修正をそのまま足すと、答え 0 を飛び越えて発散する（ふつうのニュートン法の失敗例）。
+        # 修正の幅を小さくすれば、収束する
+        x_ps, _ = newton_solve(np.arctan, np.full(3, 2.0), band=(1, 1), tol=1e-10)
+        np.testing.assert_allclose(x_ps, 0.0, atol=1e-10)
+
+    def test_upper_bound(self):
+        # F = x - 1（答え 1）に、上限 0.5 を付けると、上限で止まって収束しない（上限の外には行かない）
+        with pytest.raises(NewtonNotConverged):
+            newton_solve(lambda x: x - 1.0, np.zeros(3), band=(1, 1), tol=1e-10, x_max_ps=np.full(3, 0.5))
+
+        # 答えが上限より下なら、ふつうに解ける
+        x_ps, _ = newton_solve(lambda x: x - 0.3, np.zeros(3), band=(1, 1), tol=1e-10, x_max_ps=np.full(3, 0.5))
+        np.testing.assert_allclose(x_ps, 0.3)
 
     def test_same_as_fsolve(self):
         # 同じ非線形の式を scipy の fsolve（MINPACK）でも解き、答えが一致することで正しさを確かめる

@@ -91,9 +91,14 @@ def step(
     x0_ps = np.empty(2 * len(state_n))
     x0_ps[0::2], x0_ps[1::2] = state_n.t_is, state_n.mu_is
 
+    # 未知数の上限：温度は上限なし、水分化学ポテンシャルは 0（相対湿度 100%）
+    # （μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする）
+    x_max_ps = np.empty(len(x0_ps))
+    x_max_ps[0::2], x_max_ps[1::2] = np.inf, 0.0
+
     # 残差が 0（許容値の 1 倍以下）になる未知数を探す（1 回は必ず修正する）
     try:
-        x_ps, m = newton_solve(residual, x0_ps, band=HEAT_MOISTURE_BAND, tol=1.0, min_iter=1)
+        x_ps, m = newton_solve(residual, x0_ps, band=HEAT_MOISTURE_BAND, tol=1.0, min_iter=1, x_max_ps=x_max_ps)
     except NewtonNotConverged as e:
 
         # 前の時刻に、相対湿度が 100% に近い質点の番号
