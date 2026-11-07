@@ -215,12 +215,12 @@ $$
 
 ### 6.2 質点の水分量と熱容量
 
-質点 i が受け持つ幅を $d_i$ [m] とする（壁 1 m² あたりの量にする）。
+質点 i が受け持つ幅を $w_i$ [m] とする（壁 1 m² あたりの量にする）。
 
 | | 材料の質点 | 空気の質点 |
 |---|---|---|
-| 水分量 $W_i$ [kg/m²] | $\rho_s \thinspace u(\varphi_i) \thinspace d_i$ | $\rho_{v,i} \thinspace d_i$ |
-| 熱容量 $C_i$ [J/(m² K)] | $(c_s \rho_s + c_w \thinspace \rho_s u(\varphi_i)) \thinspace d_i$ | $c_a \rho_a(T_i) \thinspace d_i$（空気の比熱 × その質点の温度の空気の密度） |
+| 水分量 $W_i$ [kg/m²] | $\rho_s \thinspace u(\varphi_i) \thinspace w_i$ | $\rho_{v,i} \thinspace w_i$ |
+| 熱容量 $C_i$ [J/(m² K)] | $(c_s \rho_s + c_w \thinspace \rho_s u(\varphi_i)) \thinspace w_i$ | $c_a \rho_a(T_i) \thinspace w_i$（空気の比熱 × その質点の温度の空気の密度） |
 
 ### 6.3 残差
 
@@ -245,7 +245,7 @@ $$
 **通気層の換気**（空気の質点だけ。上流の空気は外気とする）
 
 $$
-q_{v,i} = \frac{\alpha d_i}{L_w} \sqrt{\frac{2 g H |\rho_o - \rho_i|}{\rho_o}}, \qquad
+q_{v,i} = \frac{\alpha w_i}{L_w} \sqrt{\frac{2 g H |\rho_o - \rho_i|}{\rho_o}}, \qquad
 j_{vent,i} = q_{v,i} (\rho_{v,o} - \rho_{v,i}), \qquad
 q_{vent,i} = c_a \rho_a(T_o) \thinspace q_{v,i} (T_o - T_i) \qquad (6.4)
 $$

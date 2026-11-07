@@ -3,6 +3,11 @@
 壁の入力（wall_input.WallInput）から作る。段階 2（docs/design/class_structure.md）で作る。
 今の cell.py・wall.py の Cell と質点の配列は、置き換えが終わったら消す。
 
+計算方法の文書の評価方法との対応：質点の分け方とつながり（_make_nodes・_make_links）は「壁の構成と質点」、
+つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量は「熱・水分の収支」、
+換気量は「通気層の換気」。コメントの「式 (k)」は、とくに断りがなければ「壁の構成と質点」
+（docs/source/contents/03_04_eval_wall_nodes.md）の式の番号。
+
 質点の置き方（設計の文書 2.3 節）：層の両端（表面・異種材料の境目）に必ず質点を置く。
 層の中の質点はコントロールボリュームの中心にあり、層の端の質点は表面・境目の上にある。
 
@@ -32,10 +37,10 @@ _G = 9.8
 class MaterialNode:
     """材料の質点。"""
 
-    # 質点からコントロールボリュームの左（外気側）の端までの距離, m（層の左の端の質点は 0）
+    # 質点からコントロールボリュームの左（外気側）の端までの距離 d_L,i, m（層の左の端の質点は 0。式 (2)）
     d_left: float
 
-    # 質点からコントロールボリュームの右（室内側）の端までの距離, m（層の右の端の質点は 0）
+    # 質点からコントロールボリュームの右（室内側）の端までの距離 d_R,i, m（層の右の端の質点は 0。式 (3)）
     d_right: float
 
     # 材料
@@ -57,7 +62,7 @@ class MaterialNode:
 
     @property
     def width(self) -> float:
-        """コントロールボリュームの幅, m（左右の端までの距離の和）"""
+        """コントロールボリュームの幅 w_i, m（左右の端までの距離の和。式 (4)）"""
         return self.d_left + self.d_right
 
     @property
@@ -149,7 +154,7 @@ class AirNode:
 
     @property
     def width(self) -> float:
-        """コントロールボリュームの幅, m（通気層の厚さ）"""
+        """コントロールボリュームの幅 w_i, m（通気層の厚さ d_l。「壁の構成と質点」の 4 節）"""
         return self.thickness
 
     def water_amount(self, state: State) -> float:
@@ -426,8 +431,8 @@ def material_finder() -> FindMaterial:
 def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> tuple[Node, ...]:
     """層の並び（外気側から順）から、質点の並び（外気側から順）を作る。
 
-    材料の層（厚さ d、分割数 n）は、間隔 dx = d / (n - 1) で n 個の質点にする。層の両端の質点は表面・境目の上にあり、
-    その側までの距離は 0、内側の端までの距離は dx / 2。層の中の質点は、左右とも dx / 2。
+    材料の層（厚さ d_l、分割数 N_div,l）は、間隔 Δx_l で N_div,l 個の質点にする。層の両端の質点は表面・境目の上にあり、
+    その側までの距離は 0、内側の端までの距離は Δx_l / 2。層の中の質点は、左右とも Δx_l / 2。
     通気層は、空気の質点 1 つにする。
 
     内部用の関数。ふだんは WallGeometry.from_input から、WallInput の layers を渡して呼ぶ。
@@ -436,6 +441,12 @@ def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> 
     Args:
         layers: 層の入力の並び（WallInput.layers）
         find_material: 材料を探す関数（ふだんは material_finder() で作る）
+
+    Returns:
+        質点の並び（外気側から順）
+
+    Notes:
+        計算方法の文書の「壁の構成と質点」の 3 節（式 (1)〜(3)）・4 節に対応する。
     """
 
     nodes: list[Node] = []
@@ -453,13 +464,21 @@ def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> 
         except KeyError:
             raise ValueError(f'層 {i} 番目の材料が見つかりません（出どころ {layer.source!r}、名称 {layer.name!r}）。') from None
 
-        # 質点の間隔, m（分割数は入力の確認で 2 以上なので、0 で割ることはない）
+        # 質点の間隔 Δx_l, m
+        # 式 (1)。分割数は入力の確認で 2 以上なので、0 で割ることはない
         dx = layer.thickness / (layer.n_div - 1)
 
         # 層の左の端・中・右の端の質点を作る（端の質点は、表面・境目の側までの距離が 0）
         for j in range(layer.n_div):
+
+            # 質点からコントロールボリュームの左の端までの距離 d_L, m
+            # 式 (2)
             d_left = 0.0 if j == 0 else dx / 2
+
+            # 質点からコントロールボリュームの右の端までの距離 d_R, m
+            # 式 (3)
             d_right = 0.0 if j == layer.n_div - 1 else dx / 2
+
             nodes.append(MaterialNode(d_left=d_left, d_right=d_right, material=material, layer_index=i))
 
     return tuple(nodes)
@@ -477,6 +496,12 @@ def _make_links(nodes: tuple[Node, ...], interfaces: tuple[InterfaceInput, ...])
     Args:
         nodes: 質点の並び（_make_nodes で作ったもの）
         interfaces: 入力の境目の並び（WallInput.interfaces。層の数 + 1 個）。計算の側の境目（Interface）に変えて使う
+
+    Returns:
+        つながりの並び（外気側から順、質点の数 + 1 個）
+
+    Notes:
+        計算方法の文書の「壁の構成と質点」の 5 節に対応する。
     """
 
     # 入力の境目（コンダクタンス）を、計算の側の境目（抵抗）に変える
