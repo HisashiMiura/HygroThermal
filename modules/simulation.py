@@ -2,6 +2,9 @@
 
 境界条件は、経過時間（秒）を渡すとその時刻の値を返す関数で受け取る（Δt と切り離すため）。
 1 ステップを進める部分は solver.step。
+
+計算方法の文書の評価方法との対応：「時間の進め方」（docs/source/contents/03_13_eval_time.md）。
+コメントの「式 (k)」は、とくに断りがなければその節の式の番号。
 """
 
 from collections.abc import Callable
@@ -73,6 +76,9 @@ def simulate(
     Raises:
         Condensation: 結露して、相対湿度 100% 以下では収支が合わないとき（solver.step）
         NewtonNotConverged: それ以外の理由で収束しなかったとき（solver.step）
+
+    Notes:
+        計算方法の文書の「時間の進め方」に対応する。
     """
 
     # 時間刻みが正でなければエラー
@@ -105,20 +111,23 @@ def simulate(
 
     for n in range(n_steps):
 
-        # ステップの終わりの時刻, s
-        time_end = (n + 1) * dt
+        # ステップ n + 1 の時刻 t_n+1, s
+        # 式 (1)
+        t_npls = (n + 1) * dt
 
-        # ステップの終わりの時刻の境界条件で、1 ステップ進める（換気量だけは、ステップの始めの外気で求める）
-        b_npls = boundaries_at(time_end)
+        # ステップ n + 1 の境界条件で、1 ステップ進める（換気量だけは、ステップ n の外気で求める）
+        # 4 節
+        b_npls = boundaries_at(t_npls)
         state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
 
         # 次のステップの始めの境界条件は、このステップの終わりの境界条件
         b_n = b_npls
 
         # record_every ステップごとに記録する
+        # 5 節
         if (n + 1) % record_every == 0:
             r = (n + 1) // record_every
-            time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = time_end, state.t_is, state.mu_is
+            time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = t_npls, state.t_is, state.mu_is
 
     return SimulationResult(
         time_ns=time_ns,
