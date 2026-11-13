@@ -33,7 +33,7 @@ def _one_layer(name: str, thickness: float, n_div: int, theta: float, rh: float)
         'layers': [{'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,
                     'initial_temperature': theta, 'initial_rh': rh}],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
-        'len_vertical': 1.0, 'len_horizontal': 1.0, 'height': 1.0,
+        'len_vertical': 1.0, 'len_horizontal': 1.0,
     }))
 
 
@@ -59,7 +59,7 @@ def _main_wall() -> tuple[WallGeometry, WallState]:
             (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
             (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
         )],
-        'len_vertical': 7.0, 'len_horizontal': 0.42, 'height': 7.0,
+        'len_vertical': 7.0, 'len_horizontal': 0.42,
     }))
 
 
@@ -80,14 +80,14 @@ class TestStep:
     def test_uniform(self):
         # 外気・室内・壁がすべて 20 deg.C・50% なら、1 ステップ進めても変わらない
         g, state_n = _one_layer('構造用合板1', 0.009, 6, 20.0, 50.0)
-        state, _ = step(g, state_n, dt=180.0, outdoor_npls=_outdoor(20.0, 50.0), indoor_npls=_indoor(20.0, 50.0))
+        state, _ = step(g, state_n, dt=180.0, outdoor_n=_outdoor(20.0, 50.0), outdoor_npls=_outdoor(20.0, 50.0), indoor_npls=_indoor(20.0, 50.0))
         np.testing.assert_allclose(state.theta_is, 20.0)
         np.testing.assert_allclose(state.rh_is, 50.0)
 
     def test_iterations(self):
         # 非線形だが、数回（5 回以下）の修正で収束する
         g, state_n = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
-        _, m = step(g, state_n, dt=180.0, outdoor_npls=_outdoor(0.0, 80.0), indoor_npls=_indoor(20.0, 50.0))
+        _, m = step(g, state_n, dt=180.0, outdoor_n=_outdoor(0.0, 80.0), outdoor_npls=_outdoor(0.0, 80.0), indoor_npls=_indoor(20.0, 50.0))
         assert 1 <= m <= 5
 
     def test_conservation(self):
@@ -97,7 +97,7 @@ class TestStep:
         g, state_n = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         dt = 180.0
         outdoor, indoor = _outdoor(0.0, 80.0), _indoor(20.0, 50.0)
-        state, _ = step(g, state_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
+        state, _ = step(g, state_n, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
 
         w_stored = (water_amount_is(g, state.t_is, state.mu_is) - water_amount_is(g, state_n.t_is, state_n.mu_is)).sum()
         j_ks = _moisture_flow_ks(g, state, outdoor, indoor)
@@ -115,7 +115,7 @@ class TestStep:
         dt, n_steps = 86400.0, 365
         state, absorbed = state_0, 0.0
         for _ in range(n_steps):
-            state, _ = step(g, state, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
+            state, _ = step(g, state, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
             j_ks = _moisture_flow_ks(g, state, outdoor, indoor)
             absorbed += (j_ks[0] - j_ks[-1]) * dt
         np.testing.assert_allclose(state.rh_is, 70.0, atol=1e-4)
@@ -130,7 +130,7 @@ class TestStep:
         g, state = _one_layer('構造用合板2', 0.012, 5, 20.0, 50.0)
         outdoor, indoor = _outdoor(20.0, 30.0), _indoor(20.0, 70.0)
         for _ in range(365):
-            state, _ = step(g, state, dt=86400.0, outdoor_npls=outdoor, indoor_npls=indoor)
+            state, _ = step(g, state, dt=86400.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
         state_any = State.init(t=20.0 + T_0, rh=50.0)
         r_m_total = sum(link.r_m(state_any, state_any) for link in g.links)
         j_v_ks = vapour_flow_ks(g, state.t_is, state.mu_is, outdoor, indoor)
@@ -144,7 +144,7 @@ class TestStep:
         g, state = _main_wall()
         outdoor, indoor = _outdoor(0.0, 80.0), _indoor(20.0, 50.0)
         for _ in range(365):
-            state, _ = step(g, state, dt=86400.0, outdoor_npls=outdoor, indoor_npls=indoor)
+            state, _ = step(g, state, dt=86400.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
         assert state.rh_is.max() < 100.0
 
         # 通気層の空気の質点の番号（つながり i_air は外側から入る所、i_air + 1 は内側へ出る所）
@@ -167,7 +167,7 @@ class TestStep:
         outdoor, indoor = _outdoor(-5.0, 90.0), _indoor(25.0, 95.0)
         with pytest.raises(Condensation, match='質点 0（層 0'):
             for _ in range(24 * 30):
-                state, _ = step(g, state, dt=3600.0, outdoor_npls=outdoor, indoor_npls=indoor)
+                state, _ = step(g, state, dt=3600.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
 
     def test_condensation_is_not_converged(self):
         # 結露は、収束しなかったことの一種（NewtonNotConverged で受けても捕まえられる）
@@ -196,9 +196,9 @@ class TestStep:
         outdoor_c = OutdoorBoundary(state=outdoor_a.state)
 
         for _ in range(20):
-            state_a, _ = step(g, state_a, dt=180.0, outdoor_npls=outdoor_a, indoor_npls=indoor)
-            state_b, _ = step(g, state_b, dt=180.0, outdoor_npls=outdoor_b, indoor_npls=indoor)
-            state_c, _ = step(g, state_c, dt=180.0, outdoor_npls=outdoor_c, indoor_npls=indoor)
+            state_a, _ = step(g, state_a, dt=180.0, outdoor_n=outdoor_a, outdoor_npls=outdoor_a, indoor_npls=indoor)
+            state_b, _ = step(g, state_b, dt=180.0, outdoor_n=outdoor_b, outdoor_npls=outdoor_b, indoor_npls=indoor)
+            state_c, _ = step(g, state_c, dt=180.0, outdoor_n=outdoor_c, outdoor_npls=outdoor_c, indoor_npls=indoor)
         np.testing.assert_allclose(state_a.t_is, state_b.t_is, rtol=0.0, atol=1e-6)
         np.testing.assert_allclose(state_a.rh_is, state_b.rh_is, rtol=0.0, atol=1e-6)
 
@@ -214,7 +214,7 @@ def _air_layer_wall(alpha: float) -> tuple[WallGeometry, WallState]:
         'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': alpha, 'initial_temperature': 20.0, 'initial_rh': 50.0}, m],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 3.43e-8},
                        {'g_h': 9.2, 'g_m': 3.43e-8}, {'g_h': 9.2, 'g_m': 2.6e-10}],
-        'len_vertical': 7.0, 'len_horizontal': 0.42, 'height': 7.0,
+        'len_vertical': 7.0, 'len_horizontal': 0.42,
     }))
 
 
@@ -227,7 +227,7 @@ class TestVentilation:
         for alpha in (0.0, 100.0):
             g, state = _air_layer_wall(alpha)
             for _ in range(48):
-                state, _ = step(g, state, dt=1800.0, outdoor_npls=outdoor, indoor_npls=indoor)
+                state, _ = step(g, state, dt=1800.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
             theta_air[alpha] = state.theta_is[2]
         assert abs(theta_air[100.0] - 0.0) < 0.5
         assert theta_air[0.0] > 5.0
@@ -240,7 +240,7 @@ class TestVentilation:
         for alpha in (0.0, 0.085):
             g, state = _air_layer_wall(alpha)
             for _ in range(24):
-                state, _ = step(g, state, dt=3600.0, outdoor_npls=outdoor, indoor_npls=indoor)
+                state, _ = step(g, state, dt=3600.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
             rh_air[alpha] = state.rh_is[2]
         assert rh_air[0.085] < rh_air[0.0] - 1.0
 
@@ -249,7 +249,7 @@ class TestVentilation:
         g, state_n = _air_layer_wall(0.085)
         dt = 600.0
         outdoor, indoor = _outdoor(0.0, 80.0), _indoor(20.0, 50.0)
-        state, _ = step(g, state_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
+        state, _ = step(g, state_n, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
         q_v_is = ventilation_rate_is(g, state_n.t_is, outdoor)
         rho_v_o = outdoor.state.p_v / (461.5 * outdoor.state.t)
         rho_v_is = np.array([state.state(i).p_v for i in range(len(state))]) / (461.5 * state.t_is)

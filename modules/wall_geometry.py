@@ -167,28 +167,39 @@ class AirNode:
 
     def ventilation_rate(
             self,
-            t: float,
-            t_outdoor: float,
+            t_i_n: float,
+            t_ex_n: float,
             height: float,
             len_vertical: float
         ) -> float:
-        """壁 1 m2 あたりの換気量 q_v, m3/(m2 s)（温度差による浮力換気）。
+        """ステップ n の、壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s)（温度差による浮力換気）。
 
-        q_v = α d / L_w × √(2 g H |ρ_o - ρ_i| / ρ_o)。換気量 Q = αA √(2 ΔP / ρ_o)（相当開口面積 αA = α d × 横の長さ、
-        浮力の圧力差 ΔP = g H |ρ_o - ρ_i|）を壁の面積（縦 × 横の長さ）で割ると、横の長さは消える（設計の文書 2.5 節）。
-        Fortran の Whamcavity は αA √(8 g H |Δρ|) で、ρ_o で割る所がない（単位が合わない）ので、ふつうの式にした。
+        上流の空気は外気とする（壁が 1 枚なので）。
 
         Args:
-            t: 通気層の空気の温度, K
-            t_outdoor: 外気温, K
-            height: 通気層の高さ（壁の下端と上端の高さの差）, m
-            len_vertical: 壁の縦の長さ, m
+            t_i_n: ステップ n の通気層の空気の温度 T_i,n, K
+            t_ex_n: ステップ n の外気温 T_ex,n, K
+            height: 壁の下端と上端の高さの差 H, m（WallGeometry.height）
+            len_vertical: 壁の縦の長さ L_vert, m
+
+        Returns:
+            ステップ n の、壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s)
+
+        Notes:
+            計算方法の文書の「通気層の換気」の式 (2) に対応する。
+            壁 1 m2 あたりにすると壁の横の長さが消えること（設計の文書 2.5 節）、Fortran の Whamcavity の式には
+            外気の密度で割る所がないことは、根拠に書く。
         """
 
-        # 外気と通気層の空気の密度, kg/m3（「湿り空気と水の性質」の式 (6)）
-        rho_o, rho_i = get_rho_a(t=t_outdoor), get_rho_a(t=t)
+        # ステップ n の外気と通気層の空気の密度 ρ_a,ex,n・ρ_a,i,n, kg/m3
+        # 「湿り空気と水の性質」の式 (6)
+        rho_a_ex_n = get_rho_a(t=t_ex_n)
+        rho_a_i_n = get_rho_a(t=t_i_n)
 
-        return self.alpha * self.thickness / len_vertical * (2.0 * _G * height * abs(rho_o - rho_i) / rho_o) ** 0.5
+        # ステップ n の、壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s)
+        # 式 (2)（「通気層の換気」）
+        q_v_i_n = self.alpha * self.thickness / len_vertical * (2.0 * _G * height * abs(rho_a_ex_n - rho_a_i_n) / rho_a_ex_n) ** 0.5
+        return q_v_i_n
 
     def heat_capacity(self, state: State) -> float:
         """熱容量 C_i, J/(m2 K)（空気の比熱 × 空気の密度 × 厚さ。水蒸気の分は小さいので足さない）
@@ -549,9 +560,6 @@ class WallGeometry:
     # 横の長さ, m
     len_horizontal: float
 
-    # 壁の下端と上端の高さの差（通気層の浮力換気に使う）, m
-    height: float
-
     def __post_init__(self):
         """作るときに、質点とつながりの並びが合っているか確かめる（from_input で作れば、いつも合っている）。
 
@@ -590,7 +598,22 @@ class WallGeometry:
                           absorptance=s.absorptance, emissivity=s.emissivity, eva_height=s.eva_height)
 
         return cls(nodes=nodes, links=links, surface=surface,
-                   len_vertical=wall_input.len_vertical, len_horizontal=wall_input.len_horizontal, height=wall_input.height)
+                   len_vertical=wall_input.len_vertical, len_horizontal=wall_input.len_horizontal)
+
+    @property
+    def height(self) -> float:
+        """壁の下端と上端の高さの差 H, m（通気層の浮力換気に使う）。
+
+        通気層は、壁の下端から上端まで通っているとする。
+
+        Notes:
+            計算方法の文書の「通気層の換気」の式 (1) に対応する。
+        """
+
+        # 壁の下端と上端の高さの差 H, m
+        # 式 (1)（「通気層の換気」）
+        h = self.len_vertical * np.sin(np.radians(self.surface.angle))
+        return h
 
     @property
     def area(self) -> float:

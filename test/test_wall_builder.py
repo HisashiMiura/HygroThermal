@@ -29,7 +29,6 @@ def _main_wall_dict() -> dict:
         )],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
-        'height': 7.0,
     }
 
 

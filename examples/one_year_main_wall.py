@@ -64,7 +64,7 @@ def _main_wall_input() -> WallInput:
             (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
             (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
         )],
-        'len_vertical': 7.0, 'len_horizontal': 0.42, 'height': 7.0,
+        'len_vertical': 7.0, 'len_horizontal': 0.42,
     })
 
 

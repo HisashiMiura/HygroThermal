@@ -276,7 +276,7 @@ def _wall_kwargs() -> dict:
         (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
     ))
     return dict(surface=SurfaceInput.from_dict(_surface_dict()), layers=layers, interfaces=interfaces,
-                len_vertical=7.0, len_horizontal=0.42, height=7.0)
+                len_vertical=7.0, len_horizontal=0.42)
 
 
 class TestWallInput:
@@ -285,18 +285,12 @@ class TestWallInput:
         wall = WallInput(**_wall_kwargs())
         assert (len(wall.layers), len(wall.interfaces)) == (7, 8)
         assert isinstance(wall.layers[1], AirLayerInput)
-        assert (wall.len_vertical, wall.len_horizontal, wall.height) == (7.0, 0.42, 7.0)
+        assert (wall.len_vertical, wall.len_horizontal) == (7.0, 0.42)
 
     def test_frozen(self):
         wall = WallInput(**_wall_kwargs())
         with pytest.raises(dataclasses.FrozenInstanceError):
-            wall.height = 3.0
-
-    def test_height_0(self):
-        # 高さ 0（水平な屋根）は作れる
-        kwargs = _wall_kwargs()
-        kwargs['height'] = 0.0
-        assert WallInput(**kwargs).height == 0.0
+            wall.len_vertical = 3.0
 
     def test_list_not_allowed(self):
         # 層・境目をリストで渡すとエラー（タプルで渡す）
@@ -340,7 +334,6 @@ class TestWallInput:
     @pytest.mark.parametrize('key, value', [
         ('len_vertical', 0.0),
         ('len_horizontal', -1.0),
-        ('height', -1.0),
     ])
     def test_invalid_value(self, key, value):
         kwargs = _wall_kwargs()
@@ -385,7 +378,6 @@ def _wall_dict() -> dict:
         )],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
-        'height': 7.0,
     }
 
 
@@ -397,8 +389,8 @@ class TestWallInputFromDict:
 
     def test_missing_key(self):
         d = _wall_dict()
-        del d['height']
-        with pytest.raises(ValueError, match='height'):
+        del d['len_horizontal']
+        with pytest.raises(ValueError, match='len_horizontal'):
             WallInput.from_dict(d)
 
     def test_unknown_key(self):

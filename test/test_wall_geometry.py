@@ -434,7 +434,6 @@ def _main_wall_dict() -> dict:
         )],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
-        'height': 7.0,
     }
 
 
@@ -464,7 +463,20 @@ class TestWallGeometry:
         # 外表面と壁の大きさが、入力と同じ値で写される
         g = _main_wall_geometry()
         assert g.surface == Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2)
-        assert (g.len_vertical, g.len_horizontal, g.height) == (7.0, 0.42, 7.0)
+        assert (g.len_vertical, g.len_horizontal) == (7.0, 0.42)
+
+    @pytest.mark.parametrize('direction, angle, expected', [
+        ('e', 90.0, 7.0),      # 垂直な壁：縦の長さと同じ
+        ('s', 30.0, 3.5),      # 傾斜角 30 deg の屋根：7 × sin 30 deg
+        ('top', 0.0, 0.0),     # 上向きの水平：0
+        ('bottom', 180.0, 0.0),  # 下向きの水平：0
+    ])
+    def test_height(self, direction, angle, expected):
+        # 壁の下端と上端の高さの差 H = 縦の長さ × sin(傾斜角)
+        d = _main_wall_dict()
+        d['surface'] = dict(d['surface'], direction=direction, angle=angle)
+        g = WallGeometry.from_input(WallInput.from_dict(d))
+        assert g.height == pytest.approx(expected, abs=1e-12)
 
     def test_find_material(self):
         # 材料を探す関数を渡すと、その関数が使われる
@@ -489,7 +501,7 @@ class TestWallGeometry:
         g = _main_wall_geometry()
         with pytest.raises(ValueError, match='つながりの数'):
             WallGeometry(nodes=g.nodes, links=g.links[:-1], surface=g.surface,
-                         len_vertical=g.len_vertical, len_horizontal=g.len_horizontal, height=g.height)
+                         len_vertical=g.len_vertical, len_horizontal=g.len_horizontal)
 
     def test_links_wrong_order(self):
         # 直接作るときに、つながりの順番を入れ替えるとエラー
@@ -498,7 +510,7 @@ class TestWallGeometry:
         links[1], links[2] = links[2], links[1]
         with pytest.raises(ValueError, match='質点 0 番目'):
             WallGeometry(nodes=g.nodes, links=tuple(links), surface=g.surface,
-                         len_vertical=g.len_vertical, len_horizontal=g.len_horizontal, height=g.height)
+                         len_vertical=g.len_vertical, len_horizontal=g.len_horizontal)
 
 
 class TestWaterAmountAndHeatCapacity:

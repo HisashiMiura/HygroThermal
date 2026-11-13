@@ -38,6 +38,7 @@ def step(
         geometry: WallGeometry,
         state_n: WallState,
         dt: float,
+        outdoor_n: OutdoorBoundary,
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary
     ) -> tuple[WallState, int]:
@@ -52,6 +53,7 @@ def step(
         geometry: 壁の形
         state_n: 前の時刻（ステップ n）の状態
         dt: 時間刻み, s
+        outdoor_n: ステップ n の外気の境界条件（通気層の換気量だけに使う）
         outdoor_npls: ステップ n + 1 の外気の境界条件
         indoor_npls: ステップ n + 1 の室内の境界条件
 
@@ -67,9 +69,10 @@ def step(
     # 評価方法の「外表面の日射・夜間放射」のステップ n に、ここではステップ n + 1 の外気の値を入れる（後退差分）
     q_sol_npls = get_solar_heat_gain(geometry.surface, outdoor_npls.solar)
 
-    # ステップ n の、通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
-    # 換気量は √|ρ_o - ρ_i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
-    q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor_npls)
+    # ステップ n の、通気層の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ステップ n の質点と外気の温度で求め、1 ステップの中では一定にする。
+    # 換気量は √|ρ_a,ex - ρ_a,i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
+    # 「通気層の換気」の式 (2)
+    q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor_n)
 
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:

@@ -28,7 +28,6 @@ def _one_layer_geometry() -> WallGeometry:
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
-        'height': 1.0,
     }))
 
 
@@ -79,7 +78,6 @@ def _plywood2_geometry() -> WallGeometry:
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
-        'height': 1.0,
     }))
 
 
@@ -164,7 +162,6 @@ def _plywood_gw_geometry() -> WallGeometry:
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 50.0, 'g_m': 7.75e-7}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
-        'height': 1.0,
     }))
 
 
@@ -382,7 +379,6 @@ def _air_layer_geometry() -> WallGeometry:
                        {'g_h': 9.2, 'g_m': 3.43e-8}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
-        'height': 7.0,
     }))
 
 
@@ -402,7 +398,7 @@ class TestVentilation:
         # 換気量は通気層の空気の質点（2 番目）だけ正で、材料の質点は 0
         g = _air_layer_geometry()
         t_is_npls = np.full(len(g.nodes), 293.15)
-        q_v_is = ventilation_rate_is(g, t_is_npls, outdoor_npls=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
+        q_v_is = ventilation_rate_is(g, t_is_npls, outdoor_n=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
         assert q_v_is[2] > 0.0
         assert np.count_nonzero(q_v_is) == 1
 

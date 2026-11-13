@@ -100,14 +100,20 @@ def simulate(
 
     state = state_0
 
+    # ステップ 0 の境界条件（通気層の換気量に使う）
+    b_n = boundaries_at(0.0)
+
     for n in range(n_steps):
 
         # ステップの終わりの時刻, s
         time_end = (n + 1) * dt
 
-        # ステップの終わりの時刻の境界条件で、1 ステップ進める
-        b = boundaries_at(time_end)
-        state, iterations_ns[n] = step(geometry, state, dt, b.outdoor, b.indoor)
+        # ステップの終わりの時刻の境界条件で、1 ステップ進める（換気量だけは、ステップの始めの外気で求める）
+        b_npls = boundaries_at(time_end)
+        state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
+
+        # 次のステップの始めの境界条件は、このステップの終わりの境界条件
+        b_n = b_npls
 
         # record_every ステップごとに記録する
         if (n + 1) % record_every == 0:

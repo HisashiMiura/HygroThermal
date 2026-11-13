@@ -200,23 +200,25 @@ def heat_capacity_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray
     ])
 
 
-def ventilation_rate_is(geometry: WallGeometry, t_is_n: np.ndarray, outdoor_npls: OutdoorBoundary) -> np.ndarray:
-    """各質点の、壁 1 m2 あたりの換気量 q_v,i, m3/(m2 s), [i]（通気層の空気の質点だけ。材料の質点は 0）。
-
-    上流の空気は外気とする（壁が 1 枚なので）。
+def ventilation_rate_is(geometry: WallGeometry, t_is_n: np.ndarray, outdoor_n: OutdoorBoundary) -> np.ndarray:
+    """ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（通気層の空気の質点だけ。材料の質点は 0）。
 
     Args:
         geometry: 壁の形
-        t_is_n: 各質点のステップ n の温度, K, [i]
-        outdoor_npls: ステップ n + 1 の外気の境界条件
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        outdoor_n: ステップ n の外気の境界条件（外気温 T_ex,n を使う）
+
+    Returns:
+        ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]
 
     Notes:
-        質点はステップ n、外気はステップ n + 1 の温度で、時刻がそろっていない（評価方法の「通気層の換気」で扱いを決める）。
+        計算方法の文書の「通気層の換気」の式 (2)（AirNode.ventilation_rate）を、質点ごとに並べる。
     """
-    return np.array([
-        node.ventilation_rate(t_i_n, outdoor_npls.state.t, geometry.height, geometry.len_vertical) if isinstance(node, AirNode) else 0.0
+    q_v_is_n = np.array([
+        node.ventilation_rate(t_i_n, outdoor_n.state.t, geometry.height, geometry.len_vertical) if isinstance(node, AirNode) else 0.0
         for node, t_i_n in zip(geometry.nodes, t_is_n)
     ])
+    return q_v_is_n
 
 
 def moisture_residual_is(

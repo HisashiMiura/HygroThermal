@@ -24,7 +24,7 @@ class TestSimulate:
         state = state_0
         for _ in range(10):
             b = boundaries_at(0.0)
-            state, _ = step(g, state, 180.0, b.outdoor, b.indoor)
+            state, _ = step(g, state, 180.0, b.outdoor, b.outdoor, b.indoor)
         np.testing.assert_array_equal(result.state_last.t_is, state.t_is)
         np.testing.assert_array_equal(result.state_last.mu_is, state.mu_is)
 
@@ -50,7 +50,8 @@ class TestSimulate:
         np.testing.assert_array_equal(every_3.state_last.t_is, every_1.state_last.t_is)
 
     def test_time_of_boundaries(self):
-        # 境界条件は、各ステップの終わりの時刻（Δt, 2Δt, …）で問い合わせる（後退差分）
+        # 境界条件は、各ステップの終わりの時刻（Δt, 2Δt, …）で問い合わせる（後退差分）。
+        # 最初のステップの換気量に使うので、最初に時刻 0 も問い合わせる。同じ時刻は 2 回問い合わせない
         g, state_0 = _one_layer('構造用合板1', 0.009, 6, 10.0, 50.0)
         constant = _constant(10.0, 50.0, 10.0, 50.0)
         asked = []
@@ -60,7 +61,7 @@ class TestSimulate:
             return constant(time)
 
         simulate(g, state_0, dt=180.0, n_steps=4, boundaries_at=boundaries_at)
-        assert asked == [180.0, 360.0, 540.0, 720.0]
+        assert asked == [0.0, 180.0, 360.0, 540.0, 720.0]
 
     def test_steady(self):
         # 一定の境界条件で長く進めると、段階 5 と同じく、吸湿して 70% の平衡になる

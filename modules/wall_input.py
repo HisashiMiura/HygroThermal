@@ -26,7 +26,7 @@ _INTERFACE_KEYS = ('g_h', 'g_m')
 _SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height')
 
 # 壁の入力の dict のキー（すべて必ず指定する）
-_WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal', 'height')
+_WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal')
 
 
 def _check_keys(d: dict, required: tuple[str, ...], where: str):
@@ -263,7 +263,7 @@ class InterfaceInput:
 class SurfaceInput:
     """壁の外表面の入力（向きと、日射・放射・風に関わる性質）。
 
-    壁の大きさ（縦・横の長さ、換気計算用の高さ）は、ここではなく壁の入力が持つ。
+    壁の大きさ（縦・横の長さ）は、ここではなく壁の入力が持つ。
     """
 
     # 方位（真上・真下を向いた面は TOP・BOTTOM）
@@ -350,14 +350,11 @@ class WallInput:
     # 境目（外気側から順。層の数 + 1 個。境目 l は層 l - 1 と層 l の間）
     interfaces: tuple[InterfaceInput, ...]
 
-    # 縦の長さ, m
+    # 縦の長さ（壁の面に沿って測った長さ。傾いた面では斜面に沿った長さ）, m
     len_vertical: float
 
     # 横の長さ, m
     len_horizontal: float
-
-    # 壁の下端と上端の高さの差（通気層の浮力換気に使う）, m
-    height: float
 
     def __post_init__(self):
         """作るときに値を確かめる。"""
@@ -403,16 +400,12 @@ class WallInput:
             if not value > 0.0:
                 raise ValueError(f'{key} は 0 より大きくしてください（{value}）。')
 
-        # 高さが 0 以上でなければエラー（水平な屋根では 0 もありうる）
-        if not self.height >= 0.0:
-            raise ValueError(f'高さ height は 0 以上にしてください（{self.height}）。')
-
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         """dict から作る。外表面・層・境目は、それぞれの from_dict の形の dict で書く（層・境目はリスト）。
 
         Args:
-            d: {'surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal', 'height'}（すべて必ず指定する）
+            d: {'surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal'}（すべて必ず指定する）
         """
 
         _check_keys(d, _WALL_KEYS, where='壁の入力')
@@ -429,4 +422,4 @@ class WallInput:
 
         # 境目の数・通気層の位置などは、ここで作るときに __post_init__ で確かめる
         return cls(surface=surface, layers=layers, interfaces=interfaces,
-                   len_vertical=d['len_vertical'], len_horizontal=d['len_horizontal'], height=d['height'])
+                   len_vertical=d['len_vertical'], len_horizontal=d['len_horizontal'])
