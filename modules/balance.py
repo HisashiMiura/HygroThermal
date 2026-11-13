@@ -1,6 +1,10 @@
 """収支の計算：つながりごとの流れと、質点ごとの残差（設計の文書 2.8 節）。
 
 物理（流れと収支）はここに書く。解く部分（ニュートン法）は物理を知らない汎用の部品にする。
+
+計算方法の文書の評価方法との対応：流れ（*_flow_ks）は「熱・水分の流れ」、換気量（ventilation_rate_is）は「通気層の換気」、
+水分量・熱容量と残差（water_amount_is・heat_capacity_is・*_residual_is）は「熱・水分の収支」。
+流れの関数のコメントの「式 (k)」は「熱・水分の流れ」（docs/source/contents/03_05_eval_flows.md）の式の番号。
 """
 
 import numpy as np
@@ -172,32 +176,46 @@ def liquid_flow_ks(
     return j_l_ks_n
 
 
-def water_amount_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray) -> np.ndarray:
-    """各質点の水分量 W_i, kg/m2, [i]（docs/governing_equations.md 6.2 節）。
+def water_amount_is(geometry: WallGeometry, t_is_n: np.ndarray, mu_is_n: np.ndarray) -> np.ndarray:
+    """ステップ n の、各質点の水分量 W_i,n, kg/m2, [i]。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]
-        mu_is: 各質点の水分化学ポテンシャル, J/kg, [i]
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+
+    Returns:
+        ステップ n の、各質点の水分量 W_i,n, kg/m2, [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (1)・(2)（MaterialNode・AirNode の water_amount）を、質点ごとに並べる。
     """
-    return np.array([
-        node.water_amount(State(t=t_i, mu=mu_i))
-        for node, t_i, mu_i in zip(geometry.nodes, t_is, mu_is)
+    w_is_n = np.array([
+        node.water_amount(State(t=t_i_n, mu=mu_i_n))
+        for node, t_i_n, mu_i_n in zip(geometry.nodes, t_is_n, mu_is_n)
     ])
+    return w_is_n
 
 
-def heat_capacity_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray) -> np.ndarray:
-    """各質点の熱容量 C_i, J/(m2 K), [i]（乾燥した材料 ＋ 含まれる水。docs/governing_equations.md 6.2 節）。
+def heat_capacity_is(geometry: WallGeometry, t_is_n: np.ndarray, mu_is_n: np.ndarray) -> np.ndarray:
+    """ステップ n の、各質点の熱容量 C_i,n, J/(m2 K), [i]。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]
-        mu_is: 各質点の水分化学ポテンシャル, J/kg, [i]
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+
+    Returns:
+        ステップ n の、各質点の熱容量 C_i,n, J/(m2 K), [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (3)・(4)（MaterialNode・AirNode の heat_capacity）を、質点ごとに並べる。
     """
-    return np.array([
-        node.heat_capacity(State(t=t_i, mu=mu_i))
-        for node, t_i, mu_i in zip(geometry.nodes, t_is, mu_is)
+    c_is_n = np.array([
+        node.heat_capacity(State(t=t_i_n, mu=mu_i_n))
+        for node, t_i_n, mu_i_n in zip(geometry.nodes, t_is_n, mu_is_n)
     ])
+    return c_is_n
 
 
 def ventilation_rate_is(geometry: WallGeometry, t_is_n: np.ndarray, outdoor_n: OutdoorBoundary) -> np.ndarray:
@@ -230,55 +248,62 @@ def moisture_residual_is(
         dt: float,
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary,
-        q_v_is: np.ndarray | None = None
+        q_v_is_n: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
 
-    res_m,i = (W_i,n+1 - W_i,n) / Δt - (j_i - j_(i+1) + j_vent,i)（たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分））。
-    水分の流れ j = 水蒸気の流れ j_v + 液水の流れ j_l。流れはすべてステップ n + 1 の値で計算する（後退差分）。
-    たまる量を水分量の変化で書くので、水分量が厳密に保存される。
-    換気で入る水分 j_vent,i = q_v,i (ρ_v,ex - ρ_v,i)（水蒸気の密度 ρ_v = p_v / (R_v T) の差。通気層の空気の質点だけ）。
-    正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる（docs/governing_equations.md の式 6.2）。
+    たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分）。
+    正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
         geometry: 壁の形
-        t_is_npls: 各質点のステップ n + 1 の温度（仮の値）, K, [i]
-        mu_is_npls: 各質点のステップ n + 1 の水分化学ポテンシャル（仮の値）, J/kg, [i]
-        t_is_n: 各質点のステップ n の温度, K, [i]
-        mu_is_n: 各質点のステップ n の水分化学ポテンシャル, J/kg, [i]
-        dt: 時間刻み, s
+        t_is_npls: ステップ n + 1 の各質点の温度（仮の値） T_i,n+1, K, [i]
+        mu_is_npls: ステップ n + 1 の各質点の水分化学ポテンシャル（仮の値） μ_i,n+1, J/kg, [i]
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+        dt: 時間刻み Δt, s
         outdoor_npls: ステップ n + 1 の外気の境界条件
         indoor_npls: ステップ n + 1 の室内の境界条件
-        q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+        q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+
+    Returns:
+        質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (8) に対応する（左辺 - 右辺）。換気で入る水分は式 (5)。
     """
 
     # 換気量を省いたときは、換気なし（どの質点も 0）
-    if q_v_is is None:
-        q_v_is = np.zeros(len(t_is_npls))
+    if q_v_is_n is None:
+        q_v_is_n = np.zeros(len(t_is_npls))
 
-    # ステップ n + 1 とステップ n の水分量, kg/m2, [i]
+    # ステップ n + 1 とステップ n の水分量 W_i,n+1・W_i,n, kg/m2, [i]
+    # 式 (1)・(2)（「熱・水分の収支」）
     w_is_npls = water_amount_is(geometry, t_is_npls, mu_is_npls)
     w_is_n = water_amount_is(geometry, t_is_n, mu_is_n)
 
-    # 各つながりの水分の流れ（水蒸気 + 液水）, kg/(m2 s), [k]（ステップ n + 1 の値）
-    j_ks = (vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
-            + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls))
+    # ステップ n + 1 の、各つながりの水分の流れ（水蒸気 + 液水） j_v,k,n+1 + j_l,k,n+1, kg/(m2 s), [k]
+    # 「熱・水分の流れ」の式 (10)・(11)
+    j_ks_npls = (vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+                 + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls))
 
-    # 質点 i の左のつながり（つながり i）の流れ, kg/(m2 s), [i]（j_ks の最後を除く。正なら質点 i に入ってくる）
-    j_left_is = j_ks[:-1]
+    # 質点 i の左のつながり（つながり i）と右のつながり（つながり i + 1）の水分の流れ, kg/(m2 s), [i]
+    j_left_is_npls = j_ks_npls[:-1]
+    j_right_is_npls = j_ks_npls[1:]
 
-    # 質点 i の右のつながり（つながり i + 1）の流れ, kg/(m2 s), [i]（j_ks の先頭を除く。正なら質点 i から出ていく）
-    j_right_is = j_ks[1:]
-
-    # 外気と各質点の水蒸気の密度, kg/m3（ステップ n + 1 の値。「湿り空気と水の性質」の式 (5)）
+    # ステップ n + 1 の外気と各質点の水蒸気の密度 ρ_v,ex,n+1・ρ_v,i,n+1, kg/m3
+    # 「湿り空気と水の性質」の式 (5)
     rho_v_ex_npls = outdoor_npls.state.p_v / (R_V * outdoor_npls.state.t)
     rho_v_is_npls = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (R_V * t_is_npls)
 
-    # 換気で入る水分, kg/(m2 s), [i]（換気量が 0 の質点は 0）
-    j_vent_is = q_v_is * (rho_v_ex_npls - rho_v_is_npls)
+    # 換気で入る水分 j_vent,i,n+1, kg/(m2 s), [i]（換気量が 0 の質点は 0）
+    # 式 (5)（「熱・水分の収支」）
+    j_vent_is_npls = q_v_is_n * (rho_v_ex_npls - rho_v_is_npls)
 
-    # たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分）
-    return (w_is_npls - w_is_n) / dt - (j_left_is - j_right_is + j_vent_is)
+    # 水分の収支の残差 res_m,i, kg/(m2 s), [i]
+    # 式 (8) の左辺 - 右辺（「熱・水分の収支」）
+    res_m_is = (w_is_npls - w_is_n) / dt - (j_left_is_npls - j_right_is_npls + j_vent_is_npls)
+    return res_m_is
 
 
 def heat_residual_is(
@@ -289,62 +314,68 @@ def heat_residual_is(
         dt: float,
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary,
-        q_sol: float = 0.0,
-        q_v_is: np.ndarray | None = None
+        q_sol_npls: float = 0.0,
+        q_v_is_n: np.ndarray | None = None
     ) -> np.ndarray:
-    """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]（docs/governing_equations.md の式 6.3）。
+    """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]。
 
-    res_h,i = C_i,n+1 (T_i,n+1 - T_i,n) / Δt - (q_i - q_(i+1) + δ_i L_v (j_v,i - j_v,(i+1)) + q_sol,i + q_vent,i)
-    （たまる量 -（左のつながりの熱伝導 - 右のつながりの熱伝導 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱））。
-    流れはすべてステップ n + 1 の値で計算する（後退差分）。
-    凝縮熱 L_v (j_v,i - j_v,(i+1)) は、その質点の凝縮量（蒸発量）を水蒸気の収支から見積もったもの（材料では、水蒸気のまま
-    たまる量はわずかなので、凝縮量 ≈ 左から入ってくる水蒸気 - 右へ出ていく水蒸気）。L_v は蒸発潜熱。
-    δ_i は材料の質点で 1、通気層の空気の質点で 0。空気の質点では、たまる水分はすべて水蒸気のままで相変化は起きないので、
-    凝縮熱を数えない（換気で入った水蒸気がつながりから出ていくとき、通気層で蒸発したと見積もらないため）。
-    C_i は水の分を足した熱容量で、ステップ n + 1 の仮の値で計算する。移動する水が運ぶ顕熱は入れない（量が非常に小さい）。
-    外表面の質点（0 番目）には、外から直接入る熱 q_sol（日射の吸収 - 夜間放射）も入る。
-    通気層の空気の質点には、換気で入る熱 q_vent,i = cρ q_v,i (T_ex - T_i) も入る（上流の空気は外気）。
+    たまる量 -（左のつながりの熱の流れ - 右のつながりの熱の流れ + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）。
     正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
         geometry: 壁の形
-        t_is_npls: 各質点のステップ n + 1 の温度（仮の値）, K, [i]
-        mu_is_npls: 各質点のステップ n + 1 の水分化学ポテンシャル（仮の値）, J/kg, [i]
-        t_is_n: 各質点のステップ n の温度, K, [i]
-        dt: 時間刻み, s
+        t_is_npls: ステップ n + 1 の各質点の温度（仮の値） T_i,n+1, K, [i]
+        mu_is_npls: ステップ n + 1 の各質点の水分化学ポテンシャル（仮の値） μ_i,n+1, J/kg, [i]
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        dt: 時間刻み Δt, s
         outdoor_npls: ステップ n + 1 の外気の境界条件
         indoor_npls: ステップ n + 1 の室内の境界条件
-        q_sol: 外表面に外から直接入る熱, W/m2（surface_radiation.get_solar_heat_gain）
-        q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+        q_sol_npls: ステップ n + 1 の、外表面に外から直接入る熱 q_sol,n+1, W/m2（surface_radiation.get_solar_heat_gain）
+        q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+
+    Returns:
+        質点ごとの熱の収支の残差 res_h,i, W/m2, [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (9) に対応する（左辺 - 右辺）。換気で入る熱は式 (6)、凝縮熱は式 (7)。
     """
 
     # 換気量を省いたときは、換気なし（どの質点も 0）
-    if q_v_is is None:
-        q_v_is = np.zeros(len(t_is_npls))
+    if q_v_is_n is None:
+        q_v_is_n = np.zeros(len(t_is_npls))
 
-    # 各質点のステップ n + 1 の熱容量 C_i, J/(m2 K), [i]（乾燥した材料 + 含まれる水）
+    # ステップ n + 1 の熱容量 C_i,n+1, J/(m2 K), [i]
+    # 式 (3)・(4)（「熱・水分の収支」）
     c_is_npls = heat_capacity_is(geometry, t_is_npls, mu_is_npls)
 
-    # 各つながりの熱伝導の流れと水蒸気の流れ, W/m2・kg/(m2 s), [k]（ステップ n + 1 の値）
-    q_ks = heat_flow_ks(geometry, t_is_npls, outdoor_npls, indoor_npls)
-    j_v_ks = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+    # ステップ n + 1 の、各つながりの熱の流れ q_k,n+1 と水蒸気の流れ j_v,k,n+1, W/m2・kg/(m2 s), [k]
+    # 「熱・水分の流れ」の式 (9)・(10)
+    q_ks_npls = heat_flow_ks(geometry, t_is_npls, outdoor_npls, indoor_npls)
+    j_v_ks_npls = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
 
-    # 質点 i の左のつながり（つながり i）の熱伝導の流れ, W/m2, [i]（q_ks の最後を除く。正なら質点 i に入ってくる）
-    q_left_is = q_ks[:-1]
+    # 質点 i の左のつながり（つながり i）と右のつながり（つながり i + 1）の熱の流れ, W/m2, [i]
+    q_left_is_npls = q_ks_npls[:-1]
+    q_right_is_npls = q_ks_npls[1:]
 
-    # 質点 i の右のつながり（つながり i + 1）の熱伝導の流れ, W/m2, [i]（q_ks の先頭を除く。正なら質点 i から出ていく）
-    q_right_is = q_ks[1:]
-
-    # 凝縮熱, W/m2, [i]（凝縮量 ≈ 左から入ってくる水蒸気 - 右へ出ていく水蒸気。通気層の空気の質点は相変化しないので 0）
+    # 凝縮熱 q_cond,i,n+1, W/m2, [i]（通気層の空気の質点は相変化しないので 0）
+    # 式 (7)（「熱・水分の収支」）
     is_material_is = np.array([not isinstance(node, AirNode) for node in geometry.nodes])
-    q_cond_is = np.where(is_material_is, L_V * (j_v_ks[:-1] - j_v_ks[1:]), 0.0)
+    q_cond_is_npls = np.where(is_material_is, L_V * (j_v_ks_npls[:-1] - j_v_ks_npls[1:]), 0.0)
 
-    # 外から直接入る熱（日射の吸収 - 夜間放射）, W/m2, [i]（外表面の質点 0 だけ）
-    q_sol_is = np.zeros(len(t_is_npls))
-    q_sol_is[0] = q_sol
+    # 外から直接入る熱 q_sol,i,n+1, W/m2, [i]（外表面の質点 0 だけ）
+    q_sol_is_npls = np.zeros(len(t_is_npls))
+    q_sol_is_npls[0] = q_sol_npls
 
-    # 換気で入る熱, W/m2, [i]（換気量が 0 の質点は 0。空気の密度は、入ってくる外気の温度で求める）
-    q_vent_is = C_A * get_rho_a(outdoor_npls.state.t) * q_v_is * (outdoor_npls.state.t - t_is_npls)
+    # ステップ n + 1 の外気の密度 ρ_a,ex,n+1, kg/m3（入ってくる外気の温度で求める）
+    # 「湿り空気と水の性質」の式 (6)
+    rho_a_ex_npls = get_rho_a(outdoor_npls.state.t)
 
-    # たまる量 -（左のつながりの熱伝導 - 右のつながりの熱伝導 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）
-    return c_is_npls * (t_is_npls - t_is_n) / dt - (q_left_is - q_right_is + q_cond_is + q_sol_is + q_vent_is)
+    # 換気で入る熱 q_vent,i,n+1, W/m2, [i]（換気量が 0 の質点は 0）
+    # 式 (6)（「熱・水分の収支」）
+    q_vent_is_npls = C_A * rho_a_ex_npls * q_v_is_n * (outdoor_npls.state.t - t_is_npls)
+
+    # 熱の収支の残差 res_h,i, W/m2, [i]
+    # 式 (9) の左辺 - 右辺（「熱・水分の収支」）
+    res_h_is = c_is_npls * (t_is_npls - t_is_n) / dt - (
+        q_left_is_npls - q_right_is_npls + q_cond_is_npls + q_sol_is_npls + q_vent_is_npls)
+    return res_h_is

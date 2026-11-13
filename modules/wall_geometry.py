@@ -4,7 +4,7 @@
 今の cell.py・wall.py の Cell と質点の配列は、置き換えが終わったら消す。
 
 計算方法の文書の評価方法との対応：質点の分け方とつながり（_make_nodes・_make_links）は「壁の構成と質点」、
-つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量は「熱・水分の収支」、
+つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量（water_amount・heat_capacity）は「熱・水分の収支」、
 換気量は「通気層の換気」。コメントの「式 (k)」は、とくに断りがなければ「壁の構成と質点」
 （docs/source/contents/03_04_eval_wall_nodes.md）の式の番号。
 
@@ -67,24 +67,32 @@ class MaterialNode:
 
     @property
     def heat_capacity_dry(self) -> float:
-        """乾燥した材料の熱容量, J/(m2 K)（幅 × 容積比熱）"""
+        """乾燥した材料の熱容量, J/(m2 K)（幅 × 容積比熱 c_s ρ_s。「熱・水分の収支」の式 (3) の第 1 項）"""
         return self.width * self.material.c_rho
 
     def water_amount(self, state: State) -> float:
-        """水分量 W_i, kg/m2（乾燥密度 × 質量含水率 × 幅。docs/governing_equations.md 6.2 節）
+        """水分量 W_i,n, kg/m2（乾燥密度 × 質量含水率 × 幅。「熱・水分の収支」の式 (1)）
 
         Args:
-            state: この質点の状態
+            state: この質点のステップ n の状態
         """
-        return self.material.rho_s * self.material.get_u(state.rh) * self.width
+
+        # 水分量 W_i,n, kg/m2
+        # 式 (1)（「熱・水分の収支」）
+        w_i_n = self.material.rho_s * self.material.get_u(state.rh) * self.width
+        return w_i_n
 
     def heat_capacity(self, state: State) -> float:
-        """熱容量 C_i, J/(m2 K)（乾燥した材料 ＋ 含まれる水の熱容量 c_w × W_i）
+        """熱容量 C_i,n, J/(m2 K)（乾燥した材料 ＋ 含まれる水。「熱・水分の収支」の式 (3)）
 
         Args:
-            state: この質点の状態
+            state: この質点のステップ n の状態
         """
-        return self.heat_capacity_dry + C_W * self.water_amount(state)
+
+        # 熱容量 C_i,n, J/(m2 K)
+        # 式 (3)（「熱・水分の収支」）
+        c_i_n = self.heat_capacity_dry + C_W * self.water_amount(state)
+        return c_i_n
 
     @property
     def r_h_left(self) -> float:
@@ -158,12 +166,20 @@ class AirNode:
         return self.thickness
 
     def water_amount(self, state: State) -> float:
-        """水分量 W_i, kg/m2（空気の中の水蒸気：水蒸気の密度 p_v / (R_v T)（「湿り空気と水の性質」の式 (5)） × 厚さ）
+        """水分量 W_i,n, kg/m2（空気の中の水蒸気：水蒸気の密度 × 厚さ。「熱・水分の収支」の式 (2)）
 
         Args:
-            state: この質点の状態
+            state: この質点のステップ n の状態
         """
-        return state.p_v / (R_V * state.t) * self.thickness
+
+        # 水蒸気の密度 ρ_v,i,n, kg/m3
+        # 「湿り空気と水の性質」の式 (5)
+        rho_v_i_n = state.p_v / (R_V * state.t)
+
+        # 水分量 W_i,n, kg/m2
+        # 式 (2)（「熱・水分の収支」）
+        w_i_n = rho_v_i_n * self.thickness
+        return w_i_n
 
     def ventilation_rate(
             self,
@@ -202,14 +218,22 @@ class AirNode:
         return q_v_i_n
 
     def heat_capacity(self, state: State) -> float:
-        """熱容量 C_i, J/(m2 K)（空気の比熱 × 空気の密度 × 厚さ。水蒸気の分は小さいので足さない）
+        """熱容量 C_i,n, J/(m2 K)（空気の比熱 × 空気の密度 × 厚さ。「熱・水分の収支」の式 (4)）
 
-        空気の密度は、この質点の温度で求める（「湿り空気と水の性質」の式 (6)）。
+        水蒸気の分は小さいので足さない。
 
         Args:
-            state: この質点の状態
+            state: この質点のステップ n の状態
         """
-        return C_A * get_rho_a(state.t) * self.thickness
+
+        # 空気の密度 ρ_a,i,n, kg/m3（この質点の温度で求める）
+        # 「湿り空気と水の性質」の式 (6)
+        rho_a_i_n = get_rho_a(state.t)
+
+        # 熱容量 C_i,n, J/(m2 K)
+        # 式 (4)（「熱・水分の収支」）
+        c_i_n = C_A * rho_a_i_n * self.thickness
+        return c_i_n
 
     @property
     def r_h_left(self) -> float:
