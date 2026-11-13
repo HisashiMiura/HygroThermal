@@ -171,3 +171,7 @@ $$ (mt-rh-pm)
 $$
 \lambda'_{\mu \mathrm{l}} = \rho_{\mathrm{s}} \, D_{\mathrm{w}} \frac{\mathrm{d} u}{\mathrm{d} \mu} \approx \rho_{\mathrm{s}} \, D_{\mathrm{w}} \left| \frac{u_{+} - u_{-}}{\mu_{+} - \mu_{-}} \right|
 $$ (mt-lambda-l)
+
+## 8 根拠
+
+液相水分伝導率の導き方、差分で求める理由、平衡含水率と液水拡散係数の境目の段差、相対湿度 100% に近い所の計算は、「{doc}`材料の性質の扱い <04_02_basis_materials>`」に示す。
