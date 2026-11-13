@@ -5,6 +5,7 @@
 ```{toctree}
 :maxdepth: 1
 
+04_01_basis_equations
 04_02_basis_materials
 ```
 
