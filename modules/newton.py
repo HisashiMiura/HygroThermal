@@ -4,6 +4,9 @@
 ヤコビ行列 J_pq = ∂F_p / ∂x_q は帯の形とし、帯の幅をタプル band = (l, u)（対角の下に l 本、上に u 本）で表す。
 帯の幅は解く問題の形で決まるので、物理を知っている呼ぶ側が決めて渡す。
 scipy.linalg.solve_banded の詰めた形 ab（J の p 行 q 列は ab[u + p - q, q]）で持つ。
+
+計算方法の文書の評価方法との対応：「1 ステップの解き方」の 4.3〜4.5 節。コメントの「式 (k)」はその節の式の番号
+（docs/source/contents/03_12_eval_solve.md）。
 """
 
 from collections.abc import Callable
@@ -75,6 +78,9 @@ def _banded_jacobian(
 
     Raises:
         NewtonNotConverged: 未知数をずらした残差が計算できなかったとき
+
+    Notes:
+        計算方法の文書の「1 ステップの解き方」の式 (6)・(7) に対応する。
     """
 
     x_ps = np.asarray(x_ps, dtype=float)
@@ -86,10 +92,10 @@ def _banded_jacobian(
     # 帯の幅
     w = l + u + 1
 
-    # ずらす量, [p]（値の大きさに比例させる。値が 0 に近いときは 1 を基準にする）
-    h_ps = np.sqrt(np.finfo(float).eps) * np.maximum(np.abs(x_ps), 1.0)
-
+    # ずらす量 h_q, [q]（値の大きさに比例させる。値が 0 に近いときは 1 を基準にする）
     # ずらすと上限を超える未知数は、反対の向きにずらす
+    # 式 (7)
+    h_ps = np.sqrt(np.finfo(float).eps) * np.maximum(np.abs(x_ps), 1.0)
     if x_max_ps is not None:
         h_ps = np.where(x_ps + h_ps > x_max_ps, -h_ps, h_ps)
 
@@ -110,6 +116,7 @@ def _banded_jacobian(
         df_ps = f_shifted_ps - f_ps
 
         # 未知数 q が影響する式は p = q - u 〜 q + l。その変化を h_q で割ったものが J の q 列
+        # 式 (6)
         for q in q_qs:
             for p in range(max(0, q - u), min(n, q + l + 1)):
                 ab[u + p - q, q] = df_ps[p] / h_ps[q]
@@ -151,6 +158,9 @@ def newton_solve(
     Raises:
         NewtonNotConverged: max_iter 回修正しても残差が tol 以下にならなかったとき、ヤコビ行列が解けなかったとき、
             修正の幅を小さくしても残差が小さくならなかったとき、または最初の仮の値で残差が計算できなかったとき
+
+    Notes:
+        計算方法の文書の「1 ステップの解き方」の 4.3〜4.5 節（式 (6)〜(10)）に対応する。
     """
 
     x_ps = np.array(x0_ps, dtype=float)
@@ -166,6 +176,7 @@ def newton_solve(
     for m in range(max_iter + 1):
 
         # 下限の回数まで修正していて、残差のいちばん大きいものが許容値以下なら、答え（ここまでに m 回修正した）
+        # 4.5 節
         if m >= min_iter and np.max(np.abs(f_ps)) <= tol:
             return x_ps, m
 
@@ -177,6 +188,7 @@ def newton_solve(
         ab = _banded_jacobian(f, x_ps, f_ps, band, x_max_ps)
 
         # J Δx = -F を解く。ヤコビ行列が解けない（特異な）ときは、収束しなかったとして止める
+        # 式 (8)
         try:
             dx_ps = solve_banded(band, ab, -f_ps)
         except LinAlgError:
@@ -184,8 +196,9 @@ def newton_solve(
 
         # 修正の幅を 1, 1/2, 1/4, … と小さくしながら、残差が計算できて、二乗の和が前より小さくなる
         # （または、いちばん大きいものが許容値以下になる）x を探す
-        for k in range(MAX_HALVING + 1):
-            x_new_ps = np.minimum(x_ps + dx_ps / 2 ** k, x_max_ps)
+        # 式 (9)・(10)
+        for s in range(MAX_HALVING + 1):
+            x_new_ps = np.minimum(x_ps + dx_ps / 2 ** s, x_max_ps)
             f_new_ps = _try_residual(f, x_new_ps)
             if f_new_ps is not None and (
                     np.sum(f_new_ps ** 2) < np.sum(f_ps ** 2) or np.max(np.abs(f_new_ps)) <= tol):

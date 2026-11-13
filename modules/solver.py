@@ -1,6 +1,9 @@
 """時間を 1 ステップ進める：熱と水分を一緒に解く（設計の文書 2.8 節、docs/governing_equations.md 6 章）。
 
 熱と水分の収支の残差（balance.py）を、汎用のニュートン法（newton.py）で 0 にして、次の時刻の状態を作る。
+
+計算方法の文書の評価方法との対応：「1 ステップの解き方」。コメントの「式 (k)」は、とくに断りがなければその節の式の番号
+（docs/source/contents/03_12_eval_solve.md）。
 """
 
 import numpy as np
@@ -17,10 +20,11 @@ from modules.wall_state import WallState
 # 質点 i の熱と水分の残差は、質点 i - 1・i・i + 1 の T と μ（左右に 3 つずつ離れた列まで）にしか関係しない
 HEAT_MOISTURE_BAND = (3, 3)
 
-# 熱の残差の許容値, W/m2（温度にすると、およそ 10^-7 K の精度）
+# 熱の残差の許容値 ε_h, W/m2（温度にすると、およそ 10^-7 K の精度）
 HEAT_RESIDUAL_TOL = 1.0e-6
 
-# 水分の残差の許容値, kg/(m2 s)（潜熱にすると熱の許容値と同じ大きさ：tol_h / L_v）
+# 水分の残差の許容値 ε_m, kg/(m2 s)（潜熱にすると熱の許容値と同じ大きさ）
+# 式 (3)
 MOISTURE_RESIDUAL_TOL = HEAT_RESIDUAL_TOL / L_V
 
 # 収束しなかったとき、前の時刻の相対湿度がこの値以上の質点があれば、結露したとみなす, %
@@ -63,6 +67,9 @@ def step(
     Raises:
         Condensation: 結露して、相対湿度 100% 以下では収支が合わないとき
         NewtonNotConverged: それ以外の理由で収束しなかったとき
+
+    Notes:
+        計算方法の文書の「1 ステップの解き方」に対応する（ニュートン法の中身は newton.newton_solve）。
     """
 
     # ステップ n + 1 の、外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
@@ -78,24 +85,30 @@ def step(
     def residual(x_ps: np.ndarray) -> np.ndarray:
 
         # ステップ n + 1 の温度は 0 番目から 1 つおき、水分化学ポテンシャルは 1 番目から 1 つおき
+        # 式 (1)
         t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
+        # 熱と水分の残差を、それぞれの許容値で割る
+        # 式 (2)
         res_h_is = heat_residual_is(
             geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
             geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
+        # 式 (2)
         f_ps = np.empty(len(x_ps))
         f_ps[0::2], f_ps[1::2] = res_h_is, res_m_is
         return f_ps
 
     # 前の時刻の状態を、(T_0, μ_0, T_1, μ_1, …) の順に並べて、最初の仮の値にする
+    # 式 (4)
     x0_ps = np.empty(2 * len(state_n))
     x0_ps[0::2], x0_ps[1::2] = state_n.t_is, state_n.mu_is
 
     # 未知数の上限：温度は上限なし、水分化学ポテンシャルは 0（相対湿度 100%）
     # （μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする）
+    # 式 (5)
     x_max_ps = np.empty(len(x0_ps))
     x_max_ps[0::2], x_max_ps[1::2] = np.inf, 0.0
 
@@ -103,6 +116,8 @@ def step(
     try:
         x_ps, m = newton_solve(residual, x0_ps, band=HEAT_MOISTURE_BAND, tol=1.0, min_iter=1, x_max_ps=x_max_ps)
     except NewtonNotConverged as e:
+
+        # 収束しないとき（5 節）
 
         # 前の時刻に、相対湿度が 100% に近い質点の番号
         rh_is_n = state_n.rh_is
@@ -118,4 +133,6 @@ def step(
         )
         raise Condensation(f'結露しました（相対湿度 100% 以下では水分の収支が合いません）：{where}。') from e
 
+    # 答えを、温度と水分化学ポテンシャルに分ける
+    # 式 (11)
     return WallState(t_is=x_ps[0::2], mu_is=x_ps[1::2]), m
