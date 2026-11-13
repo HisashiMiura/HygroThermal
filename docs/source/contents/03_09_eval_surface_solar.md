@@ -24,11 +24,17 @@ $a_{\mathrm{s}}$
 $\varepsilon$
 : ：外表面の長波長放射率（-）
 
-$\sin h_{\mathrm{sun},n}$, $\cos h_{\mathrm{sun},n}$
-: ：ステップ $n$ の太陽高度の正弦と余弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
+$\sin h_{\mathrm{sun},n}$
+: ：ステップ $n$ の太陽高度の正弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
 
-$\sin a_{\mathrm{sun},n}$, $\cos a_{\mathrm{sun},n}$
-: ：ステップ $n$ の太陽方位角の正弦と余弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
+$\cos h_{\mathrm{sun},n}$
+: ：ステップ $n$ の太陽高度の余弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
+
+$\sin a_{\mathrm{sun},n}$
+: ：ステップ $n$ の太陽方位角の正弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
+
+$\cos a_{\mathrm{sun},n}$
+: ：ステップ $n$ の太陽方位角の余弦。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（-）
 
 $I_{\mathrm{dn},n}$
 : ：ステップ $n$ の法線面直達日射量。「{doc}`外気の条件 <03_07_eval_outdoor>`」で求める（W/m²）
