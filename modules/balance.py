@@ -13,128 +13,163 @@ from modules.wall_geometry import AirNode, WallGeometry
 
 def heat_flow_ks(
         geometry: WallGeometry,
-        t_is: np.ndarray,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        t_is_n: np.ndarray,
+        outdoor_n: OutdoorBoundary,
+        indoor_n: IndoorBoundary
     ) -> np.ndarray:
-    """つながりごとの熱の流れ q_k, W/m2, [k]（外気側から室内側へ流れる向きを正）。
+    """ステップ n の、つながりごとの熱の流れ q_k,n, W/m2, [k]（外気側から室内側へ流れる向きを正）。
 
-    q_k = (T_k^左 - T_k^右) / R_k。つながり k は質点 k - 1 と質点 k の間（0 番目は外気と質点 0、最後は最後の質点と室内）。
-    水蒸気が運ぶ潜熱と液水が運ぶ熱は、熱と水分を一緒に解くとき（段階 5）に足す。
+    つながり k は質点 k - 1 と質点 k の間（0 番目は外気と質点 0、最後は最後の質点と室内）。
+    残差（熱・水分の収支）からは、ステップ n + 1 の値を渡す。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]
-        outdoor: 外気の境界条件（外気温 outdoor.state.t を使う）
-        indoor: 室内の境界条件（室温 indoor.state.t を使う）
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        outdoor_n: ステップ n の外気の境界条件（外気温 T_ex,n を使う）
+        indoor_n: ステップ n の室内の境界条件（室温 T_in,n を使う）
+
+    Returns:
+        ステップ n の、つながりごとの熱の流れ q_k,n, W/m2, [k]
+
+    Notes:
+        計算方法の文書の「熱・水分の流れ」の式 (9) に対応する。
     """
 
-    # 各つながりの熱抵抗 R_k, (m2 K)/W, [k]
+    # 各つながりの熱抵抗 R_h,k, (m2 K)/W, [k]
+    # 式 (6)（Link.r_h）
     r_h_ks = np.array([link.r_h for link in geometry.links])
 
-    # つながり k の左の温度, K, [k]（0 番目は外気、それ以外は質点 k - 1）
-    t_left_ks = np.concatenate(([outdoor.state.t], t_is))
+    # つながり k の左の温度 T_k-1,n と右の温度 T_k,n, K, [k]
+    # T_-1,n = T_ex,n、T_N,n = T_in,n とする
+    t_left_ks_n = np.concatenate(([outdoor_n.state.t], t_is_n))
+    t_right_ks_n = np.concatenate((t_is_n, [indoor_n.state.t]))
 
-    # つながり k の右の温度, K, [k]（最後は室内、それ以外は質点 k）
-    t_right_ks = np.concatenate((t_is, [indoor.state.t]))
+    # 熱の流れ q_k,n, W/m2, [k]
+    # 式 (9)
+    q_ks_n = (t_left_ks_n - t_right_ks_n) / r_h_ks
 
-    return (t_left_ks - t_right_ks) / r_h_ks
+    return q_ks_n
 
 
 def _state_left_right_ks(
-        t_is: np.ndarray,
-        mu_is: np.ndarray,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        t_is_n: np.ndarray,
+        mu_is_n: np.ndarray,
+        outdoor_n: OutdoorBoundary,
+        indoor_n: IndoorBoundary
     ) -> tuple[list[State], list[State]]:
-    """つながり k の左の状態と右の状態の並び, [k]（左の 0 番目は外気、右の最後は室内）。
+    """ステップ n の、つながり k の左の状態と右の状態の並び, [k]（左の 0 番目は外気、右の最後は室内）。
 
     Args:
-        t_is: 各質点の温度, K, [i]
-        mu_is: 各質点の水分化学ポテンシャル, J/kg, [i]
-        outdoor: 外気の境界条件
-        indoor: 室内の境界条件
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+        outdoor_n: ステップ n の外気の境界条件
+        indoor_n: ステップ n の室内の境界条件
+
+    Returns:
+        つながり k の左の状態（質点 k - 1。0 番目は外気）の並び、右の状態（質点 k。最後は室内）の並び
     """
 
     # 各質点の 1 点の状態, [i]
-    state_is = [State(t=t_i, mu=mu_i) for t_i, mu_i in zip(t_is, mu_is)]
+    state_is_n = [State(t=t_i_n, mu=mu_i_n) for t_i_n, mu_i_n in zip(t_is_n, mu_is_n)]
 
     # つながり k の左は質点 k - 1（0 番目は外気）、右は質点 k（最後は室内）
-    return [outdoor.state] + state_is, state_is + [indoor.state]
+    return [outdoor_n.state] + state_is_n, state_is_n + [indoor_n.state]
 
 
 def vapour_flow_ks(
         geometry: WallGeometry,
-        t_is: np.ndarray,
-        mu_is: np.ndarray,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        t_is_n: np.ndarray,
+        mu_is_n: np.ndarray,
+        outdoor_n: OutdoorBoundary,
+        indoor_n: IndoorBoundary
     ) -> np.ndarray:
-    """つながりごとの水蒸気の流れ j_v,k, kg/(m2 s), [k]（外気側から室内側へ流れる向きを正）。
+    """ステップ n の、つながりごとの水蒸気の流れ j_v,k,n, kg/(m2 s), [k]（外気側から室内側へ流れる向きを正）。
 
-    j_v,k = (p_v,左 - p_v,右) / R_m,k（docs/governing_equations.md の式 6.1）。
-    水蒸気圧は、質点の温度と水分化学ポテンシャルから p_v = φ p_sat(T)、φ = exp(μ / (R_v T)) で求める（偏微分に分けない）。
+    水蒸気圧は、質点の温度と水分化学ポテンシャルから求める（偏微分に分けない）。
     透湿抵抗は、左右それぞれの側の状態（相対湿度）で計算する。
+    残差（熱・水分の収支）からは、ステップ n + 1 の値を渡す。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]
-        mu_is: 各質点の水分化学ポテンシャル, J/kg, [i]
-        outdoor: 外気の境界条件
-        indoor: 室内の境界条件
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+        outdoor_n: ステップ n の外気の境界条件
+        indoor_n: ステップ n の室内の境界条件
+
+    Returns:
+        ステップ n の、つながりごとの水蒸気の流れ j_v,k,n, kg/(m2 s), [k]
+
+    Notes:
+        計算方法の文書の「熱・水分の流れ」の式 (10) に対応する。
     """
 
     # つながり k の左の状態と右の状態, [k]（左の 0 番目は外気、右の最後は室内）
-    state_left_ks, state_right_ks = _state_left_right_ks(t_is, mu_is, outdoor, indoor)
+    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, mu_is_n, outdoor_n, indoor_n)
 
-    # つながり k の左右の水蒸気圧, Pa, [k]
-    p_v_left_ks = np.array([s.p_v for s in state_left_ks])
-    p_v_right_ks = np.array([s.p_v for s in state_right_ks])
+    # つながり k の左の水蒸気圧 p_v,k-1,n と右の水蒸気圧 p_v,k,n, Pa, [k]
+    # 「湿り空気と水の性質」の式 (4)
+    p_v_left_ks_n = np.array([s.p_v for s in state_left_ks_n])
+    p_v_right_ks_n = np.array([s.p_v for s in state_right_ks_n])
 
-    # 各つながりの透湿抵抗 R_m,k, (m2 s Pa)/kg, [k]（左右それぞれの側の状態で計算する）
-    r_m_ks = np.array([
+    # 各つながりの透湿抵抗 R_m,k,n, (m2 s Pa)/kg, [k]
+    # 式 (7)（Link.r_m。左右それぞれの側の状態で計算する）
+    r_m_ks_n = np.array([
         link.r_m(s_left, s_right)
-        for link, s_left, s_right in zip(geometry.links, state_left_ks, state_right_ks)
+        for link, s_left, s_right in zip(geometry.links, state_left_ks_n, state_right_ks_n)
     ])
 
-    return (p_v_left_ks - p_v_right_ks) / r_m_ks
+    # 水蒸気の流れ j_v,k,n, kg/(m2 s), [k]
+    # 式 (10)
+    j_v_ks_n = (p_v_left_ks_n - p_v_right_ks_n) / r_m_ks_n
+
+    return j_v_ks_n
 
 
 def liquid_flow_ks(
         geometry: WallGeometry,
-        t_is: np.ndarray,
-        mu_is: np.ndarray,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        t_is_n: np.ndarray,
+        mu_is_n: np.ndarray,
+        outdoor_n: OutdoorBoundary,
+        indoor_n: IndoorBoundary
     ) -> np.ndarray:
-    """つながりごとの液水の流れ j_l,k, kg/(m2 s), [k]（外気側から室内側へ流れる向きを正）。
+    """ステップ n の、つながりごとの液水の流れ j_l,k,n, kg/(m2 s), [k]（外気側から室内側へ流れる向きを正）。
 
-    j_l,k = (μ_左 - μ_右) / R_l,k（docs/governing_equations.md の式 6.1）。
     境目（表面・層と層・材料と通気層）と、液相水分伝導率が 0 の所では、液水の抵抗が無限大なので流れは 0。
+    残差（熱・水分の収支）からは、ステップ n + 1 の値を渡す。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]
-        mu_is: 各質点の水分化学ポテンシャル, J/kg, [i]
-        outdoor: 外気の境界条件
-        indoor: 室内の境界条件
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+        outdoor_n: ステップ n の外気の境界条件
+        indoor_n: ステップ n の室内の境界条件
+
+    Returns:
+        ステップ n の、つながりごとの液水の流れ j_l,k,n, kg/(m2 s), [k]
+
+    Notes:
+        計算方法の文書の「熱・水分の流れ」の式 (11) に対応する。
     """
 
     # つながり k の左の状態と右の状態, [k]
-    state_left_ks, state_right_ks = _state_left_right_ks(t_is, mu_is, outdoor, indoor)
+    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, mu_is_n, outdoor_n, indoor_n)
 
-    # つながり k の左右の水分化学ポテンシャル, J/kg, [k]
-    mu_left_ks = np.array([s.mu for s in state_left_ks])
-    mu_right_ks = np.array([s.mu for s in state_right_ks])
+    # つながり k の左の水分化学ポテンシャル μ_k-1,n と右の μ_k,n, J/kg, [k]
+    mu_left_ks_n = np.array([s.mu for s in state_left_ks_n])
+    mu_right_ks_n = np.array([s.mu for s in state_right_ks_n])
 
-    # 各つながりの液水の抵抗 R_l,k, (m2 s (J/kg))/kg, [k]（境目と、液相水分伝導率が 0 の所では無限大）
-    r_l_ks = np.array([
+    # 各つながりの液水の抵抗 R_l,k,n, (m2 s (J/kg))/kg, [k]
+    # 式 (8)（Link.r_l。境目と、液相水分伝導率が 0 の所では無限大）
+    r_l_ks_n = np.array([
         link.r_l(s_left, s_right)
-        for link, s_left, s_right in zip(geometry.links, state_left_ks, state_right_ks)
+        for link, s_left, s_right in zip(geometry.links, state_left_ks_n, state_right_ks_n)
     ])
 
-    # 抵抗が無限大のつながりは、差 / 無限大 = 0
-    return (mu_left_ks - mu_right_ks) / r_l_ks
+    # 液水の流れ j_l,k,n, kg/(m2 s), [k]
+    # 式 (11)。抵抗が無限大のつながりは、差 / 無限大 = 0
+    j_l_ks_n = (mu_left_ks_n - mu_right_ks_n) / r_l_ks_n
+
+    return j_l_ks_n
 
 
 def water_amount_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray) -> np.ndarray:
@@ -165,19 +200,22 @@ def heat_capacity_is(geometry: WallGeometry, t_is: np.ndarray, mu_is: np.ndarray
     ])
 
 
-def ventilation_rate_is(geometry: WallGeometry, t_is: np.ndarray, outdoor: OutdoorBoundary) -> np.ndarray:
+def ventilation_rate_is(geometry: WallGeometry, t_is_n: np.ndarray, outdoor_npls: OutdoorBoundary) -> np.ndarray:
     """各質点の、壁 1 m2 あたりの換気量 q_v,i, m3/(m2 s), [i]（通気層の空気の質点だけ。材料の質点は 0）。
 
     上流の空気は外気とする（壁が 1 枚なので）。
 
     Args:
         geometry: 壁の形
-        t_is: 各質点の温度, K, [i]（solver.step では、前の時刻の温度を渡す）
-        outdoor: 外気の境界条件
+        t_is_n: 各質点のステップ n の温度, K, [i]
+        outdoor_npls: ステップ n + 1 の外気の境界条件
+
+    Notes:
+        質点はステップ n、外気はステップ n + 1 の温度で、時刻がそろっていない（評価方法の「通気層の換気」で扱いを決める）。
     """
     return np.array([
-        node.ventilation_rate(t_i, outdoor.state.t, geometry.height, geometry.len_vertical) if isinstance(node, AirNode) else 0.0
-        for node, t_i in zip(geometry.nodes, t_is)
+        node.ventilation_rate(t_i_n, outdoor_npls.state.t, geometry.height, geometry.len_vertical) if isinstance(node, AirNode) else 0.0
+        for node, t_i_n in zip(geometry.nodes, t_is_n)
     ])
 
 
@@ -188,8 +226,8 @@ def moisture_residual_is(
         t_is_n: np.ndarray,
         mu_is_n: np.ndarray,
         dt: float,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary,
+        outdoor_npls: OutdoorBoundary,
+        indoor_npls: IndoorBoundary,
         q_v_is: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
@@ -207,8 +245,8 @@ def moisture_residual_is(
         t_is_n: 各質点のステップ n の温度, K, [i]
         mu_is_n: 各質点のステップ n の水分化学ポテンシャル, J/kg, [i]
         dt: 時間刻み, s
-        outdoor: ステップ n + 1 の外気の境界条件
-        indoor: ステップ n + 1 の室内の境界条件
+        outdoor_npls: ステップ n + 1 の外気の境界条件
+        indoor_npls: ステップ n + 1 の室内の境界条件
         q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
     """
 
@@ -221,8 +259,8 @@ def moisture_residual_is(
     w_is_n = water_amount_is(geometry, t_is_n, mu_is_n)
 
     # 各つながりの水分の流れ（水蒸気 + 液水）, kg/(m2 s), [k]（ステップ n + 1 の値）
-    j_ks = (vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor, indoor)
-            + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor, indoor))
+    j_ks = (vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+            + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls))
 
     # 質点 i の左のつながり（つながり i）の流れ, kg/(m2 s), [i]（j_ks の最後を除く。正なら質点 i に入ってくる）
     j_left_is = j_ks[:-1]
@@ -231,11 +269,11 @@ def moisture_residual_is(
     j_right_is = j_ks[1:]
 
     # 外気と各質点の水蒸気の密度, kg/m3（ステップ n + 1 の値。「湿り空気と水の性質」の式 (5)）
-    rho_v_ex = outdoor.state.p_v / (R_V * outdoor.state.t)
-    rho_v_is = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (R_V * t_is_npls)
+    rho_v_ex_npls = outdoor_npls.state.p_v / (R_V * outdoor_npls.state.t)
+    rho_v_is_npls = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (R_V * t_is_npls)
 
     # 換気で入る水分, kg/(m2 s), [i]（換気量が 0 の質点は 0）
-    j_vent_is = q_v_is * (rho_v_ex - rho_v_is)
+    j_vent_is = q_v_is * (rho_v_ex_npls - rho_v_is_npls)
 
     # たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分）
     return (w_is_npls - w_is_n) / dt - (j_left_is - j_right_is + j_vent_is)
@@ -247,8 +285,8 @@ def heat_residual_is(
         mu_is_npls: np.ndarray,
         t_is_n: np.ndarray,
         dt: float,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary,
+        outdoor_npls: OutdoorBoundary,
+        indoor_npls: IndoorBoundary,
         q_sol: float = 0.0,
         q_v_is: np.ndarray | None = None
     ) -> np.ndarray:
@@ -272,8 +310,8 @@ def heat_residual_is(
         mu_is_npls: 各質点のステップ n + 1 の水分化学ポテンシャル（仮の値）, J/kg, [i]
         t_is_n: 各質点のステップ n の温度, K, [i]
         dt: 時間刻み, s
-        outdoor: ステップ n + 1 の外気の境界条件
-        indoor: ステップ n + 1 の室内の境界条件
+        outdoor_npls: ステップ n + 1 の外気の境界条件
+        indoor_npls: ステップ n + 1 の室内の境界条件
         q_sol: 外表面に外から直接入る熱, W/m2（surface_radiation.get_solar_heat_gain）
         q_v_is: 各質点の、壁 1 m2 あたりの換気量, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
     """
@@ -286,8 +324,8 @@ def heat_residual_is(
     c_is_npls = heat_capacity_is(geometry, t_is_npls, mu_is_npls)
 
     # 各つながりの熱伝導の流れと水蒸気の流れ, W/m2・kg/(m2 s), [k]（ステップ n + 1 の値）
-    q_ks = heat_flow_ks(geometry, t_is_npls, outdoor, indoor)
-    j_v_ks = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor, indoor)
+    q_ks = heat_flow_ks(geometry, t_is_npls, outdoor_npls, indoor_npls)
+    j_v_ks = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
 
     # 質点 i の左のつながり（つながり i）の熱伝導の流れ, W/m2, [i]（q_ks の最後を除く。正なら質点 i に入ってくる）
     q_left_is = q_ks[:-1]
@@ -304,7 +342,7 @@ def heat_residual_is(
     q_sol_is[0] = q_sol
 
     # 換気で入る熱, W/m2, [i]（換気量が 0 の質点は 0。空気の密度は、入ってくる外気の温度で求める）
-    q_vent_is = C_A * get_rho_a(outdoor.state.t) * q_v_is * (outdoor.state.t - t_is_npls)
+    q_vent_is = C_A * get_rho_a(outdoor_npls.state.t) * q_v_is * (outdoor_npls.state.t - t_is_npls)
 
     # たまる量 -（左のつながりの熱伝導 - 右のつながりの熱伝導 + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）
     return c_is_npls * (t_is_npls - t_is_n) / dt - (q_left_is - q_right_is + q_cond_is + q_sol_is + q_vent_is)

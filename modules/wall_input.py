@@ -20,7 +20,7 @@ _MATERIAL_LAYER_KEYS = ('source', 'name', 'thickness', 'n_div', 'initial_tempera
 _AIR_LAYER_KEYS = ('air_layer', 'thickness', 'alpha', 'initial_temperature', 'initial_rh')
 
 # 境目の入力の dict のキー（すべて必ず指定する）
-_INTERFACE_KEYS = ('cond_h', 'cond_m')
+_INTERFACE_KEYS = ('g_h', 'g_m')
 
 # 外表面の入力の dict のキー（すべて必ず指定する）
 _SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height')
@@ -229,29 +229,29 @@ class InterfaceInput:
     境目では液水は移動しない（液水のコンダクタンスを持たない。Fortran・今のコードと同じ扱い）。
     """
 
-    # 熱コンダクタンス, W/(m2 K)
-    cond_h: float
+    # 熱コンダクタンス G_h, W/(m2 K)（計算方法の文書の「熱・水分の流れ」）
+    g_h: float
 
-    # 湿気コンダクタンス, kg/(m2 s Pa)
-    cond_m: float
+    # 湿気コンダクタンス G_m, kg/(m2 s Pa)（計算方法の文書の「熱・水分の流れ」）
+    g_m: float
 
     def __post_init__(self):
         """作るときに値を確かめる。値の大きさが「ふつうの範囲」かどうかは確かめない（0 以下だけを防ぐ）。"""
 
         # 熱コンダクタンスが 0 より大きくなければエラー（0 だと境目の両側が熱的につながらず、抵抗が 1/0 になる）
-        if not self.cond_h > 0.0:
-            raise ValueError(f'熱コンダクタンス cond_h は 0 より大きくしてください（{self.cond_h}）。')
+        if not self.g_h > 0.0:
+            raise ValueError(f'熱コンダクタンス g_h は 0 より大きくしてください（{self.g_h}）。')
 
         # 湿気コンダクタンスが 0 より大きくなければエラー（防湿層は 2.0e-11 などの小さい値で表す）
-        if not self.cond_m > 0.0:
-            raise ValueError(f'湿気コンダクタンス cond_m は 0 より大きくしてください（{self.cond_m}）。')
+        if not self.g_m > 0.0:
+            raise ValueError(f'湿気コンダクタンス g_m は 0 より大きくしてください（{self.g_m}）。')
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         """dict から作る。
 
         Args:
-            d: {'cond_h', 'cond_m'}（すべて必ず指定する）
+            d: {'g_h', 'g_m'}（すべて必ず指定する）
         """
 
         _check_keys(d, _INTERFACE_KEYS, where='境目の入力')

@@ -25,7 +25,7 @@ def _one_layer_geometry() -> WallGeometry:
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [{'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6,
                     'initial_temperature': 10.0, 'initial_rh': 50.0}],
-        'interfaces': [{'cond_h': 22.4, 'cond_m': 2.0e-11}, {'cond_h': 9.2, 'cond_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
         'height': 1.0,
@@ -38,7 +38,7 @@ class TestHeatFlow:
         # 外気・室内・全部の質点が 20 deg.C なら、熱は流れない
         g = _one_layer_geometry()
         t = 20.0 + T_0
-        q_ks = heat_flow_ks(g, np.full(len(g.nodes), t), outdoor=_outdoor(t), indoor=_indoor(t))
+        q_ks = heat_flow_ks(g, np.full(len(g.nodes), t), outdoor_n=_outdoor(t), indoor_n=_indoor(t))
         np.testing.assert_allclose(q_ks, 0.0)
 
     def test_steady(self):
@@ -52,21 +52,21 @@ class TestHeatFlow:
         # 質点 i の温度 = 外気温 - q × (つながり 0〜i の熱抵抗の和)
         t_is = t_outdoor - q * np.cumsum(r_h_ks)[:-1]
 
-        q_ks = heat_flow_ks(g, t_is, outdoor=_outdoor(t_outdoor), indoor=_indoor(t_indoor))
+        q_ks = heat_flow_ks(g, t_is, outdoor_n=_outdoor(t_outdoor), indoor_n=_indoor(t_indoor))
         np.testing.assert_allclose(q_ks, q)
 
     def test_direction(self):
         # 外気のほうが温かければ、外気側から室内側へ（正の向きに）流れる
         g = _one_layer_geometry()
         t = 20.0 + T_0
-        q_ks = heat_flow_ks(g, np.full(len(g.nodes), t), outdoor=_outdoor(t + 10.0), indoor=_indoor(t))
+        q_ks = heat_flow_ks(g, np.full(len(g.nodes), t), outdoor_n=_outdoor(t + 10.0), indoor_n=_indoor(t))
         assert q_ks[0] > 0.0
         assert q_ks[-1] == pytest.approx(0.0)
 
     def test_number(self):
         # 流れの数は、つながりの数（質点の数 + 1）
         g = _one_layer_geometry()
-        q_ks = heat_flow_ks(g, np.full(len(g.nodes), 293.15), outdoor=_outdoor(293.15), indoor=_indoor(293.15))
+        q_ks = heat_flow_ks(g, np.full(len(g.nodes), 293.15), outdoor_n=_outdoor(293.15), indoor_n=_indoor(293.15))
         assert len(q_ks) == len(g.links) == len(g.nodes) + 1
 
 
@@ -76,7 +76,7 @@ def _plywood2_geometry() -> WallGeometry:
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [{'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 5,
                     'initial_temperature': 20.0, 'initial_rh': 50.0}],
-        'interfaces': [{'cond_h': 22.4, 'cond_m': 2.0e-11}, {'cond_h': 9.2, 'cond_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
         'height': 1.0,
@@ -97,8 +97,8 @@ class TestVapourFlow:
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 50.0)
         j_v_ks = vapour_flow_ks(g, t_is, mu_is,
-                                outdoor=OutdoorBoundary(state=State.init(t=t, rh=50.0)),
-                                indoor=IndoorBoundary(state=State.init(t=t, rh=50.0)))
+                                outdoor_n=OutdoorBoundary(state=State.init(t=t, rh=50.0)),
+                                indoor_n=IndoorBoundary(state=State.init(t=t, rh=50.0)))
         np.testing.assert_allclose(j_v_ks, 0.0, atol=1e-20)
 
     def test_steady(self):
@@ -117,7 +117,7 @@ class TestVapourFlow:
         t_is = np.full(len(g.nodes), t)
         mu_is = np.array([get_mu(rh=100.0 * p_v_i / outdoor.state.p_v_sat, t=t) for p_v_i in p_v_is])
 
-        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor=outdoor, indoor=indoor)
+        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor_n=outdoor, indoor_n=indoor)
         np.testing.assert_allclose(j_v_ks, j, rtol=1e-9)
 
     def test_temperature_difference_only(self):
@@ -128,8 +128,8 @@ class TestVapourFlow:
         t_is = np.linspace(t_out + 2.0, t_in - 2.0, len(g.nodes))
         mu_is = np.array([get_mu(rh=50.0, t=t_i) for t_i in t_is])
         j_v_ks = vapour_flow_ks(g, t_is, mu_is,
-                                outdoor=OutdoorBoundary(state=State.init(t=t_out, rh=50.0)),
-                                indoor=IndoorBoundary(state=State.init(t=t_in, rh=50.0)))
+                                outdoor_n=OutdoorBoundary(state=State.init(t=t_out, rh=50.0)),
+                                indoor_n=IndoorBoundary(state=State.init(t=t_in, rh=50.0)))
         assert np.all(j_v_ks < 0.0)
 
     def test_formula(self):
@@ -140,7 +140,7 @@ class TestVapourFlow:
         mu_is = np.array([get_mu(rh=rh, t=t_i) for rh, t_i in zip(np.linspace(60.0, 90.0, n), t_is)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + T_0, rh=80.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + T_0, rh=50.0))
-        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor=outdoor, indoor=indoor)
+        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor_n=outdoor, indoor_n=indoor)
         states = [outdoor.state] + [State(t=t_i, mu=mu_i) for t_i, mu_i in zip(t_is, mu_is)] + [indoor.state]
         for k, link in enumerate(g.links):
             left, right = states[k], states[k + 1]
@@ -150,7 +150,7 @@ class TestVapourFlow:
         g = _one_layer_geometry()
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 50.0)
-        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor=_outdoor(t), indoor=_indoor(t))
+        j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor_n=_outdoor(t), indoor_n=_indoor(t))
         assert len(j_v_ks) == len(g.links)
 
 
@@ -161,7 +161,7 @@ def _plywood_gw_geometry() -> WallGeometry:
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [m | {'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6},
                    m | {'name': 'グラスウール1', 'thickness': 0.1, 'n_div': 5}],
-        'interfaces': [{'cond_h': 22.4, 'cond_m': 2.0e-11}, {'cond_h': 50.0, 'cond_m': 7.75e-7}, {'cond_h': 9.2, 'cond_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 50.0, 'g_m': 7.75e-7}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
         'height': 1.0,
@@ -181,8 +181,8 @@ class TestLiquidFlow:
         t = 20.0 + T_0
         rh_is = np.linspace(99.5, 98.0, len(g.nodes))
         j_l_ks = liquid_flow_ks(g, np.full(len(g.nodes), t), _mu_is(t, rh_is),
-                                outdoor=OutdoorBoundary(state=State.init(t=t, rh=100.0)),
-                                indoor=IndoorBoundary(state=State.init(t=t, rh=50.0)))
+                                outdoor_n=OutdoorBoundary(state=State.init(t=t, rh=100.0)),
+                                indoor_n=IndoorBoundary(state=State.init(t=t, rh=50.0)))
         # 境目のつながり：0 番目（外表面）、6 番目（合板と GW の間）、最後（内表面）
         for k in (0, 6, len(g.links) - 1):
             assert j_l_ks[k] == 0.0
@@ -192,7 +192,7 @@ class TestLiquidFlow:
         g = _one_layer_geometry()
         t = 20.0 + T_0
         rh_is = np.linspace(55.0, 45.0, len(g.nodes))
-        j_l_ks = liquid_flow_ks(g, np.full(len(g.nodes), t), _mu_is(t, rh_is), outdoor=_outdoor(t), indoor=_indoor(t))
+        j_l_ks = liquid_flow_ks(g, np.full(len(g.nodes), t), _mu_is(t, rh_is), outdoor_n=_outdoor(t), indoor_n=_indoor(t))
         np.testing.assert_array_equal(j_l_ks, 0.0)
 
     def test_liquid(self):
@@ -203,7 +203,7 @@ class TestLiquidFlow:
         mu_is = _mu_is(t, np.linspace(99.5, 98.0, n))
         t_is = np.full(n, t)
         outdoor, indoor = _outdoor(t), _indoor(t)
-        j_l_ks = liquid_flow_ks(g, t_is, mu_is, outdoor=outdoor, indoor=indoor)
+        j_l_ks = liquid_flow_ks(g, t_is, mu_is, outdoor_n=outdoor, indoor_n=indoor)
 
         # 層の中のつながり（1〜n-1 番目）は正の向きに流れ、値は (μ_左 - μ_右) / link.r_l(左, 右)
         for k in range(1, n):
@@ -218,7 +218,7 @@ class TestLiquidFlow:
         g = _one_layer_geometry()
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 50.0)
-        assert len(liquid_flow_ks(g, t_is, mu_is, outdoor=_outdoor(t), indoor=_indoor(t))) == len(g.links)
+        assert len(liquid_flow_ks(g, t_is, mu_is, outdoor_n=_outdoor(t), indoor_n=_indoor(t))) == len(g.links)
 
 
 class TestWaterAmountAndHeatCapacityIs:
@@ -249,7 +249,7 @@ class TestMoistureResidual:
         g = _one_layer_geometry()
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 50.0)
-        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is, dt=180.0, outdoor=_outdoor(t), indoor=_indoor(t))
+        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is, dt=180.0, outdoor_npls=_outdoor(t), indoor_npls=_indoor(t))
         np.testing.assert_allclose(res_is, 0.0, atol=1e-20)
 
     def test_steady(self):
@@ -265,7 +265,7 @@ class TestMoistureResidual:
         p_v_is = outdoor.state.p_v - j * np.cumsum(r_m_ks)[:-1]
         t_is = np.full(len(g.nodes), t)
         mu_is = np.array([get_mu(rh=100.0 * p_v_i / outdoor.state.p_v_sat, t=t) for p_v_i in p_v_is])
-        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is, dt=180.0, outdoor=outdoor, indoor=indoor)
+        res_is = moisture_residual_is(g, t_is, mu_is, t_is, mu_is, dt=180.0, outdoor_npls=outdoor, indoor_npls=indoor)
         # 流れ（1e-9 kg/(m2 s) 程度）に比べて十分小さい
         np.testing.assert_allclose(res_is, 0.0, atol=1e-20)
 
@@ -278,7 +278,7 @@ class TestMoistureResidual:
         _, mu_is_npls = _uniform(g, t, 60.0)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=60.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=60.0))
-        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_npls, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_npls, mu_is_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
         expected = (water_amount_is(g, t_is_npls, mu_is_npls) - water_amount_is(g, t_is_npls, mu_is_n)) / dt
         np.testing.assert_allclose(res_is, expected)
         assert np.all(res_is > 0.0)
@@ -294,7 +294,7 @@ class TestMoistureResidual:
         mu_is_npls = np.array([get_mu(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(99.5, 70.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + T_0, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + T_0, rh=50.0))
-        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
         storage = ((water_amount_is(g, t_is_npls, mu_is_npls) - water_amount_is(g, t_is_n, mu_is_n)) / dt).sum()
         j_ks = vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor) + liquid_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (j_ks[0] - j_ks[-1]), rel=1e-9, abs=1e-18)
@@ -307,7 +307,7 @@ class TestHeatResidual:
         g = _one_layer_geometry()
         t = 20.0 + T_0
         t_is, mu_is = _uniform(g, t, 50.0)
-        res_is = heat_residual_is(g, t_is, mu_is, t_is, dt=180.0, outdoor=_outdoor(t), indoor=_indoor(t))
+        res_is = heat_residual_is(g, t_is, mu_is, t_is, dt=180.0, outdoor_npls=_outdoor(t), indoor_npls=_indoor(t))
         np.testing.assert_allclose(res_is, 0.0, atol=1e-12)
 
     def test_formula(self):
@@ -320,7 +320,7 @@ class TestHeatResidual:
         mu_is_npls = np.array([get_mu(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + T_0, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + T_0, rh=50.0))
-        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
         q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor) + L_V * vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         expected = heat_capacity_is(g, t_is_npls, mu_is_npls) * (t_is_npls - t_is_n) / dt - (q_ks[:-1] - q_ks[1:])
         np.testing.assert_allclose(res_is, expected)
@@ -335,7 +335,7 @@ class TestHeatResidual:
         mu_is = np.full(n, get_mu(rh=50.0, t=t))
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=80.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=80.0))
-        res_is = heat_residual_is(g, t_is, mu_is, t_is, dt=180.0, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is, mu_is, t_is, dt=180.0, outdoor_npls=outdoor, indoor_npls=indoor)
         j_v_ks = vapour_flow_ks(g, t_is, mu_is, outdoor, indoor)
         # 熱伝導は 0 なので、残差 = -r ×（入ってくる水蒸気 - 出ていく水蒸気）
         np.testing.assert_allclose(res_is, -L_V * (j_v_ks[:-1] - j_v_ks[1:]))
@@ -351,7 +351,7 @@ class TestHeatResidual:
         t_is_n = np.full(len(g.nodes), t_n)
         outdoor = OutdoorBoundary(state=State.init(t=t, rh=80.0))
         indoor = IndoorBoundary(state=State.init(t=t, rh=80.0))
-        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
         c_is = heat_capacity_is(g, t_is_npls, mu_is_npls)
         np.testing.assert_allclose(res_is, c_is * 1.0 / dt, rtol=1e-9)
         assert np.all(c_is > np.array([node.heat_capacity_dry for node in g.nodes]))
@@ -366,7 +366,7 @@ class TestHeatResidual:
         mu_is_npls = np.array([get_mu(rh=rh_i, t=t_i) for rh_i, t_i in zip(np.linspace(90.0, 60.0, n), t_is_npls)])
         outdoor = OutdoorBoundary(state=State.init(t=0.0 + T_0, rh=90.0))
         indoor = IndoorBoundary(state=State.init(t=20.0 + T_0, rh=50.0))
-        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor=outdoor, indoor=indoor)
+        res_is = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, dt=dt, outdoor_npls=outdoor, indoor_npls=indoor)
         storage = (heat_capacity_is(g, t_is_npls, mu_is_npls) * (t_is_npls - t_is_n) / dt).sum()
         q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor) + L_V * vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
         assert res_is.sum() == pytest.approx(storage - (q_ks[0] - q_ks[-1]))
@@ -378,8 +378,8 @@ def _air_layer_geometry() -> WallGeometry:
     return WallGeometry.from_input(WallInput.from_dict({
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 20.0, 'initial_rh': 50.0}, m],
-        'interfaces': [{'cond_h': 22.4, 'cond_m': 2.0e-11}, {'cond_h': 9.2, 'cond_m': 3.43e-8},
-                       {'cond_h': 9.2, 'cond_m': 3.43e-8}, {'cond_h': 9.2, 'cond_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 3.43e-8},
+                       {'g_h': 9.2, 'g_m': 3.43e-8}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
         'height': 7.0,
@@ -402,7 +402,7 @@ class TestVentilation:
         # 換気量は通気層の空気の質点（2 番目）だけ正で、材料の質点は 0
         g = _air_layer_geometry()
         t_is_npls = np.full(len(g.nodes), 293.15)
-        q_v_is = ventilation_rate_is(g, t_is_npls, outdoor=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
+        q_v_is = ventilation_rate_is(g, t_is_npls, outdoor_npls=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
         assert q_v_is[2] > 0.0
         assert np.count_nonzero(q_v_is) == 1
 

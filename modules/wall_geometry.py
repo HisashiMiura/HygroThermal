@@ -88,32 +88,32 @@ class MaterialNode:
 
     @property
     def r_h_left(self) -> float:
-        """質点から左（外気側）の端までの熱抵抗, (m2 K)/W"""
+        """質点から左（外気側）の端までの熱抵抗 r_h,L,i, (m2 K)/W（「熱・水分の流れ」の式 (3)）"""
         return self.d_left / self.material.lambda_h
 
     @property
     def r_h_right(self) -> float:
-        """質点から右（室内側）の端までの熱抵抗, (m2 K)/W"""
+        """質点から右（室内側）の端までの熱抵抗 r_h,R,i, (m2 K)/W（「熱・水分の流れ」の式 (3)）"""
         return self.d_right / self.material.lambda_h
 
     def r_m_left(self, state: State) -> float:
-        """質点から左（外気側）の端までの透湿抵抗, (m2 s Pa)/kg（その状態の相対湿度での湿気伝導率を使う）"""
+        """質点から左（外気側）の端までの透湿抵抗 r_m,L,i,n, (m2 s Pa)/kg（「熱・水分の流れ」の式 (4)。その状態の相対湿度での湿気伝導率を使う）"""
         return self.d_left / self.material.get_lambda_dsh_m(rh=state.rh)
 
     def r_m_right(self, state: State) -> float:
-        """質点から右（室内側）の端までの透湿抵抗, (m2 s Pa)/kg（その状態の相対湿度での湿気伝導率を使う）"""
+        """質点から右（室内側）の端までの透湿抵抗 r_m,R,i,n, (m2 s Pa)/kg（「熱・水分の流れ」の式 (4)。その状態の相対湿度での湿気伝導率を使う）"""
         return self.d_right / self.material.get_lambda_dsh_m(rh=state.rh)
 
     def r_l_left(self, state: State) -> float:
-        """質点から左（外気側）の端までの液水の抵抗, (m2 s (J/kg))/kg"""
+        """質点から左（外気側）の端までの液水の抵抗 r_l,L,i,n, (m2 s (J/kg))/kg（「熱・水分の流れ」の式 (5)）"""
         return self._r_l(self.d_left, state)
 
     def r_l_right(self, state: State) -> float:
-        """質点から右（室内側）の端までの液水の抵抗, (m2 s (J/kg))/kg"""
+        """質点から右（室内側）の端までの液水の抵抗 r_l,R,i,n, (m2 s (J/kg))/kg（「熱・水分の流れ」の式 (5)）"""
         return self._r_l(self.d_right, state)
 
     def _r_l(self, d: float, state: State) -> float:
-        """距離 d の液水の抵抗, (m2 s (J/kg))/kg。
+        """距離 d の液水の抵抗, (m2 s (J/kg))/kg（「熱・水分の流れ」の式 (5)）。
 
         液水伝導率が 0（液水が移動しない材料、または液水拡散係数の範囲の外）なら、0 で割らずに無限大にする。
         """
@@ -272,10 +272,10 @@ class Interface:
     境目では液水は移動しない。
     """
 
-    # 熱抵抗, (m2 K)/W
+    # 境目の熱抵抗 R_h,int,k, (m2 K)/W（「熱・水分の流れ」の式 (1)）
     r_h: float
 
-    # 透湿抵抗, (m2 s Pa)/kg
+    # 境目の透湿抵抗 R_m,int,k, (m2 s Pa)/kg（「熱・水分の流れ」の式 (2)）
     r_m: float
 
     def __post_init__(self):
@@ -331,7 +331,7 @@ class Link:
 
     @property
     def r_h(self) -> float:
-        """熱抵抗, (m2 K)/W"""
+        """熱抵抗 R_h,k, (m2 K)/W（「熱・水分の流れ」の式 (6)）"""
 
         # 境目の熱抵抗（層の中なら 0）
         r_interface = self.interface.r_h if self.interface is not None else 0.0
@@ -340,7 +340,7 @@ class Link:
         return self.left.r_h_right + r_interface + self.right.r_h_left
 
     def r_m(self, state_left: State, state_right: State) -> float:
-        """透湿抵抗, (m2 s Pa)/kg
+        """透湿抵抗 R_m,k,n, (m2 s Pa)/kg（「熱・水分の流れ」の式 (7)）
 
         左右の半分は、それぞれの側の状態（相対湿度）で計算する。外気・室内の側には、外気・室内の状態を渡す（使わないが、渡し方をそろえる）。
 
@@ -356,7 +356,7 @@ class Link:
         return self.left.r_m_right(state_left) + r_interface + self.right.r_m_left(state_right)
 
     def r_l(self, state_left: State, state_right: State) -> float:
-        """液水の抵抗, (m2 s (J/kg))/kg
+        """液水の抵抗 R_l,k,n, (m2 s (J/kg))/kg（「熱・水分の流れ」の式 (8)）
 
         境目（層と層、材料と通気層、表面）では液水は移動しないので無限大。層の中だけ、左右の材料の質点の液水の抵抗を足す。
 
@@ -504,8 +504,9 @@ def _make_links(nodes: tuple[Node, ...], interfaces: tuple[InterfaceInput, ...])
         計算方法の文書の「壁の構成と質点」の 5 節に対応する。
     """
 
-    # 入力の境目（コンダクタンス）を、計算の側の境目（抵抗）に変える
-    ifs = [Interface(r_h=1.0 / x.cond_h, r_m=1.0 / x.cond_m) for x in interfaces]
+    # 入力の境目（コンダクタンス G_h・G_m）を、計算の側の境目（抵抗 R_h,int・R_m,int）に変える
+    # 「熱・水分の流れ」の式 (1)・(2)
+    ifs = [Interface(r_h=1.0 / x.g_h, r_m=1.0 / x.g_m) for x in interfaces]
 
     # 外気と最初の質点（外表面）
     links = [Link(left=OUTDOOR, right=nodes[0], interface=ifs[0])]

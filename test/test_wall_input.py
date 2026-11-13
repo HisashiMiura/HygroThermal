@@ -159,21 +159,21 @@ class TestLayerInputFromDict:
 
 def _interface_dict() -> dict:
     """境目の正しい入力の dict（層と層の接触）。"""
-    return {'cond_h': 50.0, 'cond_m': 7.75e-7}
+    return {'g_h': 50.0, 'g_m': 7.75e-7}
 
 
 class TestInterfaceInput:
 
     def test_read(self):
         interface = InterfaceInput.from_dict(_interface_dict())
-        assert (interface.cond_h, interface.cond_m) == (50.0, 7.75e-7)
+        assert (interface.g_h, interface.g_m) == (50.0, 7.75e-7)
 
     def test_frozen(self):
         interface = InterfaceInput.from_dict(_interface_dict())
         with pytest.raises(dataclasses.FrozenInstanceError):
-            interface.cond_h = 9.2
+            interface.g_h = 9.2
 
-    @pytest.mark.parametrize('key', ['cond_h', 'cond_m'])
+    @pytest.mark.parametrize('key', ['g_h', 'g_m'])
     def test_missing_key(self, key):
         d = _interface_dict()
         del d[key]
@@ -187,10 +187,10 @@ class TestInterfaceInput:
             InterfaceInput.from_dict(d)
 
     @pytest.mark.parametrize('key, value', [
-        ('cond_h', 0.0),
-        ('cond_h', -1.0),
-        ('cond_m', 0.0),
-        ('cond_m', -1.0e-11),
+        ('g_h', 0.0),
+        ('g_h', -1.0),
+        ('g_m', 0.0),
+        ('g_m', -1.0e-11),
     ])
     def test_invalid_value(self, key, value):
         d = _interface_dict()
@@ -271,7 +271,7 @@ def _wall_kwargs() -> dict:
         m('構造用合板1', 0.012, 6, 10.0, 80.0),
         m('石膏ボード', 0.042, 5, 10.0, 50.0),
     )
-    interfaces = tuple(InterfaceInput(cond_h=h, cond_m=w) for h, w in (
+    interfaces = tuple(InterfaceInput(g_h=h, g_m=w) for h, w in (
         (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
         (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
     ))
@@ -351,7 +351,7 @@ class TestWallInput:
     @pytest.mark.parametrize('key, value, match', [
         ('surface', {'direction': 'e'}, 'surface'),
         ('layers', ('サイディング',), 'layers'),
-        ('interfaces', ({'cond_h': 9.2, 'cond_m': 3.43e-8},) * 8, 'interfaces'),
+        ('interfaces', ({'g_h': 9.2, 'g_m': 3.43e-8},) * 8, 'interfaces'),
     ])
     def test_invalid_type(self, key, value, match):
         # 部品の入力の代わりに dict や文字列を渡すとエラー
@@ -379,7 +379,7 @@ def _wall_dict() -> dict:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'cond_h': h, 'cond_m': w} for h, w in (
+        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
             (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
             (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
         )],

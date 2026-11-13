@@ -38,8 +38,8 @@ def step(
         geometry: WallGeometry,
         state_n: WallState,
         dt: float,
-        outdoor: OutdoorBoundary,
-        indoor: IndoorBoundary
+        outdoor_npls: OutdoorBoundary,
+        indoor_npls: IndoorBoundary
     ) -> tuple[WallState, int]:
     """熱と水分を一緒に 1 ステップ進める。
 
@@ -52,8 +52,8 @@ def step(
         geometry: 壁の形
         state_n: 前の時刻（ステップ n）の状態
         dt: 時間刻み, s
-        outdoor: 次の時刻の外気の境界条件
-        indoor: 次の時刻の室内の境界条件
+        outdoor_npls: ステップ n + 1 の外気の境界条件
+        indoor_npls: ステップ n + 1 の室内の境界条件
 
     Returns:
         次の時刻の状態、ニュートン法の修正の回数
@@ -65,11 +65,11 @@ def step(
 
     # ステップ n + 1 の、外表面に外から直接入る熱（日射の吸収 - 夜間放射）, W/m2（質点の状態によらないので、1 ステップの中では一定）
     # 評価方法の「外表面の日射・夜間放射」のステップ n に、ここではステップ n + 1 の外気の値を入れる（後退差分）
-    q_sol_npls = get_solar_heat_gain(geometry.surface, outdoor.solar)
+    q_sol_npls = get_solar_heat_gain(geometry.surface, outdoor_npls.solar)
 
     # ステップ n の、通気層の壁 1 m2 あたりの換気量, m3/(m2 s), [i]（前の時刻の温度で求め、1 ステップの中では一定にする。
     # 換気量は √|ρ_o - ρ_i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
-    q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor)
+    q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor_npls)
 
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:
@@ -78,9 +78,9 @@ def step(
         t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
         res_h_is = heat_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor, indoor, q_sol_npls, q_v_is_n) / HEAT_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor, indoor, q_v_is_n) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         f_ps = np.empty(len(x_ps))

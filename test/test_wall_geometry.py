@@ -168,14 +168,14 @@ def _node(name: str, d_left: float, d_right: float, layer_index: int) -> Materia
     return MaterialNode(d_left=d_left, d_right=d_right, material=material_finder()('whamcavity', name), layer_index=layer_index)
 
 
-def _interface(cond_h: float) -> Interface:
-    """熱コンダクタンス cond_h の境目（湿気は 7.75e-7）。計算の側の境目なので抵抗で持つ。"""
-    return Interface(r_h=1.0 / cond_h, r_m=1.0 / 7.75e-7)
+def _interface(g_h: float) -> Interface:
+    """熱コンダクタンス g_h の境目（湿気は 7.75e-7）。計算の側の境目なので抵抗で持つ。"""
+    return Interface(r_h=1.0 / g_h, r_m=1.0 / 7.75e-7)
 
 
-def _interface_input(cond_h: float) -> InterfaceInput:
-    """熱コンダクタンス cond_h の入力の境目（湿気は 7.75e-7）。_make_links に渡す。"""
-    return InterfaceInput(cond_h=cond_h, cond_m=7.75e-7)
+def _interface_input(g_h: float) -> InterfaceInput:
+    """熱コンダクタンス g_h の入力の境目（湿気は 7.75e-7）。_make_links に渡す。"""
+    return InterfaceInput(g_h=g_h, g_m=7.75e-7)
 
 
 class TestLinkHeat:
@@ -248,7 +248,7 @@ def _lambda(name: str) -> float:
 
 def _main_wall_interfaces() -> tuple:
     """今の main.py・Fortran の入力の壁の境目 8 個（外表面、通気層の両側、接触、防湿層、内表面）。"""
-    return tuple(InterfaceInput(cond_h=h, cond_m=w) for h, w in (
+    return tuple(InterfaceInput(g_h=h, g_m=w) for h, w in (
         (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
         (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
     ))
@@ -290,7 +290,7 @@ class TestMakeLinks:
         nodes = _make_nodes(_main_wall_layers(), find_material=material_finder())
         used = [l.interface for l in _make_links(nodes, interfaces) if l.interface is not None]
         assert len(used) == 8
-        assert [(u.r_h, u.r_m) for u in used] == pytest.approx([(1 / x.cond_h, 1 / x.cond_m) for x in interfaces])
+        assert [(u.r_h, u.r_m) for u in used] == pytest.approx([(1 / x.g_h, 1 / x.g_m) for x in interfaces])
 
     def test_order(self):
         # k 番目のつながりは、質点 k - 1 と質点 k の間。両端は外気と室内
@@ -307,9 +307,9 @@ def _state(rh: float) -> State:
     return State.init(t=20.0 + T_0, rh=rh)
 
 
-def _interface_m(cond_m: float) -> Interface:
-    """湿気コンダクタンス cond_m の境目（熱は 50）。計算の側の境目なので抵抗で持つ。"""
-    return Interface(r_h=1.0 / 50.0, r_m=1.0 / cond_m)
+def _interface_m(g_m: float) -> Interface:
+    """湿気コンダクタンス g_m の境目（熱は 50）。計算の側の境目なので抵抗で持つ。"""
+    return Interface(r_h=1.0 / 50.0, r_m=1.0 / g_m)
 
 
 class TestLinkMoisture:
@@ -329,13 +329,13 @@ class TestLinkMoisture:
         m = a.material
         assert link.r_m(s50, s90) == pytest.approx(0.0009 / m.get_lambda_dsh_m(rh=s50.rh) + 0.0009 / m.get_lambda_dsh_m(rh=s90.rh))
 
-    @pytest.mark.parametrize('cond_m', [7.75e-7, 2.0e-11])
-    def test_layer_to_layer(self, cond_m):
-        # 合板の右の端と GW の左の端：境目の 1 / cond_m だけ（接触 7.75e-7、防湿層 2.0e-11）
+    @pytest.mark.parametrize('g_m', [7.75e-7, 2.0e-11])
+    def test_layer_to_layer(self, g_m):
+        # 合板の右の端と GW の左の端：境目の 1 / g_m だけ（接触 7.75e-7、防湿層 2.0e-11）
         a, b = _node('構造用合板1', 0.0009, 0.0, 0), _node('グラスウール1', 0.0, 0.0125, 1)
-        link = Link(left=a, right=b, interface=_interface_m(cond_m))
+        link = Link(left=a, right=b, interface=_interface_m(g_m))
         s = _state(50.0)
-        assert link.r_m(s, s) == pytest.approx(1 / cond_m)
+        assert link.r_m(s, s) == pytest.approx(1 / g_m)
 
     def test_outside_surface(self):
         link = Link(left=OUTDOOR, right=_node('サイディング', 0.0, 0.002, 0), interface=_interface_m(2.0e-11))
@@ -428,7 +428,7 @@ def _main_wall_dict() -> dict:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'cond_h': h, 'cond_m': w} for h, w in (
+        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
             (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
             (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
         )],
