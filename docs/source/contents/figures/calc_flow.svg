@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 540" width="780" height="540" font-family="'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif" font-size="13" fill="#2b2a28">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+  </defs>
+
+  <!-- 準備（1 回だけ） -->
+  <rect x="20" y="16" width="700" height="96" rx="6" fill="#f7f5f0" stroke="#9a9893" stroke-dasharray="5 4"/>
+  <text x="34" y="38" font-size="12" fill="#52514e">準備（最初に 1 回）</text>
+  <g fill="#ffffff" stroke="#52514e" stroke-width="1.2">
+    <rect x="120" y="52" width="180" height="40" rx="4"/>
+    <rect x="360" y="52" width="200" height="40" rx="4"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="210" y="77">材料の性質</text>
+    <text x="460" y="77">壁の構成と質点</text>
+  </g>
+  <g stroke="#52514e" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="300" y1="72" x2="358" y2="72"/>
+  </g>
+
+  <!-- 初期の状態 → 繰り返し -->
+  <g stroke="#52514e" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="460" y1="92" x2="460" y2="146"/>
+  </g>
+  <text x="470" y="128" font-size="12" fill="#52514e">初期の状態</text>
+
+  <!-- 繰り返し（時間の進め方） -->
+  <rect x="20" y="148" width="700" height="330" rx="6" fill="#eef3f7" stroke="#2f6f9f" stroke-dasharray="5 4"/>
+  <text x="34" y="166" font-size="12" fill="#2f6f9f">ステップ n → n + 1 の繰り返し（時間の進め方）</text>
+
+  <g fill="#ffffff" stroke="#52514e" stroke-width="1.2">
+    <!-- 1 段目：外気・室内の条件 -->
+    <rect x="40" y="190" width="160" height="40" rx="4"/>
+    <rect x="250" y="190" width="180" height="40" rx="4"/>
+    <rect x="500" y="190" width="180" height="40" rx="4"/>
+    <!-- 2 段目：換気量・外から直接入る熱・流れ -->
+    <rect x="40" y="290" width="160" height="40" rx="4"/>
+    <rect x="250" y="290" width="180" height="40" rx="4"/>
+    <rect x="500" y="290" width="180" height="40" rx="4"/>
+    <!-- 3 段目：収支・解き方 -->
+    <rect x="250" y="400" width="180" height="40" rx="4"/>
+    <rect x="500" y="400" width="180" height="40" rx="4"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="120" y="215">太陽位置</text>
+    <text x="340" y="215">外気の条件</text>
+    <text x="590" y="215">室内の条件</text>
+    <text x="120" y="315">通気層の換気</text>
+    <text x="340" y="315" font-size="12">外表面の日射・夜間放射</text>
+    <text x="590" y="315">熱・水分の流れ</text>
+    <text x="340" y="425">熱・水分の収支</text>
+    <text x="590" y="425">1 ステップの解き方</text>
+  </g>
+
+  <g stroke="#52514e" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <!-- 太陽位置 → 外気の条件 -->
+    <line x1="200" y1="210" x2="248" y2="210"/>
+    <!-- 外気の条件 → 通気層の換気・外表面の日射・夜間放射・熱・水分の流れ -->
+    <line x1="290" y1="230" x2="160" y2="288"/>
+    <line x1="340" y1="230" x2="340" y2="288"/>
+    <line x1="390" y1="230" x2="540" y2="288"/>
+    <!-- 室内の条件 → 熱・水分の流れ -->
+    <line x1="590" y1="230" x2="590" y2="288"/>
+    <!-- 通気層の換気・外表面の日射・夜間放射・熱・水分の流れ → 熱・水分の収支 -->
+    <line x1="140" y1="330" x2="290" y2="398"/>
+    <line x1="340" y1="330" x2="340" y2="398"/>
+    <line x1="560" y1="330" x2="390" y2="398"/>
+    <!-- 熱・水分の収支 → 1 ステップの解き方 -->
+    <line x1="430" y1="420" x2="498" y2="420"/>
+    <!-- 1 ステップの解き方 → 次のステップ（はじめに戻る） -->
+    <path d="M680,420 L704,420 L704,178 L120,178 L120,188"/>
+  </g>
+  <rect x="640" y="352" width="60" height="40" fill="#eef3f7"/>
+  <text x="698" y="368" font-size="12" fill="#52514e" text-anchor="end">n を 1</text>
+  <text x="698" y="384" font-size="12" fill="#52514e" text-anchor="end">進める</text>
+
+  <!-- 全体で使う節 -->
+  <text x="20" y="506" font-size="12" fill="#52514e">「湿り空気と水の性質」は、すべての節で使う。</text>
+  <text x="20" y="526" font-size="12" fill="#52514e">矢印は、値を渡す向きを表す。</text>
+</svg>

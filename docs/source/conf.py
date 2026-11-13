@@ -24,8 +24,8 @@ html_title = 'HydroThermal 計算方法'
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 
-# 表・図に番号を付ける
-numfig = True
+# 表・図の番号は自動で付けない（自動だとサイト全体の通し番号になるので、式と同じくページごとに、図の説明に「図 1」と書く）
+numfig = False
 
 # 式の番号はページごとに 1 から振る（True だとサイト全体の通し番号になる）
 math_numfig = False
