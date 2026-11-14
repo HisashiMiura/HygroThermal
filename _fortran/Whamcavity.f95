@@ -2,14 +2,14 @@
 !  Heat and Water transfer based on water chemical potential
 !  Building Envelope Simulation for Multi-Story Model 
 !  1-dimensional model made by Hiroaki Saito 
-!  dxпїЅМ•ПЌXпїЅAпїЅtпїЅпїЅпїЅ`пїЅпїЅпїЅпїЅпїЅAпїЅК‹CпїЅwпїЅAпїЅпїЅпїЅIпїЅКЃAпїЅCпїЅЫѓfпїЅ[пїЅ^пїЅAпїЅ`пїЅBпїЅпїЅпїЅпїЅпїЅZ
-!  For пїЅRпїЅпїЅпїЅпїЅпїЅпїЅOпїЅЗ‘пїЅпїЅwпїЅKпїЅпїЅпїЅfпїЅпїЅ  пїЅпїЅпїЅпїЅпїЅlпїЅпїЅ
+!  dx‚М•ПЌXЃA‰tђ…“`“±—¦ЃA’К‹C‘wЃAЊ‹I—КЃA‹CЏЫѓfЃ[ѓ^ЃA“`’B—¦Љ·ЋZ
+!  For Rђ…‚ ‚иЉO•З‘Ѕ‘wЉKѓ‚ѓfѓ‹  •—ЊьЌl—¶
 !  made by Hiroaki Saito  August 2021
 ! SI unit
 !///////////////////////////////////
 IMPLICIT REAL*8(A-H,O-Z)
 CHARACTER MOJI*110,OUTFILE*8,FILENAME0*12
-!                    пїЅпїЅпїЅ_пїЅпїЅпїЅ@пїЅwпїЅпїЅпїЅ@пїЅ@пїЅ@пїЅЗђпїЅпїЅ@пїЅпїЅпїЅпїЅпїЅпїЅ
+!                    Ћї“_ђ”Ѓ@‘wђ”Ѓ@Ѓ@Ѓ@•Зђ”Ѓ@•”‰®ђ”
 INTEGER,PARAMETER :: NXP=150,KMTLP=10,NWP=50,NRM=50  !,NYP=150,KATLP=70
 !
 INTEGER,PARAMETER :: MXIT=5000,NMTL=19
@@ -58,47 +58,47 @@ DATA MDAY/31,28,31,30,31,30,31,31,30,31,30,31/
 !RW=0.
 !
 !**** FILE OPEN ****
-PRINT *,  'пїЅ@пїЅ@пїЅ`пїЅпїЅfпїЅ[пїЅ^пїЅtпїЅ@пїЅCпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅ'
+PRINT *,  'Ѓ@Ѓ@Њ`ЏуѓfЃ[ѓ^ѓtѓ@ѓCѓ‹‚р“ь—Н‚µ‚Д‰є‚і‚ў'
 OPEN(UNIT=10,FILE="")
-  PRINT *,  'пїЅ@пїЅ@пїЅCпїЅЫѓfпїЅ[пїЅ^пїЅtпїЅ@пїЅCпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅ'
+  PRINT *,  'Ѓ@Ѓ@‹CЏЫѓfЃ[ѓ^ѓtѓ@ѓCѓ‹‚р“ь—Н‚µ‚Д‰є‚і‚ў'
   OPEN(UNIT=7,FILE="")
-!PRINT *,  'пїЅ@пїЅ@пїЅпїЅпїЅпїЅпїЅfпїЅ[пїЅ^пїЅtпїЅ@пїЅCпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅ'
+!PRINT *,  'Ѓ@Ѓ@•Ёђ«ѓfЃ[ѓ^ѓtѓ@ѓCѓ‹‚р“ь—Н‚µ‚Д‰є‚і‚ў'
 OPEN(UNIT=11,FILE="mcoff1.prn")
-  PRINT *,  'пїЅ@пїЅ@пїЅпїЅпїЅJпїЅfпїЅ[пїЅ^пїЅtпїЅ@пїЅCпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅ'
+  PRINT *,  'Ѓ@Ѓ@•—‰JѓfЃ[ѓ^ѓtѓ@ѓCѓ‹‚р“ь—Н‚µ‚Д‰є‚і‚ў'
 OPEN(UNIT=13,FILE="")
 READ(13,210)MOJI
 READ(13,210)MOJI
-PRINT *,  'пїЅ@пїЅoпїЅНѓtпїЅ@пїЅCпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅпїЅi8пїЅoпїЅCпїЅgпїЅИ“пїЅпїЅj'
+PRINT *,  'Ѓ@Џo—Нѓtѓ@ѓCѓ‹‚р“ь—Н‚µ‚Д‰є‚і‚ўЃi8ѓoѓCѓg€И“аЃj'
 READ(5,*)OUTFILE
-PRINT *,  'пїЅ@пїЅпїЅпїЅпїЅпїЅvпїЅZпїЅпїЅпїЅпїЅ=1   пїЅпїЅпїЅпїЅпїЅvпїЅZпїЅИ‚пїЅ=0 '
+PRINT *,  'Ѓ@Ћы‘©ЊvЋZ‚ ‚и=1   Ћы‘©ЊvЋZ‚И‚µ=0 '
 READ(5,*)NREPT
-PRINT *,  'пїЅпїЅпїЅпїЅпїЅЙaпїЅWпїЅпїЅпїЅпїЅпїЅпїЅН‚пїЅпїЅД‰пїЅпїЅпїЅпїЅпїЅ '
+PRINT *,  '•…‹ЂЉЙaЊWђ”‚р“ь—Н‚µ‚Д‰є‚і‚ў '
 READ(5,*)ROTOMG
-PRINT *,  'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅМ€пїЅпїЅпїЅпїЅ@пїЅпїЅпїЅпїЅ0пїЅ@пїЅlпїЅпїЅ1 '
+PRINT *,  'ђ…•Єђ¶ђ¬‚М€µ‚ўЃ@–іЋ‹0Ѓ@Ќl—¶1 '
 READ(5,*)I_HCOFF
-PRINT *,  'пїЅК‹CпїЅwпїЅпїЅпїЅКЏoпїЅНѓ|пїЅCпїЅпїЅпїЅgпїЅ@пїЅпїЅпїЅпїЅNoпїЅyпїЅС‘wпїЅФЌпїЅ1,пїЅwпїЅФЌпїЅ2 '
+PRINT *,  '’К‹C‘w—¬—КЏo—Нѓ|ѓCѓ“ѓgЃ@Њъ•ЗNo‹y‚С‘w”ФЌ†1,‘w”ФЌ†2 '
 READ(5,*)NQOUT1
 READ(5,*)NQOUT2
 READ(5,*)NQOUT3
 !
 READ(10,210)MOJI
-!     пїЅЬ“xпїЅAпїЅoпїЅx
+!     €Ь“xЃAЊo“x
       READ(10,210)D1
       READ(10,*)HIDO,HKEIDO,HOI
 READ(10,210)MOJI
-READ(10,*)LYEAR,MON1,MDAY1,LMON,LDAY    ! пїЅN пїЅJпїЅnпїЅпїЅ пїЅJпїЅnпїЅпїЅ пїЅIпїЅпїЅпїЅпїЅ пїЅIпїЅпїЅпїЅпїЅ
+READ(10,*)LYEAR,MON1,MDAY1,LMON,LDAY    ! ”N ЉJЋnЊЋ ЉJЋn“ъ ЏI—№ЊЋ ЏI—№“ъ
 READ(10,210)MOJI
-READ(10,*)TMPOC,TMPIC,RHO,RHI           !пїЅOпїЅCпїЅпїЅпїЅx пїЅпїЅпїЅпїЅпїЅпїЅпїЅx пїЅOпїЅCпїЅпїЅпїЅx пїЅпїЅпїЅпїЅпїЅпїЅпїЅx пїЅiпїЅпїЅпїЅпїЅпїЅlпїЅj
+READ(10,*)TMPOC,TMPIC,RHO,RHI           !ЉO‹C‰·“x Ћє“а‰·“x ЉO‹CЋј“x Ћє“аЋј“x ЃiЏ‰Љъ’lЃj
 READ(10,210)MOJI
-READ(10,*)NDVD                          !пїЅпїЅпїЅФ•пїЅпїЅпїЅ
+READ(10,*)NDVD                          !ЋћЉФ•ЄЉ„
 READ(10,210)MOJI
-READ(10,*)NROOM				!пїЅпїЅпїЅпїЅпїЅпїЅ
+READ(10,*)NROOM				!•”‰®ђ”
 READ(10,210)MOJI
 DO I=1,NROOM
-  READ(10,*)VOLR(I),QR(I),IROOMT(I),TRAV(I),TRDT(I),RRAV(I),NROPEN(I)  !пїЅпїЅпїЅМђПЃ@пїЅпїЅпїЅCпїЅпїЅ  пїЅпїЅпїЅxпїЅЭ’пїЅLпїЅпїЅпїЅ@пїЅпїЅпїЅП‰пїЅпїЅxпїЅ@пїЅUпїЅпїЅпїЅ@пїЅпїЅпїЅПЋпїЅпїЅxпїЅAпїЅJпїЅпїЅпїЅпїЅ
+  READ(10,*)VOLR(I),QR(I),IROOMT(I),TRAV(I),TRDT(I),RRAV(I),NROPEN(I)  !Ћє‘МђПЃ@Љ·‹C‰сђ”  ‰·“xђЭ’и—L–іЃ@•Ѕ‹П‰·“xЃ@ђU•ќЃ@•Ѕ‹ПЋј“xЃAЉJЊыђ”
 END DO
 READ(10,210)MOJI
-!READ(10,*)NOP                           !пїЅJпїЅпїЅпїЅfпїЅ[пїЅ^пїЅпїЅ
+!READ(10,*)NOP                           !ЉJЊыѓfЃ[ѓ^ђ”
 READ(10,210)MOJI
 DO I=1,NROOM
   K=NROPEN(I)
@@ -108,11 +108,11 @@ DO I=1,NROOM
   END DO
 END DO
 READ(10,210)MOJI
-READ(10,*)NWTYPE			!пїЅпїЅTYPEпїЅпїЅ
+READ(10,*)NWTYPE			!•ЗTYPEђ”
 DO I=1,NWTYPE
 	READ(10,210)MOJI
 	READ(10,210)MOJI
-	READ(10,*)KMTL(I)		! пїЅЗ‚М‘wпїЅпїЅ
+	READ(10,*)KMTL(I)		! •З‚М‘wђ”
         READ(10,210)MOJI
 	DO J=1,KMTL(I)
          READ(10,*)NBUZAI(I,J),TPINT(I,J),RHINT(I,J),TICK(I,J),KDVD(I,J)&
@@ -120,11 +120,11 @@ DO I=1,NWTYPE
         END DO
 END DO
 READ(10,210)MOJI
-READ(10,*)NWN				!пїЅЗ•пїЅпїЅКђпїЅ
+READ(10,*)NWN				!•З•”€Кђ”
 READ(10,210)MOJI
 READ(10,210)MOJI
 DO I=1,NWN  
-        !пїЅЗЋпїЅпїЅ	пїЅпїЅпїЅпїЅ пїЅЧђЪЋпїЅ пїЅпїЅпїЅпїЅ пїЅZпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅuпїЅпїЅпїЅпїЅпїЅN пїЅXпїЅОЉp пїЅAпїЅпїЅпїЅxпїЅh пїЅпїЅпїЅЛ‹zпїЅпїЅ пїЅпїЅпїЅЛ—пїЅ
+        !•ЗЋн—Ю	•ы€К —ЧђЪЋє ’·•У ’Z•У Ќ‚‚і ѓuѓ‰ѓ“ѓN ЊXЋОЉp ѓAѓ‹ѓxѓh “ъЋЛ‹zЋы •ъЋЛ—¦
 	READ(10,*)KWTYPE(I),NORI(I,1),NORI(I,2),NORI(I,3),(WLENG(I,J),J=1,4),AKASYA(I),RLF(I),AS(I),EMI(I)
 END DO
 !AWS=0.
@@ -133,30 +133,30 @@ DO LW=1,NWN
     IW=KWTYPE(LW)
     AW(LW)=WLENG(LW,1)*WLENG(LW,2)-WLENG(LW,4)
         DO K=1,KMTL(IW)
-		ALP(LW,K)=ALPK(IW,K)*TICK(IW,K)*WLENG(LW,2)         !пїЅпїЅпїЅпїЅпїЅJпїЅпїЅпїЅКђПѓпїЅAпїЅМЋZпїЅo
+		ALP(LW,K)=ALPK(IW,K)*TICK(IW,K)*WLENG(LW,2)         !‘Љ“–ЉJЊы–КђПѓїA‚МЋZЏo
 	END DO
     !    IF(NORI(LW,1).NE.0)
     IF(NORI(LW,1).EQ.5)THEN
-        AWSF(NORI(LW,3))=AWSF(NORI(LW,3))+AW(LW)    ! пїЅпїЅпїЅBпїЅпїЅпїЅЛ‚пїЅпїЅу‚Ї‚йЏ°пїЅКђпїЅ
+        AWSF(NORI(LW,3))=AWSF(NORI(LW,3))+AW(LW)    ! ’ј’B“ъЋЛ‚рЋу‚Ї‚йЏ°–КђП
      ELSE
-        AWS(NORI(LW,3))=AWS(NORI(LW,3))+AW(LW)    ! пїЅgпїЅUпїЅпїЅпїЅЛ‚пїЅпїЅу‚Ї‚пїЅЗЃEпїЅVпїЅпїЅКђпїЅ
+        AWS(NORI(LW,3))=AWS(NORI(LW,3))+AW(LW)    ! ЉgЋU“ъЋЛ‚рЋу‚Ї‚й•ЗЃE“V€д–КђП
     END IF
     IF(NORI(LW,1).EQ.0)THEN
         AWSF(NORI(LW,2))=AWSF(NORI(LW,2))+AW(LW)
         AWS(NORI(LW,2))=AWS(NORI(LW,2))-AW(LW)
     END IF
 END DO
-!:::::::::::пїЅпїЅпїЅпїЅпїЅJпїЅпїЅпїЅКђПѓпїЅAпїЅМ’пїЅпїЅсЌ‡ђпїЅ:::::::::::
+!:::::::::::‘Љ“–ЉJЊы–КђПѓїA‚М’ј—сЌ‡ђ¬:::::::::::
 !
-DO I=1,NWTYPE     !пїЅпїЅпїЅ  пїЅsпїЅvпїЅiпїЅvпїЅCпїЅпїЅпїЅj
-  DO K=1,KMTL(I)   !пїЅw
+DO I=1,NWTYPE     !Ћн—Ю  •s—vЃi—vЏCђіЃj
+  DO K=1,KMTL(I)   !‘w
     D1=0.
     D2=0.
     IF(ALPK(I,K).GT.1.E-7)THEN
-    DO  LW=1,NWN    !пїЅK
+    DO  LW=1,NWN    !ЉK
         IW=KWTYPE(LW)
 	D1=D1+1/(ALP(LW,K)*ALP(LW,K))      
-        D2=D2+WLENG(LW,3)                         !пїЅК‹CпїЅwпїЅпїЅпїЅпїЅпїЅМЌпїЅпїЅv
+        D2=D2+WLENG(LW,3)                         !’К‹C‘wЌ‚‚і‚МЌ‡Њv
     END DO
     IF(D1.GT.1E-12)THEN
        ALP_TOTAL(K)=1/SQRT(D1) 
@@ -169,37 +169,37 @@ END DO
 !PAUSE
 !:::::::::::::::::::::::::::::::::::::::::::::::
 READ(10,210)MOJI
-READ(10,*)NWIN				!пїЅпїЅпїЅЗ•пїЅпїЅКђпїЅ
+READ(10,*)NWIN				!”–•З•”€Кђ”
 READ(10,210)MOJI
 READ(10,210)MOJI
 DO I=1,NWIN             			
-        !пїЅпїЅпїЅпїЅ	пїЅЧђЪЋпїЅ	пїЅКђпїЅ	пїЅMпїЅС—пїЅпїЅпїЅпїЅ@пїЅХ•пїЅпїЅWпїЅпїЅ
+        !•ы€К	—ЧђЪЋє	–КђП	”MЉС—¬—¦Ѓ@ЋХ•БЊWђ”
 	READ(10,*)NWORI(I,1),NWORI(I,2),AWIN(I),WINK(I),WINSCW(I)
      !   WINSCW(I)=0.
 END DO
-!:::::::::пїЅпїЅпїЅIпїЅvпїЅZпїЅпїЅпїЅК“пїЅпїЅпїЅ:::::::
+!:::::::::Њ‹IЊvЋZ•”€К“ь—Н:::::::
  READ(10,210)MOJI
  READ(10,*)NSUWC
  READ(10,*)(NWCN(I),I=1,NSUWC)
  ALDC=5./3600.
-!:::::пїЅoпїЅНЌпїЅпїЅW::::::::::::::::::::::::: 
+!:::::Џo—НЌА•W::::::::::::::::::::::::: 
 !PAUSE
 READ(10,210)MOJI
 READ(10,*)NOUT
 READ(10,*)(NOUTD(I,1),I=1,NOUT)
 READ(10,*)(NOUTD(I,2),I=1,NOUT)
-!:::::пїЅпїЅпїЅП’lпїЅoпїЅНЌЮ—пїЅ:::::::::::::::::::: 
+!:::::•Ѕ‹П’lЏo—НЌЮ—ї:::::::::::::::::::: 
 READ(10,210)MOJI
 READ(10,*)NOUTAV
 READ(10,*)(NOUTAVD(I,1),I=1,NOUTAV)
 READ(10,*)(NOUTAVD(I,2),I=1,NOUTAV)
-!:::::пїЅпїЅпїЅпїЅпїЅпїЅпїЅКЏoпїЅНЌпїЅпїЅW:::::::::::::::::::: 
+!:::::•…‹Ђ•”€КЏo—НЌА•W:::::::::::::::::::: 
 READ(10,210)MOJI
 READ(10,*)NOUTML
 READ(10,*)(NOUTMLD(I,1),I=1,NOUTML)
 READ(10,*)(NOUTMLD(I,2),I=1,NOUTML)
 READ(10,*)(NOUTMLD(I,3),I=1,NOUTML)
-!***********пїЅпїЅпїЅM*********
+!***********”­”M*********
 READ(10,210)MOJI
 READ(10,*)NSUP
 READ(10,*)(KSUP(K),K=1,NSUP)
@@ -214,7 +214,7 @@ DO I=1,24
 !  WSUP(1,I)=0.5
 END DO
 END DO
-!***********пїЅZпїЅпїЅпїЅпїЅпїЅМђЭ’пїЅ*********
+!***********ђZђ…—¦‚МђЭ’и*********
 READ(10,210)MOJI
   READ(10,*)NRAIN
 READ(10,210)MOJI
@@ -243,7 +243,7 @@ PXCOF=1./133322.
       CLOSE(11)
 !      PAUSE
 !**********************************
-!PRINT *, '  пїЅxпїЅпїЅпїЅoпїЅН‚QпїЅ_ ' 
+!PRINT *, '  “xђ”Џo—Н‚Q“_ ' 
 !READ(5,*)NDOS1,NDOS2
 !
 !
@@ -308,7 +308,7 @@ DO I=1,NWTYPE
       WRITE(12,*)'  FILENAME ',OUTFILE
       WRITE(12,*)' '
 !      WRITE(12,*)' YEAR MON DAY  ','    DAYLY AVERAGE TEMP&VP& SUMMATION OF FLUX  WLOSS(kg/kg) WL(kg/DAY) '
-WRITE(12,*)' YEAR MON DAY пїЅZпїЅпїЅпїЅпїЅ(kg/m2DAY)  пїЅЮ•пїЅпїЅПЉЬђпїЅпїЅпїЅ(%)  пїЅЬђпїЅпїЅпїЅпїЅпїЅпїЅz(%) пїЅпїЅпїЅКЊпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅzWloss(kg/kg) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅWJ(kg/m3DAY) '
+WRITE(12,*)' YEAR MON DAY ђZђ…—К(kg/m2DAY)  ЌЮ•Ѕ‹ПЉЬђ…—¦(%)  ЉЬђ…—¦•Є•z(%) Ћї—КЊёЏ­—¦•Є•zWloss(kg/kg) ђ…•Єђ¶ђ¬—КWJ(kg/m3DAY) '
 WRITE(12,*)'NYEAR MON DAY RAIN1',(K,K=2,NRAIN),'WGTAV1',(K,K=2,NOUTAV),('WGT1',(K,K=2,NOUTMLD(L,3)+1-NOUTMLD(L,2)),L=1,NOUTML),&
            ('WLOSS1',(K,K=2,NOUTMLD(L,3)+1-NOUTMLD(L,2)),L=1,NOUTML),('WJW1',(K,K=2,NOUTMLD(L,3)+1-NOUTMLD(L,2)),L=1,NOUTML)
 !      CLOSE(8)
@@ -392,9 +392,9 @@ DO 444 NYEAR=1,LYEAR
 WRITE(8,*)' '
 WRITE(8,*) '  YEAR= ',NYEAR
 WRITE(8,*) '  DATA  '
-WRITE(8,*)'   Year Mon Day IM пїЅ~пїЅJпїЅпїЅ(mm/h) пїЅпїЅпїЅпїЅ(m/s) пїЅпїЅпїЅZпїЅпїЅпїЅпїЅ(kg/m2h) пїЅhпїЅпїЅпїЅwпїЅZпїЅпїЅпїЅпїЅ(kg/m2h) пїЅпїЅCпїЅwпїЅпїЅпїЅпїЅпїЅпїЅ(kg/m2) ' &
+WRITE(8,*)'   Year Mon Day IM Ќ~‰J—К(mm/h) •—‘¬(m/s) ЉўђZђ…—К(kg/m2h) –hђ…‘wђZђ…—К(kg/m2h) ‹у‹C‘wђ…•Є—К(kg/m2) ' &
           ,' Temp_R1 Rh_R1 Vp_R1  Tmp1',(K,K=2,NOUT),'Vp1',(K,K=2,NOUT),'Rh1',(K,K=2,NOUT),'Mc1',(K,K=2,NOUT),'SAT1',(K,K=2,NWN),'WGTAV1',(K,K=2,NOUTAV) &
-          ,' пїЅOпїЅCпїЅпїЅпїЅx(пїЅпїЅ) пїЅOпїЅCпїЅпїЅпїЅпїЅпїЅCпїЅпїЅ(Pa) '
+          ,' ЉO‹C‰·“x(ЃЋ) ЉO‹Cђ…Џц‹C€і(Pa) '
          ! ,' Vp1 2 3 4 5 6 7 8 9   Rh1 2 3 4 5 6 7 8 9  Mc1 2 3 4 5 6 7 8 9  SAT1 2 3 4 5 WGTAV1 2 3 4 5 6(%)'&
 !
 IF(NYEAR.GT.1) THEN
@@ -452,7 +452,7 @@ DO 888 DAY=DAY1,DAY2
       RHOD(I)=100.0*(XOD(I)/XS)      				
       XOD(I)=VP*RHOD(I)*0.01                                    !CHANGE
     END DO
-!**   пїЅOпїЅпїЅпїЅпїЅпїЅпїЅпїЅAпїЅJпїЅК‚М“З‚ЭЌпїЅпїЅпїЅ***
+!**   ЉO•”•—‘¬ЃA‰J—К‚М“З‚ЭЌћ‚Э***
     DO I=1,24
       READ(13,*)VELOUT(I),RAIN(I),VELDIR(I)
     !  PRINT *,VELOUT(I),RAIN(I)
@@ -476,8 +476,8 @@ DO I=1,NWIN
         CALL SOLOCT(KDAY,HIDO,HKEIDO,HOI,AKASYA1,NORIENT,J)				
         CALL SATCAL(RLF1,AS1,EMI1,J)
         DO K=2,25
-           WSIN(I,K)=WSJIN(J,K)*AWIN(I)*WINSCW(I)    !пїЅgпїЅUпїЅпїЅпїЅпїЅ
-           WSIND(I,K)=WSJD(J,K)*AWIN(I)*WINSCW(I)     ! пїЅпїЅпїЅBпїЅпїЅпїЅпїЅ
+           WSIN(I,K)=WSJIN(J,K)*AWIN(I)*WINSCW(I)    !ЉgЋUђ¬•Є
+           WSIND(I,K)=WSJD(J,K)*AWIN(I)*WINSCW(I)     ! ’ј’Bђ¬•Є
 	END DO
 END DO
 DO LW=1,NWN
@@ -486,21 +486,21 @@ DO LW=1,NWN
    WGTDIS(LW,I,MON,DAY)=WGT(LW,I)
  END DO
 END DO
-!*************пїЅпїЅпїЅФѓпїЅпїЅ[пїЅv*****************
+!*************ЋћЉФѓ‹Ѓ[ѓv*****************
 DO 777 IM=1,24
 !PRINT *,'  IM=',IM
 !/////KETURO/////////////
       DO LW=1,NWIN
 	  CWVDAY(LW,IM)=0.
       END DO
-!/////пїЅZпїЅпїЅпїЅпїЅпїЅМЊvпїЅZпїЅiпїЅпїЅпїЅCпїЅuпїЅпїЅпїЅпїЅпїЅzпїЅпїЅпїЅlпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅМЉЦђпїЅпїЅj////////
+!/////ђZђ…—¦‚МЊvЋZЃiѓЏѓCѓuѓ‹•Є•z‚рЌl—¶‚µ‚Ѕ•—‘¬‚МЉЦђ”Ѓj////////
     IF(NRAIN.GT.0)THEN
       DO K=1,NRAIN
            I=NRAINPOINT(K,1)
            J=NRAINPOINT(K,2)
            SUMRAIN(I,J,IM)=0.
-           HIGHT_SER=(I-0.5)*WLENG(I,3)+0.7  !пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅЗ’пїЅпїЅпїЅпїЅЙђЭ’пїЅ пїЅпїЅbпїЅпїЅ0.7m
-           VEL_MOD=VELOUT(IM)*(HIGHT_SER/6.5)**0.25    !пїЅпїЅпїЅпїЅпїЅМЌпїЅпїЅпїЅпїЅвђіпїЅiпїЅоЏЂпїЅпїЅпїЅпїЅh=6.5mпїЅj0.25пїЅпїЅ
+           HIGHT_SER=(I-0.5)*WLENG(I,3)+0.7  !Ќ‚‚і‚рЊъ•З’†‰›‚ЙђЭ’и Љо‘bЌ‚0.7m
+           VEL_MOD=VELOUT(IM)*(HIGHT_SER/6.5)**0.25    !•—‘¬‚МЌ‚‚і•вђіЃiЉоЏЂ•—‘¬h=6.5mЃj0.25Џж
            D1=0.
            D2=0.
            D3=0.
@@ -509,16 +509,16 @@ DO 777 IM=1,24
           IF(VELOUT(IM).GE.0.1)THEN
            DO I=1,30
              D1=I*0.1*VEL_MOD 
-             !                                                       !v      пїЅпїЅпїЅМђZпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+             !                                                       !v      Љў‚МђZђ…—¦ЋАЊ±Ћ®
              !IF(D1.GE.8.5)THEN
              !  D2=0.0029*D1*D1 - 0.0284*D1 + 0.0346                                     !g(v)
              !  IF(D2.GT.1.)D2=1.
              ! ELSE
              !  D2=0.
-             ! END IF                                                                   !CIM=9.2  пїЅОђпїЅ_пїЅпїЅ
-             !  CIM=9.2                                                                  !пїЅOпїЅЗ‚пїЅCim
-             ! D2=ACOFRAIN(K,1)*D1*COS(HOI*3.1415/180)/CIM                              !пїЅZпїЅпїЅпїЅпїЅ=ACOFRAIN(K,1)
-               D2=ACOFRAIN(K,1)*D1*COS((VELDIR(IM)-(180+90*(NORI(NRAINPOINT(K,1),1)-1)))/180*3.1415)*1.5*0.2   !пїЅпїЅпїЅпїЅпїЅМЌlпїЅпїЅ ASHRAEпїЅМ–\пїЅIпїЅWпїЅпїЅ(SEVERE)пїЅр——p
+             ! END IF                                                                   !CIM=9.2  ђОђм_•¶
+             !  CIM=9.2                                                                  !ЉO•З‚МCim
+             ! D2=ACOFRAIN(K,1)*D1*COS(HOI*3.1415/180)/CIM                              !ђZђ…—¦=ACOFRAIN(K,1)
+               D2=ACOFRAIN(K,1)*D1*COS((VELDIR(IM)-(180+90*(NORI(NRAINPOINT(K,1),1)-1)))/180*3.1415)*1.5*0.2   !•—Њь‚МЌl—¶ ASHRAE‚М–\IЊWђ”(SEVERE)‚р——p
                IF(D2.LT.0.)D2=0.
              !
              D1=3.14*0.5*D1/VEL_MOD/VEL_MOD*EXP(3.14*0.25*(D1/VEL_MOD)**2)      !f(v)
@@ -535,19 +535,19 @@ DO 777 IM=1,24
 !//////////////////////////////////////////////////////////
       IMM=IM+1 
       IMQ=IMQ+1
-!   пїЅпїЅпїЅпїЅпїЅпїЅпїЅЗ‹yпїЅСЏпїЅпїЅК‚М“пїЅпїЅЯ“пїЅпїЅЛ—К‚МЊvпїЅZ(пїЅпїЅпїЅпїЅпїЅпїЅ)
+!   Ћє“а‘¤•З‹y‚СЏ°–К‚М“§‰Я“ъЋЛ—К‚МЊvЋZ(–ўЉ®ђ¬)
  WSINSUM=0.
  WSINDSUM=0.
  DO  I=1,NWIN
-     WSINSUM=WSINSUM+WSIN(I,IM)     !пїЅgпїЅUпїЅпїЅпїЅпїЅпїЅiпїЅeпїЅКЉgпїЅUпїЅj
-     WSINDSUM=WSINDSUM+WSIND(I,IM)  ! пїЅпїЅпїЅBпїЅпїЅпїЅпїЅпїЅiпїЅпїЅпїЅК“пїЅпїЅЛЃj
+     WSINSUM=WSINSUM+WSIN(I,IM)     !ЉgЋUђ¬•ЄЃiЉe–КЉgЋUЃj
+     WSINDSUM=WSINDSUM+WSIND(I,IM)  ! ’ј’Bђ¬•ЄЃiЏ°–К“ьЋЛЃj
  END DO
 DO LW=1,NWN
   IW=KWTYPE(LW)
   K=KMTL(IW)
- ! IF(NORI(LW,1).EQ.5) QS(LW,K,2)=WSINDSUM*AW(LW)/AWSF(NORI(LW,3))+WSINSUM*AW(LW)/AWS(NORI(LW,3))  !пїЅпїЅпїЅKпїЅпїЅ
- ! IF(NORI(LW,1).EQ.0) QS(LW,K,1)=WSINDSUM*AW(LW)/AWSF(NORI(LW,2))+WSINSUM*AW(LW)/AWS(NORI(LW,2))  !пїЅпїЅпїЅФЏпїЅпїЅAпїЅVпїЅпїЅiпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅj
- ! IF(NORI(LW,1).GE.1.AND.NORI(LW,1).LE.4) QS(LW,K,2)=WSINSUM*AW(LW)/AWS(NORI(LW,3))  !пїЅOпїЅпїЅ
+ ! IF(NORI(LW,1).EQ.5) QS(LW,K,2)=WSINDSUM*AW(LW)/AWSF(NORI(LW,3))+WSINSUM*AW(LW)/AWS(NORI(LW,3))  !‰єЉKЏ°
+ ! IF(NORI(LW,1).EQ.0) QS(LW,K,1)=WSINDSUM*AW(LW)/AWSF(NORI(LW,2))+WSINSUM*AW(LW)/AWS(NORI(LW,2))  !’†ЉФЏ°ЃA“V€дЃiЏ¬‰®— ‚ ‚иЃj
+ ! IF(NORI(LW,1).GE.1.AND.NORI(LW,1).LE.4) QS(LW,K,2)=WSINSUM*AW(LW)/AWS(NORI(LW,3))  !ЉO•З
 END DO
 !      NCONT=1
 !
@@ -571,7 +571,7 @@ IF(NYEAR.GE.1)THEN
        D2=SUMRAIN(NRAINPOINT(1,1),NRAINPOINT(1,2),I)
        D1=SWJRAIN(NRAINPOINT(1,1),NRAINPOINT(1,2))*3600.
        D3=RN(NRAINPOINT(1,1),NRAINPOINT(1,2))
-       WRITE(8,*)NYEAR,MON,DAY,IM-1,RAIN(I),VELOUT(I),D1,D2,D3& !   Year Mon Day IM пїЅ~пїЅJпїЅпїЅ(mm/h) пїЅпїЅпїЅпїЅ(m/s) пїЅпїЅпїЅZпїЅпїЅпїЅпїЅ(kg/m2h) пїЅhпїЅпїЅпїЅwпїЅZпїЅпїЅпїЅпїЅ(kg/m2h) пїЅпїЅCпїЅwпїЅпїЅпїЅпїЅпїЅпїЅ(kg/m2) 
+       WRITE(8,*)NYEAR,MON,DAY,IM-1,RAIN(I),VELOUT(I),D1,D2,D3& !   Year Mon Day IM Ќ~‰J—К(mm/h) •—‘¬(m/s) ЉўђZђ…—К(kg/m2h) –hђ…‘wђZђ…—К(kg/m2h) ‹у‹C‘wђ…•Є—К(kg/m2) 
                ,(TMPR(K),RHR(K),XR(K),K=1,NROOM),(TMPC(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),(XN(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),(RH(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT)&
                ,(WGT(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),(SATDV(K),K=1,NWN),(WOUTAV(K),K=1,NOUTAV),TEMPO(I),XOD(I),QQ(NQOUT1,NQOUT2),QQ(NQOUT1,NQOUT3)
   !     WRITE(8,*)NYEAR,MON,DAY,IM-1,RAIN(I),COFRAIN(1,1),SUMRAIN(NRAINPOINT(2,1),NRAINPOINT(2,2),I),SWJRAIN(NRAINPOINT(2,1),NRAINPOINT(2,2)),WJRAIN(2,6)*3600,WJRAIN(2,7)*3600&
@@ -588,14 +588,14 @@ DO 666 NF=1,NDVD
      !   WRITE(8,*)NYEAR,MON,DAY,IM,NF,SJIN(NORI(1,1),IM)&
      !          ,TMPR(1),(TMPC(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),XR(1),(XN(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),RHR(1),(RH(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT)&
      !          ,(WPU(NOUTD(K,1),NOUTD(K,2)),K=1,NOUT),(SCWDAY(NWCN(K),IM),K=1,NSUWC),(SAT(K,IM),K=1,4),TEMPO(IM),XOD(IM),SJD(IM),SJS(IM),SJN(IM)
-!     ******пїЅCпїЅЫѓfпїЅ[пїЅ^пїЅМ“З‚ЭЌпїЅпїЅпїЅ**********
+!     ******‹CЏЫѓfЃ[ѓ^‚М“З‚ЭЌћ‚Э**********
       DO I=1,NWN
 	IF(NORI(I,1).GE.1.AND.NORI(I,1).LE.4)THEN
           D1=(SAT(I,IMM)-SAT(I,IM))*DTM/3600
 	  SATDV(I)=SAT(I,IM)+(NF-1)*D1
 	END IF
         IF(NORI(I,1).EQ.5)THEN
-	  D5=(TEMPO(IMM)-TEMPO(IM))*DTM/3600     !  пїЅпїЅпїЅпїЅпїЅпїЅпїЅxпїЅiпїЅб‰єпїЅпїЅ0.7пїЅj
+	  D5=(TEMPO(IMM)-TEMPO(IM))*DTM/3600     !  Џ°‰є‰·“xЃi’б‰є—¦0.7Ѓj
 	 ! SATDV(I)=TEMPO(IM)+(NF-1)*D5
 	  D5=TEMPO(IM)+(NF-1)*D5
           SATDV(I)=TMPR(NORI(I,3))-0.7*(TMPR(NORI(I,3))-D5)
@@ -614,7 +614,7 @@ DO 666 NF=1,NDVD
 !TPO=5.0
 !RHO=50.
 !     ***************************
-!   пїЅOпїЅCпїЅМ‰пїЅпїЅwпїЅ|пїЅeпїЅпїЅпїЅVпїЅпїЅпїЅпїЅпїЅМЊvпїЅZ
+!   ЉO‹C‚М‰»Љwѓ|ѓeѓ“ѓVѓѓѓ‹‚МЊvЋZ
 TMPOC=TPO
 TP1=TMPOC+ATP
 CALL REWPT(RHO,WP1,TP1,RG)
@@ -625,15 +625,15 @@ DGDUO=1.2*PXCOF*D1
 DGDTO=1.2*PXCOF*D2
 !PRINT *, '  BEFORE 393'
 !PAUSE
-!****пїЅZпїЅпїЅпїЅК‚МђЭ’пїЅ*******
-!пїЅ~пїЅJпїЅК‚МЉпїЅпїЅZ 1mm/h=1L/m2h=1Kg/m2h
+!****ђZђ…—К‚МђЭ’и*******
+!Ќ~‰J—К‚МЉ·ЋZ 1mm/h=1L/m2h=1Kg/m2h
 IF(NRAIN.GT.0)THEN
 DO K=1,NRAIN
    I=NRAINPOINT(K,1)
    J=NRAINPOINT(K,2)
    IF(COFRAIN(K,1).GE.0.)THEN
-      SWJRAIN(I,J)=0.01*RAIN(IM)*COFRAIN(K,1)/3600.     !пїЅЮ•\пїЅК‚Ц‚МђZпїЅпїЅпїЅпїЅkg/m2S 
-     !SWJRAIN(I,J)=SWJRAIN(I,J)+AW(I)*0.01*RAIN(IM)*COFRAIN(K,1)/NDVD   !  пїЅпїЅCпїЅwпїЅМ•ЫЋпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+      SWJRAIN(I,J)=0.01*RAIN(IM)*COFRAIN(K,1)/3600.     !ЌЮ•\–К‚Ц‚МђZђ…—Кkg/m2S 
+     !SWJRAIN(I,J)=SWJRAIN(I,J)+AW(I)*0.01*RAIN(IM)*COFRAIN(K,1)/NDVD   !  ‹у‹C‘w‚М•ЫЋќђ…•Є—К
    END IF
 END DO
 END IF
@@ -695,9 +695,9 @@ DO LW=1,NWN
 !*****************************
 !
    D3=AW(LW)
-!   D1=4.78D-13*EXP(0.104*RH(LW,I))    !пїЅВ•ПѓVпїЅ[пїЅgпїЅМѓRпїЅпїЅпїЅ_пїЅNпїЅ^пїЅпїЅпїЅXпїЅiпїЅoпїЅTпїЅFпїЅcпїЅпїЅj
+!   D1=4.78D-13*EXP(0.104*RH(LW,I))    !‰В•ПѓVЃ[ѓg‚МѓRѓ“ѓ_ѓNѓ^ѓ“ѓXЃiЏo“TЃF“cЌвЃj
    IF(I.EQ.L1)THEN
-!     IF(L5.EQ.6)THEN                          !пїЅВ•ПѓVпїЅ[пїЅgпїЅМѓRпїЅпїЅпїЅ_пїЅNпїЅ^пїЅпїЅпїЅXпїЅiпїЅ{пїЅ[пїЅhпїЅпїЅпїЅКЃj
+!     IF(L5.EQ.6)THEN                          !‰В•ПѓVЃ[ѓg‚МѓRѓ“ѓ_ѓNѓ^ѓ“ѓXЃiѓ{Ѓ[ѓh— –КЃj
 !       ALD(LW,K,1)=D1*DGDU*D3
 !       ALDT(LW,K,1)=D1*DGDT*D3
 !       ALDP(LW,K,1)=D1*D3
@@ -709,7 +709,7 @@ DO LW=1,NWN
      ALF(LW,K,1)=ALFK(IW,K,1)*D3
    END IF
    IF(I.EQ.L2)THEN
-!     IF(L5.EQ.3)THEN                           !пїЅВ•ПѓVпїЅ[пїЅgпїЅМѓRпїЅпїЅпїЅ_пїЅNпїЅ^пїЅпїЅпїЅXпїЅiGWпїЅhпїЅпїЅпїЅwпїЅj
+!     IF(L5.EQ.3)THEN                           !‰В•ПѓVЃ[ѓg‚МѓRѓ“ѓ_ѓNѓ^ѓ“ѓXЃiGW–hЋј‘wЃj
 !       ALD(LW,K,2)=D1*DGDU*D3
 !       ALDT(LW,K,2)=D1*DGDT*D3
 !       ALDP(LW,K,2)=D1*D3
@@ -720,7 +720,7 @@ DO LW=1,NWN
  !    END IF
      ALF(LW,K,2)=ALFK(IW,K,2)*D3
    END IF
-   IF(L5.EQ.2)THEN   !пїЅпїЅCпїЅw
+   IF(L5.EQ.2)THEN   !‹у‹C‘w
     DGDUQ(LW,K)=1.2*DGDU*PXCOF
     DGDTQ(LW,K)=1.2*DGDT*PXCOF 
     CYCLE
@@ -746,14 +746,14 @@ DO LW=1,NWN
 !   IF(D1.GE.0.92)D1=0.92
 !   IF(D1.LE.0.25)D1=0.25
 !    DPDU(I)=0.
-!   пїЅпїЅпїЅпїЅпїЅпїЅ2004.4
+!   “§Ћј”д2004.4
 !   IF(L5.EQ.3)D2=(0.070066+0.0090852*D1*0.01+0.036*D1*D1*1.E-4)*2.778E-4
 !   IF(L5.EQ.5)D2=(0.00068874-0.0012938*D1*0.01+0.004379*D1*D1*1.E-4)*2.778E-4
 !   IF(L5.EQ.6)D2=(0.014025-0.0086462*D1*0.01+0.018157*D1*D1*1.E-4)*2.778E-4
 !   IF(L5.EQ.8)D2=(0.010511-0.00097486*D1*0.01+0.0030587*D1*D1*1.E-4)*2.778E-4
 !   IF(L5.EQ.11)D2=(0.0039139-0.0048556*D1*0.01+0.011291*D1*D1*1.E-4)*2.778E-4
 !   IF(L5.EQ.12)D2=(0.0064129-0.005005*D1*0.01+0.012101*D1*D1*1.E-4)*2.778E-4
-! пїЅпїЅпїЅпїЅпїЅпїЅ2005
+! “§Ћј”д2005
 !   IF(L5.EQ.5)D2=2.778E-4*(0.0126*D1**1.1685*EXP(-1.4542*(1-D1**26.511)))
 !   IF(L5.EQ.6)D2=2.778E-4*(0.049055*D1**0.08379*EXP(-1.2994*(1-D1**20.307)))
 !   IF(L5.EQ.8)D2=2.778E-4*(0.020624*D1**0.067194*EXP(-0.554*(1-D1**27.37)))
@@ -808,7 +808,7 @@ IT4=IT4+1
 DO I=1,NROOM
   UHEN=1300.*VOLR(I)/DTM*HTMPR(I)
   SAHEN=1300.*VOLR(I)/DTM
-  DO LW=1,NWN     !   пїЅпїЅпїЅЗ‚пїЅпїЅпїЅМЋж“ѕпїЅMпїЅпїЅ
+  DO LW=1,NWN     !   Њъ•З‚©‚з‚МЋж“ѕ”M—К
    IW=KWTYPE(LW)
    IF(NORI(LW,3).EQ.I)THEN
       UHEN=UHEN+ALF(LW,KMTL(IW),2)*TMP(LW,NX(IW))!+RW*ALDP(LW,KMTL(IW),2)*(XN(LW,NX(IW))-XR(I)) ! SENSIBLE
@@ -819,7 +819,7 @@ DO I=1,NROOM
       SAHEN=SAHEN+ALF(LW,1,1)
    END IF
   END DO
-  DO LW=1,NWIN     !   пїЅпїЅпїЅЗ‚пїЅпїЅпїЅМЋж“ѕпїЅMпїЅпїЅ
+  DO LW=1,NWIN     !   ”–•З‚©‚з‚МЋж“ѕ”M—К
     IF(NWORI(LW,2).EQ.I)THEN
       UHEN=UHEN+WINK(LW)*AWIN(LW)*TMPO      !+WSIN(LW,IM)*AWIN(LW)*WINSCW(LW)
       SAHEN=SAHEN+WINK(LW)*AWIN(LW)
@@ -831,12 +831,12 @@ DO I=1,NROOM
       IF(JN(I,J).EQ.0)THEN
         UHEN=UHEN+1300.*QRIN(I,JN(I,J))*TMPO/3600
        ELSE 
-        UHEN=UHEN+1300.*QRIN(I,JN(I,J))*ATMPR(JN(I,J))/3600      !  пїЅпїЅпїЅCпїЅпїЅпїЅЧ‚МђПЋZ
+        UHEN=UHEN+1300.*QRIN(I,JN(I,J))*ATMPR(JN(I,J))/3600      !  Љ·‹C•‰‰Ч‚МђПЋZ
       END IF
       SAHEN=SAHEN+1300.*QRIN(I,JN(I,J))/3600.
     END DO
   END IF
-  !UHEN=UHEN+1300.*QR(I)*VOLR(I)*TMPO/3600.+HSUP(I,IM)   !   пїЅпїЅпїЅCпїЅпїЅпїЅпїЅ
+  !UHEN=UHEN+1300.*QR(I)*VOLR(I)*TMPO/3600.+HSUP(I,IM)   !   Љ·‹C•‰‰Ч
   !SAHEN=SAHEN+1300.*QR(I)*VOLR(I)/3600.
   UHEN=UHEN+HSUP(I,IM)
   ATMPR(I)=UHEN/SAHEN
@@ -879,10 +879,10 @@ DO LW=1,NWN
   END IF
 !*******************************
  DO I=L1,L2
-  IF(I.EQ.L1)THEN               !*********пїЅ[пїЅпїЅпїЅO
+  IF(I.EQ.L1)THEN               !*********’[•”ЉO
    D1=0.5*GCP(L5)*DX(IW,K)*AW(LW)/DTM
-   IF(I.EQ.1)THEN                                               !пїЅПЌX
-    IF(NORI(LW,2).EQ.0)THEN                                         !             пїЅЧЋпїЅпїЅOпїЅC
+   IF(I.EQ.1)THEN                                               !•ПЌX
+    IF(NORI(LW,2).EQ.0)THEN                                         !             —ЧЋєЉO‹C
       D2=ALF(LW,K,1)+RMDX(LW,I+1)+RW*(ALDT(LW,K,1)+DTGX(LW,I+1))
       D3=CPL*(DWLX(LW,I+1)*(WPU(LW,I+1)-WPU(LW,I))+DTLX(LW,I+1)*(TMP(LW,I+1)-TMP(LW,I)))
 !      D4=(ALF(LW,K,1)+RW*ALDT(LW,K,1))*SATA(LW)+(RMDX(LW,I+1)+RW*DTGX(LW,I+1))*TMP(LW,I+1)
@@ -890,7 +890,7 @@ DO LW=1,NWN
       D5=RW*(ALD(LW,K,1)*(WPUO-WPU(LW,I))+DWGX(LW,I+1)*(WPU(LW,I+1)-WPU(LW,I)))
       UHEN=D1*HTMP(LW,I)+D4+D5+D3*TMP(LW,I+1)+QS(LW,K,1)
       SAHEN=D1+D2+D3
-     ELSE                                                              !             пїЅЧЋпїЅпїЅпїЅпїЅпїЅ
+     ELSE                                                              !             —ЧЋєЋє“а
       D2=ALF(LW,K,1)+RMDX(LW,I+1)+RW*(ALDT(LW,K,1)+DTGX(LW,I+1))
       D3=CPL*(DWLX(LW,I+1)*(WPU(LW,I+1)-WPU(LW,I))+DTLX(LW,I+1)*(TMP(LW,I+1)-TMP(LW,I)))
 !      D4=(ALF(LW,K,1)+RW*ALDT(LW,K,1))*SATA(LW)+(RMDX(LW,I+1)+RW*DTGX(LW,I+1))*TMP(LW,I+1)
@@ -910,7 +910,7 @@ DO LW=1,NWN
    END IF
    TMP(LW,I)=UHEN/SAHEN
   END IF
-  IF(I.GT.L1.AND.I.LT.L2)THEN   !*********пїЅпїЅпїЅпїЅпїЅпїЅ
+  IF(I.GT.L1.AND.I.LT.L2)THEN   !*********ЋАЋї•”
    D1=GCP(L5)*DX(IW,K)*AW(LW)/DTM
    D2=CPL*(DWLX(LW,I)*(WPU(LW,I-1)-WPU(LW,I))+DWLX(LW,I+1)*(WPU(LW,I+1)-WPU(LW,I))&
        +DTLX(LW,I)*(TMP(LW,I-1)-TMP(LW,I))+DTLX(LW,I+1)*(TMP(LW,I+1)-TMP(LW,I)))
@@ -923,7 +923,7 @@ DO LW=1,NWN
    SAHEN=D1+D3+D7
    TMP(LW,I)=UHEN/SAHEN
   END IF
-  IF(I.EQ.L2)THEN               !*********пїЅ[пїЅпїЅпїЅпїЅ
+  IF(I.EQ.L2)THEN               !*********’[•”“а
    D1=0.5*GCP(L5)*DX(IW,K)*AW(LW)/DTM
    IF(I.EQ.NX(IW))THEN
       D2=ALF(LW,K,2)+RMDX(LW,I)+RW*(ALDT(LW,K,2)+DTGX(LW,I))
@@ -977,7 +977,7 @@ END DO
 !     OPEN(UNIT=8,FILE=FILENAME0,POSITION='APPEND')
       WRITE(8,*) ' HASSAN TEMP IT1= ',IT1
       WRITE(8,*)(TMP(1,I),I=1,NX(1))
-      WRITE(8,*)' пїЅпїЅпїЅпїЅпїЅпїЅ '
+      WRITE(8,*)' ЋАЋї•” '
     !PRINT *, ' HASSAN TEMP IT1= ',IT1
   201 FORMAT(A)
 !      CLOSE(8)
@@ -986,7 +986,7 @@ END DO
     !   GO TO 218
 END IF
 IF(AMAX1.GT.EPS1) GO TO 510
-!*************пїЅпїЅпїЅCпїЅvпїЅZпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ********************
+!*************Љ·‹CЊvЋZЋы‘©”»’и********************
     IF(ITQ.GT.1)THEN
       D1=0
       D2=0
@@ -1005,7 +1005,7 @@ IF(AMAX1.GT.EPS1) GO TO 510
       END DO
        	IF(D2.LT.EPS1)GO TO 218
        END IF
-!*************пїЅпїЅпїЅCпїЅК‚МЋZпїЅo(Q=m3/s)****************
+!*************Љ·‹C—К‚МЋZЏo(Q=m3/s)****************
  DO I=1,NWTYPE
    DO K=1,KMTL(I)
     D1=0.
@@ -1024,7 +1024,7 @@ IF(AMAX1.GT.EPS1) GO TO 510
       GMAQ1=353.25/(TEMP_CAVITY(K))
       GMAO=353.25/(TMPO)
       PQ1=GMAO-GMAQ1                       
-      D1=0.5*ABS(PQ1)*HIGHT_CAVITY(K)*9.8                !пїЅпїЅпїЅпїЅпїЅСЃ@пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 0.5, пїЅdпїЅН‰пїЅпїЅпїЅпїЅx g(пїЅпїЅ-пїЅпїЅ)
+      D1=0.5*ABS(PQ1)*HIGHT_CAVITY(K)*9.8                !’†ђ«‘СЃ@Ќ‚‚і’†‰› 0.5, Џd—Н‰Б‘¬“x g(ѓП-ѓП)
     END IF
 !
     DO LW=1,NWN
@@ -1033,7 +1033,7 @@ IF(AMAX1.GT.EPS1) GO TO 510
     END DO
   END DO
 END DO
-!PRINT *, '  пїЅпїЅпїЅC SYUURYOU'  
+!PRINT *, '  Љ·‹C SYUURYOU'  
 !PAUSE
  GOTO 217
 218 CONTINUE
@@ -1065,12 +1065,12 @@ END DO
 710 AMAX2=0.D0 
 !PXCOF=1./133322.
 !******ROOM MOISTURE*****
-!пїЅпїЅпїЅпїЅпїЅпїЅпїЅxпїЅvпїЅZ
+!Ћє“аЋј“xЊvЋZ
 DO I=1,NROOM
 !  IF(IROOMT(I).EQ.1)CYCLE
   UHEN=DGDUR(I)*VOLR(I)/DTM*HWPUR(I)
   SAHEN=DGDUR(I)*VOLR(I)/DTM
-  DO LW=1,NWN     !   пїЅпїЅпїЅЗ‚пїЅпїЅпїЅМ•пїЅпїЅпїЅ
+  DO LW=1,NWN     !   Њъ•З‚©‚з‚М•ъЋј
    IW=KWTYPE(LW)
    IF(NORI(LW,3).EQ.I)THEN
       UHEN=UHEN+ALD(LW,KMTL(IW),2)*WPU(LW,NX(IW))+ALDT(LW,KMTL(IW),2)*(TMP(LW,NX(IW))-ATMPR(I))
@@ -1081,7 +1081,7 @@ DO I=1,NROOM
       SAHEN=SAHEN+ALD(LW,1,1)
    END IF
   END DO
-  DO LW=1,NWIN   !пїЅпїЅпїЅKпїЅпїЅпїЅXпїЅМЊпїЅпїЅI
+  DO LW=1,NWIN   !‘‹ѓKѓ‰ѓX‚МЊ‹I
     IF(NWORI(LW,2).EQ.I)THEN
            IF(MCW(LW).EQ.1)THEN
            T1=ATMPR(I)
@@ -1103,14 +1103,14 @@ DO I=1,NROOM
       IF(JN(I,J).EQ.0)THEN
         UHEN=UHEN+DGDUO*WPUO*D1+D1*(DGDTO*TMPO-DGDTR(I)*ATMPR(I)) 
        ELSE 
-        UHEN=UHEN+DGDUR(JN(I,J))*WPUR(JN(I,J))*D1+D1*(DGDTR(JN(I,J))*ATMPR(JN(I,J))-DGDTR(I)*ATMPR(I))      !  пїЅпїЅпїЅCпїЅпїЅпїЅЧ‚МђПЋZ
+        UHEN=UHEN+DGDUR(JN(I,J))*WPUR(JN(I,J))*D1+D1*(DGDTR(JN(I,J))*ATMPR(JN(I,J))-DGDTR(I)*ATMPR(I))      !  Љ·‹C•‰‰Ч‚МђПЋZ
       END IF
       SAHEN=SAHEN+DGDUR(I)*D1
     END DO
   END IF
 
 !  D1=QR(I)*VOLR(I)/3600.
-!  UHEN=UHEN+DGDUO*WPUO*D1+D1*(DGDTO*TMPO-DGDTR(I)*ATMPR(I))+WSUP(I,IM)/3600.   !   пїЅпїЅпїЅCпїЅпїЅпїЅпїЅ
+!  UHEN=UHEN+DGDUO*WPUO*D1+D1*(DGDTO*TMPO-DGDTR(I)*ATMPR(I))+WSUP(I,IM)/3600.   !   Љ·‹C•‰‰Ч
 !  SAHEN=SAHEN+DGDUR(I)*QR(I)*VOLR(I)/3600.
   UHEN=UHEN+WSUP(I,IM)/3600.
   WPUR(I)=UHEN/SAHEN
@@ -1137,7 +1137,7 @@ DO I=1,NROOM
   IF(ABS(D8).GT.AMAX2)AMAX2=ABS(D8)
 END DO
 !*************************************
-!************пїЅпїЅпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅЫЋпїЅпїЅК‹yпїЅС‹zпїЅпїЅпїЅК‚МЊvпїЅZ**********
+!************ђ…–Њ‚Мђ…•Є•ЫЋќ—К‹y‚С‹zђ…—К‚МЊvЋZ**********
 IF(NRAIN.GT.0)THEN
 DO K=1,NRAIN
    I=NRAINPOINT(K,1)
@@ -1145,13 +1145,13 @@ DO K=1,NRAIN
    IW=KWTYPE(I)
    L1=NBUZAI(IW,NRAINPOINT(K,3))
    L5=NBUZAI(IW,L1)
-   IF(J.EQ.NALX(IW,NRAINPOINT(K,3)))THEN     !  пїЅпїЅпїЅпїЅпїЅЖ‚М—ЧђЪЋпїЅпїЅ_пїЅМ‘IпїЅпїЅ
+   IF(J.EQ.NALX(IW,NRAINPOINT(K,3)))THEN     !  ђ…–Њ‚Ж‚М—ЧђЪЋї“_‚М‘I‘р
       D2=WPU(I,J-1)
       D3=XM(I,J+1)
      ELSE
       D2=WPU(I,J+1)
       IF(J.EQ.1)THEN
-         D3=XO                               !пїЅOпїЅпїЅпїЅЮ•\пїЅКЃAпїЅOпїЅCпїЅЖ‚МЋпїЅпїЅx
+         D3=XO                               !ЉO‘•ЌЮ•\–КЃAЉO‹C‚Ж‚МЋыЋx
        ELSE
          D3=XM(I,J-1)
       END IF
@@ -1161,31 +1161,31 @@ DO K=1,NRAIN
      CALL GOFF(T1,FS,VP)
      RH1=RH(I,J)
      CALL CALDGDU(RH1,T1,RG,DGDU,DGDT)
-     D4=3.43E-08*(D3-VP)*0.3                                       !****пїЅGпїЅпїЅК—пїЅ0.3  пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅМЏпїЅпїЅпїЅпїЅпїЅ
-     IF(L5.GE.10.AND.L5.LE.12)THEN                                 !пїЅoпїЅbпїЅNпїЅVпїЅ[пїЅпїЅпїЅ[пїЅпїЅпїЅпїЅпїЅпїЅR 2.4e+5 m2sPa/kg byпїЅ@пїЅпїЅпїЅпїЅ
-        D1=1/(DX(IW,J)/3.73E-6+2.4E+5/DGDU)                        !пїЅOпїЅaпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅ`пїЅпїЅпїЅпїЅ 3.73e-6 kg/ms(J/kg)пїЅ@пїЅпїЅпїЅФ‚пїЅпїЅпїЅ by пїЅЙ’пїЅ@DпїЅ_
+     D4=3.43E-08*(D3-VP)*0.3                                       !****”G‚к–К—¦0.3  ђ…–Њ‚©‚з‚МЏц”­—К
+     IF(L5.GE.10.AND.L5.LE.12)THEN                                 !ѓoѓbѓNѓVЃ[ѓ‰Ѓ[“§ђ…’пЌR 2.4e+5 m2sPa/kg byЃ@’·‘є
+        D1=1/(DX(IW,J)/3.73E-6+2.4E+5/DGDU)                        !–OaЋћ‚Мђ…•Є“`“±—¦ 3.73e-6 kg/ms(J/kg)Ѓ@‚ў‚Ф‚µЉў by €Й’лЃ@D_
        ELSE
-        D1=1/(DX(IW,J)/(3.73E-6*0.05)+2.4E+5/DGDU)                 !пїЅШђпїЅпїЅiпїЅпїЅzпїЅпїЅ
+        D1=1/(DX(IW,J)/(3.73E-6*0.05)+2.4E+5/DGDU)                 !–Шђ»•i‚р‘z’и
      END IF
-     RN(I,J)=(D1*D2+D4+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)            !******пїЅпїЅпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅпїЅkg/m2
+     RN(I,J)=(D1*D2+D4+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)            !******ђ…–Њ‚Мђ…•Є—Кkg/m2
      WJRAIN(I,J)=-D1*D2*AW(I)
-     ! RN(I,J)=(D1*WPU(I,J+1)/DX(IW,J)+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)  !******пїЅпїЅпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅпїЅkg/m2
+     ! RN(I,J)=(D1*WPU(I,J+1)/DX(IW,J)+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)  !******ђ…–Њ‚Мђ…•Є—Кkg/m2
      ! WJRAIN(I,J)=-D1*WPU(I,J+1)*AW(I)/DX(IW,J)                         
      IF(RN(I,J).LE.0)THEN
          RN(I,J)=0.
-         WJRAIN(I,J)=SWJRAIN(I,J)*AW(I)+HRN(I,J)*AW(I)                       !******пїЅZпїЅпїЅпїЅпїЅWJRAIN kg/s
+         WJRAIN(I,J)=SWJRAIN(I,J)*AW(I)+HRN(I,J)*AW(I)                       !******ђZђ…—КWJRAIN kg/s
      END IF
 !
-     !D1=3.43E-08*(XM(I,J)-VP)*0.3                               !****пїЅGпїЅпїЅК—пїЅ0.3
-     !IF(HRN(I,J).GE.0.005)THEN                                  !******пїЅпїЅпїЅпїЅoпїЅпїЅпїЅпїЅи‡’l5g/m2
-     !   RN(I,J)=(D1-2.68E-06+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)   !******пїЅпїЅпїЅ[пїЅtпїЅBпїЅпїЅпїЅOпїЅZпїЅпїЅ
-     !   WJRAIN(I,J+1)=2.68E-06*AW(I)                            !******пїЅZпїЅпїЅпїЅпїЅWJRAIN kg/s
+     !D1=3.43E-08*(XM(I,J)-VP)*0.3                               !****”G‚к–К—¦0.3
+     !IF(HRN(I,J).GE.0.005)THEN                                  !******—¬‚кЏo‚µ‚Ми‡’l5g/m2
+     !   RN(I,J)=(D1-2.68E-06+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)   !******ѓ‹Ѓ[ѓtѓBѓ“ѓOђZђ…
+     !   WJRAIN(I,J+1)=2.68E-06*AW(I)                            !******ђZђ…—КWJRAIN kg/s
      !  ELSE                                                     !****C*GMA*SQRT(2gh)= 2.68E-06 kg/m2s
      ! RN(I,J)=(D1+SWJRAIN(I,J))*3600/NDVD+HRN(I,J)
      !  WJRAIN(I,J+1)=0.
      !END IF
-     !   RN(I,J)=(-SWJRAIN(I,J))*3600/NDVD+HRN(I,J)   !******пїЅпїЅпїЅ[пїЅtпїЅBпїЅпїЅпїЅOпїЅZпїЅпїЅпїЅ@пїЅZпїЅпїЅпїЅН‘SпїЅДЌпїЅпїЅВ‚пїЅ
-     !   WJRAIN(I,J+1)=SWJRAIN(I,J)*AW(I)             !******пїЅZпїЅпїЅпїЅпїЅWJRAIN kg/s
+     !   RN(I,J)=(-SWJRAIN(I,J))*3600/NDVD+HRN(I,J)   !******ѓ‹Ѓ[ѓtѓBѓ“ѓOђZђ…Ѓ@ђZђ…‚Н‘S‚ДЌ‡”В‚Ц
+     !   WJRAIN(I,J+1)=SWJRAIN(I,J)*AW(I)             !******ђZђ…—КWJRAIN kg/s
       !IF(RN(I,J).LE.0)THEN
       !   RN(I,J)=0.
       !   WJRAIN(I,J)=0.
@@ -1213,19 +1213,19 @@ DO LW=1,NWN
    D2=ALD(LW,K,1)*WPU(LW,I-1)+ALD(LW,K,2)*WPU(LW,I+1)     !+DGDUQ(LW,K)*QQ(LW,K)*WPUO
    D3=ALDT(LW,K,1)*(TMP(LW,I-1)-TMP(LW,I))+ALDT(LW,K,2)*(TMP(LW,I+1)-TMP(LW,I))   !+DGDTQ(LW,K)*QQ(LW,K)*(TMPO-TMP(LW,I))
    IF(LW.EQ.1)THEN
-     D2=D2+DGDUQ(LW,K)*QQ(LW,K)*WPUO                              !пїЅЕ‰пїЅпїЅw
+     D2=D2+DGDUQ(LW,K)*QQ(LW,K)*WPUO                              !ЌЕ‰є‘w
      D3=D3+DGDTQ(LW,K)*QQ(LW,K)*(TMPO-TMP(LW,I))
-     UHEN=D1*HTMP(LW,I)+D4+D5+1300.*QQ(LW,K)*TMPO                 !D4,D5 пїЅsпїЅv?
+     UHEN=D1*HTMP(LW,I)+D4+D5+1300.*QQ(LW,K)*TMPO                 !D4,D5 •s—v?
     ELSE
-     D2=D2+DGDUQ(LW,K)*QQ(LW,K)*WPU(LW-1,I)                        !2пїЅKпїЅИЏпїЅ
+     D2=D2+DGDUQ(LW,K)*QQ(LW,K)*WPU(LW-1,I)                        !2ЉK€ИЏг
      D3=D3+DGDTQ(LW,K)*QQ(LW,K)*(TMP(LW-1,I)-TMP(LW,I))
    END IF
-   IF(RN(LW,I+1).GT.0.)THEN                                       ! D4 пїЅпїЅпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅGпїЅпїЅК—пїЅ0.3
+   IF(RN(LW,I+1).GT.0.)THEN                                       ! D4 “а‘¤‚Мђ…–ЊЏц”­—К ”G‚к–К—¦0.3
       T1=TMP(LW,I+1)
       CALL GOFF(T1,FS,VP)
       D4=3.43E-08*(VP-XM(LW,L1))*AW(LW)*0.3
    END IF
-   IF(RN(LW,I-1).GT.0.)THEN                                       ! D5 пїЅOпїЅпїЅпїЅМђпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅGпїЅпїЅК—пїЅ0.3
+   IF(RN(LW,I-1).GT.0.)THEN                                       ! D5 ЉO‘¤‚Мђ…–ЊЏц”­—К ”G‚к–К—¦0.3
       T1=TMP(LW,I-1)
       CALL GOFF(T1,FS,VP)
       D5=3.43E-08*(VP-XM(LW,L1))*AW(LW)*0.3
@@ -1240,7 +1240,7 @@ DO LW=1,NWN
 ! **************
  DO I=L1,L2
  D7=WJRAIN(LW,I)
- IF(I.EQ.L1)THEN               !***********пїЅ[пїЅпїЅпїЅO
+ IF(I.EQ.L1)THEN               !***********’[•”ЉO
   D1=ROW*DPDU(LW,I)*DX(IW,K)*AW(LW)/DTM*0.5
    IF(I.EQ.1)THEN
     IF(NORI(LW,2).EQ.0)THEN
@@ -1266,7 +1266,7 @@ DO LW=1,NWN
    END IF
 !    WPU(LW,I)=UHEN/SAHEN
  END IF
- IF(I.GT.L1.AND.I.LT.L2)THEN   !*********пїЅпїЅпїЅпїЅпїЅпїЅ
+ IF(I.GT.L1.AND.I.LT.L2)THEN   !*********ЋАЋї•”
      D1=ROW*DPDU(LW,I)*DX(IW,K)*AW(LW)/DTM
      D2=DWX(LW,I)+DWX(LW,I+1)
      D3=DWX(LW,I)*WPU(LW,I-1)+DWX(LW,I+1)*WPU(LW,I+1)
@@ -1276,7 +1276,7 @@ DO LW=1,NWN
 !     WPU(LW,I)=UHEN/SAHEN
 !  UHEN=D3*D5+D4*D6+D2+D1*HWPU(LW,I)
  END IF
- IF(I.EQ.L2)THEN                !************пїЅ[пїЅпїЅпїЅпїЅ
+ IF(I.EQ.L2)THEN                !************’[•”“а
   D1=ROW*DPDU(LW,I)*DX(IW,K)*AW(LW)/DTM*0.5
    IF(I.EQ.NX(IW))THEN
      D2=DWX(LW,I)+ALD(LW,K,2)
@@ -1332,7 +1332,7 @@ DO LW=1,NWN
         CALL GOFF(TP,FS,VP)
 !  CALL FUNCX(FS,RH0,D1)
         XN(LW,I)=RH0*VP*0.01
-!  IF(RH0.GE.100.)RH0=100.  ! :::пїЅпїЅпїЅUпїЅhпїЅ~
+!  IF(RH0.GE.100.)RH0=100.  ! :::”­ЋU–hЋ~
         CALL AHGANS(WD,RH0,L5)
         WGT(LW,I)=WD
         TMPC(LW,I)=TMP(LW,I)-ATP
@@ -1347,7 +1347,7 @@ END DO
 !     OPEN(UNIT=8,FILE=FILENAME0,POSITION='APPEND')
    !   WRITE(8,*) ' HASSAN WPU IT2= ',IT2
    !   WRITE(8,*)(WPU(I),I=1,NX)
-   !   WRITE(8,*)' пїЅпїЅпїЅпїЅпїЅпїЅ '
+   !   WRITE(8,*)' ЋАЋї•” '
 !     CLOSE(8)
 !****************************************
 !   PRINT *, ' HASSAN WPU AMAX2= ',AMAX2
@@ -1373,7 +1373,7 @@ IF(IROOMT(I).EQ.1)CYCLE
      XR(I)=RH0*VP*0.01
      TMPR(I)=ATMPR(I)-ATP
 END DO
-!::::::::пїЅпїЅпїЅKпїЅпїЅпїЅXпїЅМЊпїЅпїЅIпїЅпїЅпїЅи•”пїЅAпїЅпїЅпїЅпїЅпїЅпїЅпїЅи•”пїЅЙ’З‰пїЅ
+!::::::::‘‹ѓKѓ‰ѓX‚МЊ‹I”»’и•”ЃAЋы‘©”»’и•”‚Й’З‰Б
           IF(ITC.GE.30)THEN
           PRINT *, ' HASSAN KETURO '
           PAUSE
@@ -1423,12 +1423,12 @@ END DO
         END DO
      END DO
          IF(K.EQ.1)GO TO 710
-!::::::::пїЅпїЅпїЅIпїЅК“пїЅпїЅпїЅ
+!::::::::Њ‹I—К“ь—Н
    DO LW=1,NWIN
  	  IF(CWV(LW).GE.0.)CWVDAY(LW,IM)=CWVDAY(LW,IM)+CWV(LW)
    END DO
 !
-!:::::::::пїЅпїЅпїЅIпїЅIпїЅпїЅ
+!:::::::::Њ‹IЏI—№
 !
 ! ///////JUDGEMENT CONVERGENCE OF HEAT AND MOISTURE/////
 IF(NREPT.EQ.1)THEN  !////COMBINE
@@ -1457,7 +1457,7 @@ DO LW=1,NWN
 !     OPEN(UNIT=8,FILE=FILENAME0,POSITION='APPEND')
 !       WRITE(8,*) ' HASSAN TMP&WPU IT3= ',IT3
 !      WRITE(8,*)(WPU(I),I=1,NX)
-!      WRITE(8,*)' пїЅпїЅпїЅпїЅпїЅпїЅ '
+!      WRITE(8,*)' ЋАЋї•” '
 !     CLOSE(8)
 !****************************************
 !      GO TO 555
@@ -1495,7 +1495,7 @@ DO LW=1,NWN
       END DO
     END DO
 END DO
-IF(NRAIN.GT.0)THEN      !пїЅZпїЅпїЅпїЅК‚МђПЋZ SUMRAIN (kg/m2h)
+IF(NRAIN.GT.0)THEN      !ђZђ…—К‚МђПЋZ SUMRAIN (kg/m2h)
 DO K=1,NRAIN
    I=NRAINPOINT(K,1)
    J=NRAINPOINT(K,2)
@@ -1505,7 +1505,7 @@ DO K=1,NRAIN
 END DO
 END IF
 666 CONTINUE
-IF(NOUTAV.GT.0)THEN                           !пїЅЮ—пїЅпїЅМ•пїЅпїЅПЉЬђпїЅпїЅпїЅпїЅМЊvпїЅZ
+IF(NOUTAV.GT.0)THEN                           !ЌЮ—ї‚М•Ѕ‹ПЉЬђ…—¦‚МЊvЋZ
 DO L=1,NOUTAV
   LW=NOUTAVD(L,1)
   J=NOUTAVD(L,2)
@@ -1567,7 +1567,7 @@ DO LW=1,NWN
       END DO
     END DO 
 END DO
-!//////////пїЅJпїЅпїЅпїЅZпїЅпїЅпїЅКђПЋZпїЅlDAYSUMRAIN(kg/m2DAY)/////////
+!//////////‰Jђ…ђZ“ь—КђПЋZ’lDAYSUMRAIN(kg/m2DAY)/////////
 DO K=1,NRAIN
    I=NRAINPOINT(K,1)
    J=NRAINPOINT(K,2)
@@ -1578,7 +1578,7 @@ DO K=1,NRAIN
    END DO
    DAYSUMRAIN(I,J)=D1
 END DO
-!////////Calculation Mass LossпїЅiпїЅпїЅпїЅпїЅпїЅП’lпїЅЙ‚пїЅпїЅZпїЅoпїЅj//////////
+!////////Calculation Mass LossЃi“ъ•Ѕ‹П’l‚Й‚ж‚йЋZЏoЃj//////////
 !IF(D1.NE.10000)GO TO 1221
 DO LW=1,NWN
     IW=KWTYPE(LW)
@@ -1589,7 +1589,7 @@ DO LW=1,NWN
 	WLOSSMAX=0.6
 	IF(L5.EQ.4.OR.L5.EQ.5)THEN
 	IF(I_HCOFF.EQ.1)THEN
-		HCOFF=0.319  			  !пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+		HCOFF=0.319  			  !ђ…•Єђ¶ђ¬—К
 	   ELSE
 		HCOFF=0.
 	END IF
@@ -1767,8 +1767,8 @@ END
    13 D1=RHM*.01
       D2=EXP(-1.3016*(1-D1**101.667))
       D3=0.16*D2*D1**7.6448
-      IF(D1.GT.0.98)  D3=47.79595*D1-46.79595      !пїЅOпїЅaпїЅЬђпїЅпїЅпїЅ=100wt%
-      !IF(D1.GT.0.98)  D3=4347.796*D1-4260.796      !пїЅOпїЅaпїЅЬђпїЅпїЅпїЅ=8700wt%
+      IF(D1.GT.0.98)  D3=47.79595*D1-46.79595      !–OaЉЬђ…—¦=100wt%
+      !IF(D1.GT.0.98)  D3=4347.796*D1-4260.796      !–OaЉЬђ…—¦=8700wt%
       WD=D3*100.
      !  IF(D1.LT.0.98)THEN
      !   WD= 0.022449*D1*100.
@@ -1786,8 +1786,8 @@ END
       D2=EXP(-2.1708*(1-D1**90.988))
       D3=1.58*D2*D1**1.3664
       WD=D3*100.
-!пїЅпїЅпїЅпїЅпїЅЯ’пїЅпїЅFw=0.36пїЅпїЅпїЅ^0.861exp[-0.479(1 - пїЅпїЅ^15.7)]
-!пїЅzпїЅпїЅпїЅЯ’пїЅпїЅFw=0.36пїЅпїЅпїЅ^0.949exp[-0.657(1 - пїЅпїЅ^15.2)]
+!•ъЋј‰Я’цЃFw=0.36ҐѓУ^0.861exp[-0.479(1 - ѓУ^15.7)]
+!‹zЋј‰Я’цЃFw=0.36ҐѓУ^0.949exp[-0.657(1 - ѓУ^15.2)]
       GO TO 10
 !*****PLY WOOD*****
    15 D1=RHM*.01
@@ -1840,19 +1840,19 @@ END
       D3=0.0645*D2*D1**0.658
       WD=D3*100.
       GO TO 10
-!*****пїЅyпїЅКѓпїЅпїЅпїЅпїЅ^пїЅпїЅ*****
+!*****Њy—Кѓ‚ѓ‹ѓ^ѓ‹*****
    22 D1=RHM*.01
       D2=EXP(-1.75*(1-D1**2.015))
       D3=0.203*D2*D1**(-0.120)
       WD=D3*100.
       GO TO 10
-!*****пїЅWпїЅпїЅпїЅЮЃiOMпїЅпїЅпїЅ-пїЅj*****
+!*****ЏWђ¬ЌЮЃiOMї°Ч-Ѓj*****
    28 D1=RHM*.01
       D2=EXP(-0.849*(1-D1**9.527))
       D3=0.381*D2*D1**(0.738)
       WD=D3*100.
       GO TO 10
-!*****пїЅ\пїЅпїЅпїЅpпїЅпїЅпїЅВЃiOMпїЅпїЅпїЅ-пїЅj*****
+!*****Ќ\‘ў—pЌ‡”ВЃiOMї°Ч-Ѓj*****
    29 D1=RHM*.01
       D2=EXP(-0.907*(1-D1**9.412))
       D3=0.382*D2*D1**(0.670)
@@ -1864,7 +1864,7 @@ END
       END 
 
 !
-!::::::::пїЅTпїЅuпїЅпїЅпїЅ[пїЅ`пїЅпїЅпїЅЗ‰пїЅ
+!::::::::ѓTѓuѓ‹Ѓ[ѓ`ѓ“’З‰Б
       SUBROUTINE CWIF1(T1,X1,X0,MCW)
       IMPLICIT REAL*8(A-H,O-Z)
       RH0=100.
@@ -2121,7 +2121,7 @@ RH_GROWTH=98.
 DLOSS=0.
 !
 !
-! пїЅпїЅпїЅпїЅпїЅ  Initial response time
+! ”­‰иЉъ  Initial response time
 
 IF(TMP <= 0.)TIME_S(K,I)=0.
 IF(TMP > 0.) THEN
@@ -2150,7 +2150,7 @@ IF(TMP > 0.) THEN
   END IF
 END IF
 
-!пїЅпїЅпїЅпїЅпїЅпїЅ  Growth Stage
+!ђ¬’·Љъ  Growth Stage
 IF(TMP>0.AND.TMP<=40)THEN
   IF(L_STAGE(K,I)==1.OR.L_STAGE(K-1,I)==1.OR.L_STAGE(K+1,I)==1)THEN
      IF(RH.GE.RH_GROWTH)THEN
