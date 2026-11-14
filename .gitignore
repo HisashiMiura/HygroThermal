@@ -11,3 +11,6 @@ examples/output/
 
 # 計算方法のサイト（Sphinx が作るもの）
 docs/build/
+
+# 根拠のページの試算の結果（docs/basis_checks のスクリプトが書き出す）
+docs/basis_checks/_out/
