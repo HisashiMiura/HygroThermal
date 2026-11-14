@@ -6,7 +6,6 @@
 """
 
 from dataclasses import dataclass
-from modules import thermo_dynamics
 from modules.air_water_properties import get_mu
 from modules.material_props import (
     FormulaIsotherm,
@@ -123,18 +122,6 @@ class Material:
         lambda_dsh_mu_l = self.rho_s * d_w * abs((u_plus - u_minus) / (mu_plus - mu_minus))
 
         return lambda_dsh_mu_l
-
-    def get_dpsi_dmu(self, mu: float, t: float):
-        """水分化学ポテンシャル変化に対する含水率変化 (DPDU)（古いコードのため。新しいコードは使わない）。
-
-        Args:
-            mu: 水分化学ポテンシャル, J/kg
-            t: 絶対温度, K
-        Returns:
-            水分化学ポテンシャル変化に対する含水率変化, (m3/m3)/(J/kg)
-        """
-
-        return thermo_dynamics.get_dpsi_dmu(mu=mu, t=t, gma=self.rho_s, get_u=self.get_u)
 
     @property
     def c_rho(self):

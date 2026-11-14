@@ -3,7 +3,7 @@ import math
 import pytest
 
 
-from modules import thermo_dynamics
+from modules.air_water_properties import get_mu
 from modules.materials import Materials
 from modules.material_loaders import load_whamcavity
 from modules.material_props import (
@@ -184,8 +184,8 @@ def _fortran_diff(m, rh: float, t: float) -> float:
         dw = math.exp(-30.91 + 4.2967 * d1 - 0.22017 * d1 * d1)
         rh1 = rh + 0.005
         rh2 = rh - 0.005
-        wp1 = thermo_dynamics.get_wp(rh1, t)
-        wp2 = thermo_dynamics.get_wp(rh2, t)
+        wp1 = get_mu(rh1, t)
+        wp2 = get_mu(rh2, t)
         wd1 = m.get_u(rh1) * 100
         wd2 = m.get_u(rh2) * 100
         # Fortran は水の密度 998 を掛けるが、Python は材料の乾燥密度を掛けるように意図して変えた

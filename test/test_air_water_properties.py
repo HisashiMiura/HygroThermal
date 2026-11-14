@@ -3,7 +3,6 @@ import math
 import pytest
 
 from modules import air_water_properties as aw
-from modules import thermo_dynamics
 
 
 class TestPVs:
@@ -11,11 +10,6 @@ class TestPVs:
     def test_20c(self):
         # 20 deg.C の飽和水蒸気圧は、およそ 2339 Pa
         assert aw.get_p_vs(20.0 + aw.T_0) == pytest.approx(2339.0, rel=1e-3)
-
-    def test_same_as_old(self):
-        # 古い GOFF と同じ値（GOFF は get_p_vs を使う）
-        for theta in (-20.0, 0.0, 20.0, 40.0):
-            assert thermo_dynamics.GOFF(theta + aw.T_0)[1] == aw.get_p_vs(theta + aw.T_0)
 
 
 class TestMuRh:

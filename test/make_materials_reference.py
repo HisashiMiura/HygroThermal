@@ -13,7 +13,6 @@ import csv
 import os
 
 from modules.material_loaders import load_whamcavity
-from modules.thermo_dynamics import get_wp
 
 
 # 基準値ファイル
@@ -23,11 +22,8 @@ REFERENCE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'materials_wham
 # 0% は、軽量モルタルの式（r**-0.120）が計算できないため含めない。
 RHS = list(range(1, 100))
 
-# get_dpsi_dmu を計算するときの温度, K
-T = 293.15
-
 # 列名
-COLUMNS = ['name', 'rh', 'u', 'lambda_dsh_m', 'dpsi_dmu', 'c_rho']
+COLUMNS = ['name', 'rh', 'u', 'lambda_dsh_m', 'c_rho']
 
 
 def calculate_rows() -> list[dict]:
@@ -42,7 +38,6 @@ def calculate_rows() -> list[dict]:
                 'rh': rh,
                 'u': m.get_u(rh),
                 'lambda_dsh_m': m.get_lambda_dsh_m(rh),
-                'dpsi_dmu': m.get_dpsi_dmu(mu=get_wp(rh, T), t=T),
                 'c_rho': m.c_rho,
             })
 

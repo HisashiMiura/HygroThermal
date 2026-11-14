@@ -15,7 +15,7 @@ if ROOT not in sys.path:
 
 from modules.material_loaders import load_materials  # noqa: E402
 from modules.materials import Material  # noqa: E402
-from modules.thermo_dynamics import get_dpv_dmu  # noqa: E402
+from modules.air_water_properties import get_mu, get_p_vs  # noqa: E402
 
 
 # 材料の出どころ（material_loaders.MATERIAL_SOURCES のキー）
@@ -195,6 +195,19 @@ def _safe(f, *args) -> float:
         return math.nan
 
 
+def _dpv_dmu(rh: float, t: float) -> float:
+    """水分化学ポテンシャルに対する水蒸気圧の微分, Pa/(J/kg)。相対湿度 ±0.01% の差分で求める。
+
+    Args:
+        rh: 相対湿度, %
+        t: 絶対温度, K
+    """
+    rh1, rh2 = rh + 0.01, rh - 0.01
+    mu1, mu2 = get_mu(rh1, t), get_mu(rh2, t)
+    p_v1, p_v2 = get_p_vs(t) * rh1 * 0.01, get_p_vs(t) * rh2 * 0.01
+    return abs((p_v1 - p_v2) / (mu1 - mu2)) if abs(mu1 - mu2) > 1e-15 else 0.0
+
+
 def _mu(m: Material, rh: float) -> float:
     """透湿抵抗比 μ。湿気伝導率が 0 なら NaN（μ は無限大になるが、表では空欄にする）。"""
     lambda_dsh_m = _safe(m.get_lambda_dsh_m, rh)
@@ -205,7 +218,7 @@ def _rh_liquid(m: Material) -> float:
     """液水伝導率が湿気伝導率（化学ポテンシャル基準）を超える最初の相対湿度, %。超えなければ NaN。"""
     for rh in _RHS_LIQUID:
         liquid = _safe(m.get_lambda_dsh_mu_l, rh, T)
-        vapour = _safe(m.get_lambda_dsh_m, rh) * get_dpv_dmu(rh=rh, t=T)
+        vapour = _safe(m.get_lambda_dsh_m, rh) * _dpv_dmu(rh=rh, t=T)
         if liquid > vapour:
             return rh
     return math.nan
