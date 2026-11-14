@@ -349,11 +349,15 @@ $$
 f_{\mathrm{w}} = \left( \frac{10}{H_{\mathrm{met}}} \right)^{p_{\mathrm{w}}}
 $$ (oc-fw)
 
-ステップ $n$ の、高さ 10 m の風速の北向きの成分 $U_{10,\mathrm{N},n}$ と東向きの成分 $U_{10,\mathrm{E},n}$ は、式 {eq}`oc-u10` により計算される。
+ステップ $n$ の、高さ 10 m の風速の北向きの成分 $U_{10,\mathrm{N},n}$ と東向きの成分 $U_{10,\mathrm{E},n}$ は、式 {eq}`oc-u10-n` と式 {eq}`oc-u10-e` により計算される。
 
 $$
-U_{10,\mathrm{N},n} = f_{\mathrm{w}} U_{\mathrm{N},n}, \quad U_{10,\mathrm{E},n} = f_{\mathrm{w}} U_{\mathrm{E},n}
-$$ (oc-u10)
+U_{10,\mathrm{N},n} = f_{\mathrm{w}} U_{\mathrm{N},n}
+$$ (oc-u10-n)
+
+$$
+U_{10,\mathrm{E},n} = f_{\mathrm{w}} U_{\mathrm{E},n}
+$$ (oc-u10-e)
 
 ## 8 太陽の位置
 

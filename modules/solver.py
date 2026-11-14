@@ -25,7 +25,7 @@ HEAT_MOISTURE_BAND = (3, 3)
 HEAT_RESIDUAL_TOL = 1.0e-6
 
 # 水分の残差の許容値 ε_m, kg/(m2 s)（潜熱にすると熱の許容値と同じ大きさ）
-# 式 (3)
+# 式 (5)
 MOISTURE_RESIDUAL_TOL = HEAT_RESIDUAL_TOL / L_V
 
 # 収束しなかったとき、前の時刻の相対湿度がこの値以上の質点があれば、結露したとみなす, %
@@ -99,11 +99,11 @@ def step(
     def residual(x_ps: np.ndarray) -> np.ndarray:
 
         # ステップ n + 1 の温度は 0 番目から 1 つおき、水分化学ポテンシャルは 1 番目から 1 つおき
-        # 式 (1)
+        # 式 (1)・(2)
         t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
         # 熱と水分の残差を、それぞれの許容値で割る
-        # 式 (2)
+        # 式 (3)・(4)
         res_h_is = heat_residual_is(
             geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n, r_bv_npls) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
@@ -111,13 +111,13 @@ def step(
             j_gen_is_npls) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
-        # 式 (2)
+        # 式 (3)・(4)
         f_ps = np.empty(len(x_ps))
         f_ps[0::2], f_ps[1::2] = res_h_is, res_m_is
         return f_ps
 
     # 前の時刻の状態を、(T_0, μ_0, T_1, μ_1, …) の順に並べて、最初の仮の値にする
-    # 式 (4)
+    # 式 (6)・(7)
     x0_ps = np.empty(2 * len(state_n))
     x0_ps[0::2], x0_ps[1::2] = state_n.t_is, state_n.mu_is
 
@@ -125,7 +125,7 @@ def step(
     # 材料の質点と水膜の質点の状態量は上限なし
     # （空気の質点で μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする。
     #   材料の質点と水膜の質点の状態量 s > 0 は自由水・水膜の水があることを表し、残差は水分量で変わるので、上限を設けない）
-    # 式 (5)
+    # 式 (8)・(9)
     is_air_is = np.array([isinstance(node, AirNode) for node in geometry.nodes])
     x_max_ps = np.empty(len(x0_ps))
     x_max_ps[0::2], x_max_ps[1::2] = np.inf, np.where(is_air_is, 0.0, np.inf)
@@ -133,7 +133,7 @@ def step(
     # 未知数を 1 回の修正でまたがせない値：材料の質点の状態量は 0（自由水ができ始める所）、ほかは止めない
     # （材料の質点は、相対湿度 100% の手前で平衡含水率が急に増えるので、乾いた状態から自由水の側へ大きく行き過ぎやすい。
     #   いったん 0 で止め、自由水が要るときは、次の修正で 0 を超えさせる）
-    # 式 (5)
+    # 式 (10)・(11)
     is_material_is = np.array([isinstance(node, MaterialNode) for node in geometry.nodes])
     x_stop_ps = np.full(len(x0_ps), np.inf)
     x_stop_ps[1::2] = np.where(is_material_is, 0.0, np.inf)
@@ -161,7 +161,7 @@ def step(
         raise Condensation(f'通気層の空気が結露しました（相対湿度 100% 以下では水分の収支が合いません）：{where}。') from e
 
     # 答えを、温度と水分化学ポテンシャルに分ける
-    # 式 (11)
+    # 式 (17)・(18)
     state_npls = WallState(t_is=x_ps[0::2], mu_is=x_ps[1::2])
 
     # 空隙率を与えた材料の質点で、水分量が空隙を水で満たす水分量を超えたら止める（6 節）

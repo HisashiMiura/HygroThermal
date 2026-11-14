@@ -85,7 +85,7 @@ def _banded_jacobian(
         NewtonNotConverged: 未知数をずらした残差が計算できなかったとき
 
     Notes:
-        計算方法の文書の「1 ステップの解き方」の式 (6)・(7) に対応する。
+        計算方法の文書の「1 ステップの解き方」の式 (12)・(13) に対応する。
     """
 
     x_ps = np.asarray(x_ps, dtype=float)
@@ -99,7 +99,7 @@ def _banded_jacobian(
 
     # ずらす量 h_q, [q]（値の大きさに比例させる。値が 0 に近いときは 1 を基準にする）
     # ずらすと上限を超える未知数と、止める値にいるか、ずらすと止める値をまたぐ未知数は、反対の向きにずらす
-    # 式 (7)
+    # 式 (13)
     h_ps = np.sqrt(np.finfo(float).eps) * np.maximum(np.abs(x_ps), 1.0)
     if x_max_ps is not None:
         h_ps = np.where(x_ps + h_ps > x_max_ps, -h_ps, h_ps)
@@ -123,7 +123,7 @@ def _banded_jacobian(
         df_ps = f_shifted_ps - f_ps
 
         # 未知数 q が影響する式は p = q - u 〜 q + l。その変化を h_q で割ったものが J の q 列
-        # 式 (6)
+        # 式 (12)
         for q in q_qs:
             for p in range(max(0, q - u), min(n, q + l + 1)):
                 ab[u + p - q, q] = df_ps[p] / h_ps[q]
@@ -172,7 +172,7 @@ def newton_solve(
             修正の幅を小さくしても残差が小さくならなかったとき、または最初の仮の値で残差が計算できなかったとき
 
     Notes:
-        計算方法の文書の「1 ステップの解き方」の 4.3〜4.5 節（式 (6)〜(10)）に対応する。
+        計算方法の文書の「1 ステップの解き方」の 4.3〜4.5 節（式 (12)〜(16)）に対応する。
     """
 
     x_ps = np.array(x0_ps, dtype=float)
@@ -203,7 +203,7 @@ def newton_solve(
         ab = _banded_jacobian(f, x_ps, f_ps, band, x_max_ps, x_stop_ps)
 
         # J Δx = -F を解く。ヤコビ行列が解けない（特異な）ときは、収束しなかったとして止める
-        # 式 (8)
+        # 式 (14)
         try:
             dx_ps = solve_banded(band, ab, -f_ps)
         except LinAlgError:
@@ -211,7 +211,7 @@ def newton_solve(
 
         # 修正の幅を 1, 1/2, 1/4, … と小さくしながら、残差が計算できて、二乗の和が前より小さくなる
         # （または、いちばん大きいものが許容値以下になる）x を探す
-        # 式 (9)・(10)
+        # 式 (15)・(16)
         for s in range(MAX_HALVING + 1):
             x_new_ps = np.minimum(x_ps + dx_ps / 2 ** s, x_max_ps)
             x_new_ps = np.where(

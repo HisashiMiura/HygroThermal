@@ -437,7 +437,7 @@ class WeatherOutdoor:
         f_w = (10.0 / self.wind_height) ** self.wind_exponent
 
         # 高さ 10 m の風速の北向き・東向きの成分 U_10,N,n・U_10,E,n, m/s
-        # 式 (6)〜(9)（瞬時値）と式 (14)
+        # 式 (6)〜(9)（瞬時値）と式 (14)・(15)
         u_10_n_n = f_w * self._get_instant(self.wind_north_hs, t_y_n)
         u_10_e_n = f_w * self._get_instant(self.wind_east_hs, t_y_n)
 

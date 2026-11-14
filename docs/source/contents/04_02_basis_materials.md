@@ -8,7 +8,7 @@
 
 ### 2.1 液水拡散係数の定義
 
-液水拡散係数のデータの出典（ASHRAE RP-1018、NRC の報告書 RR-110）は、どちらも、液水の流れを質量含水率の勾配で表す式 {eq}`bm-jl-u` で、液水拡散係数を定義している。
+液水拡散係数のデータの出典（ASHRAE RP-1018 [1]、NRC の報告書 RR-110 [2]）は、どちらも、液水の流れを質量含水率の勾配で表す式 {eq}`bm-jl-u` で、液水拡散係数を定義している。
 
 $$
 J_{\mathrm{l}} = - \rho_{\mathrm{s}} D_{\mathrm{w}} \frac{\partial u}{\partial x}
@@ -236,7 +236,7 @@ $T$
 - ASHRAE の材料：最初の区間の液水拡散係数がほとんど $10^{-16}$ m²/s（液水が実質的に動かない）で、次の区間で $10^{-13}$〜$10^{-7}$ m²/s に跳ぶ。差は数百倍から数兆倍になる。
 - Whamcavity の材料は区間が 1 つだけなので、境目はない。
 
-これは書き間違いではなく、もとのデータ（RP-1018 などの測定値）が区間ごとに別々に当てはめた式でできているためである。液水拡散係数は含水率によって何桁も変わる値なので、10% ほどの段差は測定の精度の範囲である。 $10^{-16}$ は、「これより乾いた側では液水は動かない」という意味の値である。そのため、液水拡散係数の段差は、読み込むときに確かめない。
+これは書き間違いではなく、もとのデータ（RP-1018 [1] などの測定値）が区間ごとに別々に当てはめた式でできているためである。液水拡散係数は含水率によって何桁も変わる値なので、10% ほどの段差は測定の精度の範囲である。 $10^{-16}$ は、「これより乾いた側では液水は動かない」という意味の値である。そのため、液水拡散係数の段差は、読み込むときに確かめない。
 
 ### 5.2 段差の影響
 
@@ -266,3 +266,13 @@ $T$
 - 平衡含水率の式は、相対湿度の比の累乗と指数関数でできているので、比が 1 を少し超えても、そのまま続きの値が出る。
 - 相対湿度 100.005% の水分化学ポテンシャルは、式 {eq}`bm-mu` から、小さな正の値になるだけである。
 - 液水拡散係数は、最後の区間の上限を超える含水率では、上限での値で一定とする（材料を読み込むときに補う）。
+
+## 注
+
+:::{container} notes
+[1]
+: M. K. Kumaran: A thermal and moisture property database for common building and insulation materials, ASHRAE Transactions, Vol.112, Pt.2, pp.1–13, 2006.（ASHRAE Research Project 1018 の材料の性質のデータ）
+
+[2]
+: M. K. Kumaran, J. Lackey, N. Normandin, D. van Reenen, F. Tariku: Summary Report from Task 3 of MEWS Project at the Institute for Research in Construction – Hygrothermal Properties of Several Building Materials, IRC-RR-110, National Research Council Canada, 2002.
+:::

@@ -1,4 +1,4 @@
-"""04_01「支配方程式と離散化」5.3.3 節：空隙にたまる水蒸気の量の変化を省く近似の影響（年間の計算）。
+"""04_01「支配方程式と離散化」5.3.3 節：空隙にたまる水蒸気の量の変化を省く近似の影響（年間の計算）と、10.4 節の表 3。
 
 近似をしない計算として、水分の収支と熱の収支に、ステップの初めと終わりの空隙の水蒸気の量の差の項を足す。
   gw ：グラスウールの質点だけ、空隙率 0.99 で足す
@@ -91,7 +91,22 @@ def _figure(geometry, rh_diff_max: dict):
     print(f'図 1 を書き出しました：{os.path.relpath(_FIGURE, c.ROOT)}')
 
 
+def table_3():
+    """10.4 節の表 3：木材が 20 deg.C で相対湿度 98% から 99% に上がるときの、増える水分量の求め方による違い。"""
+    from modules.air_water_properties import get_mu
+    from modules.material_loaders import load_materials
+    m = next(x for x in load_materials('whamcavity') if x.name == '木材')
+    t = 293.15
+    w = lambda rh: m.rho_s * m.get_u(rh)
+    mu = lambda rh: get_mu(t=t, rh=rh)
+    capacity = lambda rh: (w(rh) - w(rh - 0.001)) / (mu(rh) - mu(rh - 0.001))
+    print('表 3　相対湿度 98% から 99% に上がるときの、増える水分量（kg/m3）')
+    print(f'  水分量の差 {w(99.0) - w(98.0):.1f}、初めの水分容量 × 変化 {capacity(98.0) * (mu(99.0) - mu(98.0)):.1f}、'
+          f'終わりの水分容量 × 変化 {capacity(99.0) * (mu(99.0) - mu(98.0)):.1f}')
+
+
 def main():
+    table_3()
     geometry = c.example_geometry()
     base = c.run_example('base')
     y2 = c.year2(base)
