@@ -22,15 +22,6 @@ _SECONDS_PER_MONTH = 30.0 * 86400.0
 # 樹種と表面の状態を表す係数 WS, -（式 (2)・(3)。値の根拠は作成者に確かめる）
 WS = -1.0
 
-# 発芽までの時間の下限 t_i,min, 月（式 (5)）
-_T_INIT_MIN = 0.5
-
-# 発芽までの時間の式の値が負のとき、0 とみなす範囲の下端 t_i,neg, 月（式 (5)。これより小さければ発芽しないとみなす）
-_T_INIT_NEGATIVE_LIMIT = -0.59
-
-# 発芽しないとみなすときの、発芽までの時間 t_i,never, 月（式 (5)）
-_T_INIT_NEVER = 100.0
-
 # 腐朽が進む相対湿度の下限 φ_g, %（5 節）
 RH_GROWTH = 98.0
 
@@ -46,19 +37,19 @@ H_GENERATION = 0.319
 
 
 def rh_critical(theta: float) -> float:
-    """腐朽が始まる相対湿度の下限 φ_c, %（式 (1)）。
+    """菌が発芽に向けて活動する相対湿度の下限 φ_c, %（式 (1)。この値以上の状態が続いた時間を数え、発芽までの時間を超えたら発芽する）。
 
     Args:
         theta: 温度 θ, deg.C
     """
 
-    # 腐朽が始まる相対湿度の下限 φ_c, %
+    # 菌が発芽に向けて活動する相対湿度の下限 φ_c, %
     # 式 (1)
     return min(-0.5 * theta + 100.0, 100.0) if theta <= 15.0 else 92.5
 
 
 def initial_response_time(theta: float, rh: float) -> float:
-    """発芽までの時間 t_i, s（式 (2)〜(5)）。
+    """発芽までの時間 t_i, s（式 (2)〜(5)。発芽しない条件では無限大）。
 
     Args:
         theta: 温度 θ, deg.C
@@ -70,21 +61,19 @@ def initial_response_time(theta: float, rh: float) -> float:
     f = 0.1384 * theta + 0.4370 * rh - 42.9450 + WS * (0.0340 * theta - 0.0210 * rh + 1.7210)
     g = -2.2270 * theta - 0.0347 * rh + 0.0244 * theta * rh + WS * (-0.504 * theta + 0.0096 * rh + 0.0047 * theta * rh)
 
-    # 質量減少率が 0 になる時間 t'_i, 月（f = 0 なら、発芽しないとみなせるように負の無限大）
-    # 式 (4)
-    t_i_dash = -g / f if f != 0.0 else -np.inf
-
-    # 発芽までの時間 t_i, 月：0 以下なら、t_i,neg より大きければ 0、それより小さければ発芽しないとみなす。下限は t_i,min
+    # f が 0 以下なら、質量減少率が時間とともに増えないので、発芽しない
     # 式 (5)
-    if t_i_dash > 0.0:
-        t_i = t_i_dash
-    elif t_i_dash > _T_INIT_NEGATIVE_LIMIT:
-        t_i = 0.0
-    else:
-        t_i = _T_INIT_NEVER
-    t_i = max(t_i, _T_INIT_MIN)
+    if f <= 0.0:
+        return np.inf
 
-    return t_i * _SECONDS_PER_MONTH
+    # 質量減少率が 0 になる時間 t'_i, 月
+    # 式 (4)
+    t_i_dash = -g / f
+
+    # 発芽までの時間 t_i, s（g が 0 以上で t'_i が 0 以下なら、すぐに発芽する）
+    # 式 (5)
+    t_i = max(t_i_dash, 0.0) * _SECONDS_PER_MONTH
+    return t_i
 
 
 def reaction_rate(theta: float) -> float:
@@ -151,8 +140,8 @@ class DecayNodes:
 class DecayState:
     """ステップ n の木材腐朽の状態, [i]（腐朽を求めない質点は 0・False のまま）。"""
 
-    # 相対湿度が φ_c 以上の状態が続いた時間 τ_i,n, s（表面の質点だけ）
-    time_wet_is: np.ndarray
+    # 発芽への進み具合 D_i,n, -（表面の質点だけ。1 に達したら発芽する）
+    progress_is: np.ndarray
 
     # 発芽したか G_i,n（表面の質点だけ。一度発芽したら戻らない）
     germinated_is: np.ndarray
@@ -163,7 +152,7 @@ class DecayState:
     @classmethod
     def initial(cls, n: int):
         """腐朽していない状態（質点の数 n）。"""
-        return cls(time_wet_is=np.zeros(n), germinated_is=np.zeros(n, dtype=bool), mass_loss_is=np.zeros(n))
+        return cls(progress_is=np.zeros(n), germinated_is=np.zeros(n, dtype=bool), mass_loss_is=np.zeros(n))
 
 
 def advance(
@@ -189,7 +178,7 @@ def advance(
         計算方法の文書の「木材腐朽」の式 (6)・(7)・(9) と 5 節の条件に対応する。
     """
 
-    time_wet_is = state_n.time_wet_is.copy()
+    progress_is = state_n.progress_is.copy()
     germinated_is = state_n.germinated_is.copy()
     mass_loss_is = state_n.mass_loss_is.copy()
 
@@ -199,13 +188,18 @@ def advance(
         # 発芽期（表面の質点だけ）
         if nodes.is_surface_is[i] and not germinated_is[i]:
 
-            # 相対湿度が φ_c 以上の状態が続いた時間 τ_i,n+1, s（0 deg.C 以下か、φ_c より低ければ 0 に戻す）
+            # 発芽への進み具合 D_i,n+1, -（0 deg.C 以下か、φ_c より低ければ 0 に戻す。
+            # それ以外は、その時刻の発芽までの時間 t_i で時間刻みを割った分だけ進む。t_i = 0 ならすぐに 1 に達する）
             # 式 (6)
-            time_wet_is[i] = 0.0 if theta <= 0.0 or rh < rh_critical(theta) else time_wet_is[i] + dt
+            if theta <= 0.0 or rh < rh_critical(theta):
+                progress_is[i] = 0.0
+            else:
+                t_i = initial_response_time(theta, rh)
+                progress_is[i] += np.inf if t_i == 0.0 else dt / t_i
 
-            # 発芽したか G_i,n+1（続いた時間が、発芽までの時間を超えたら発芽する）
+            # 発芽したか G_i,n+1（進み具合が 1 に達したら発芽する）
             # 式 (7)
-            germinated_is[i] = time_wet_is[i] > initial_response_time(theta, rh)
+            germinated_is[i] = progress_is[i] >= 1.0
 
         # 成長期：表面の質点で発芽しているか、同じ層の隣の質点のステップ n の質量減少率が 0 より大きく、
         # 温度が θ_g,min より高く θ_g,max 以下、相対湿度が φ_g 以上なら、腐朽が進む（5 節）
@@ -217,7 +211,7 @@ def advance(
             # 式 (9)
             mass_loss_is[i] = min(mass_loss_is[i] + reaction_rate(theta) * dt, MASS_LOSS_MAX)
 
-    return DecayState(time_wet_is=time_wet_is, germinated_is=germinated_is, mass_loss_is=mass_loss_is)
+    return DecayState(progress_is=progress_is, germinated_is=germinated_is, mass_loss_is=mass_loss_is)
 
 
 def water_generation_is(

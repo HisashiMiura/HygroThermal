@@ -4,7 +4,7 @@
 
 ### 1.1 概要
 
-本節では、木材腐朽を求める層の材料の質点の、ステップ $n$ から $n + 1$ までの木材腐朽の状態（相対湿度が高い状態が続いた時間、発芽したか、質量減少率）の進め方と、腐朽で生まれる水の求め方を定める。腐朽で生まれる水は、次のステップの水分の収支に加える（「{doc}`熱・水分の収支 <03_11_eval_balance>`」の 5 節）。
+本節では、木材腐朽を求める層の材料の質点の、ステップ $n$ から $n + 1$ までの木材腐朽の状態（発芽への進み具合、発芽したか、質量減少率）の進め方と、腐朽で生まれる水の求め方を定める。腐朽で生まれる水は、次のステップの水分の収支に加える（「{doc}`熱・水分の収支 <03_11_eval_balance>`」の 5 節）。
 
 木材腐朽は、腐朽が始まるまで（発芽期）と、腐朽が進むあいだ（成長期）に分けて求める。腐朽が始まるのは層の表面の質点だけとし、層の内部へは、隣の質点で腐朽が進んでいるときに広がるものとする。
 
@@ -44,6 +44,9 @@ $j_{\mathrm{gen},i,n+2}$
 ### 2.1 記号
 
 :::{container} symbols
+$D_{i,n}$
+: ：ステップ $n$ の、質点 $i$ の発芽への進み具合。1 に達したら発芽する（-）
+
 $f$
 : ：質量減少率の式の、時間に比例する部分の係数（1/月）
 
@@ -74,15 +77,6 @@ $t_{\mathrm{i}}$
 $t'_{\mathrm{i}}$
 : ：質量減少率の式の値が 0 になる時間（月）
 
-$t_{\mathrm{i,min}}$
-: ：発芽までの時間の下限。 $t_{\mathrm{i,min}} = 0.5$（月）
-
-$t_{\mathrm{i,neg}}$
-: ： $t'_{\mathrm{i}}$ が負のとき、0 とみなす範囲の下端。 $t_{\mathrm{i,neg}} = -0.59$（月）
-
-$t_{\mathrm{i,never}}$
-: ：発芽しないとみなすときの、発芽までの時間。 $t_{\mathrm{i,never}} = 100$（月）
-
 $t_{\mathrm{mon}}$
 : ：1 か月の長さ。 $t_{\mathrm{mon}} = 30 \times 86400$（s/月）
 
@@ -104,8 +98,6 @@ $\theta_{\mathrm{g,min}}$、 $\theta_{\mathrm{g,max}}$
 $\rho_{\mathrm{w}}$
 : ：水の密度（kg/m³）
 
-$\tau_{i,n}$
-: ：ステップ $n$ までに、質点 $i$ の相対湿度が $\varphi_{\mathrm{c}}$ 以上の状態が続いた時間（s）
 
 $\varphi$
 : ：相対湿度（%）
@@ -114,7 +106,7 @@ $\varphi_{i,n}$
 : ：ステップ $n$ の質点 $i$ の相対湿度（%）
 
 $\varphi_{\mathrm{c}}$
-: ：腐朽が始まる相対湿度の下限（%）
+: ：菌が発芽に向けて活動する相対湿度の下限（%）
 
 $\varphi_{\mathrm{g}}$
 : ：腐朽が進む相対湿度の下限。 $\varphi_{\mathrm{g}} = 98$（%）
@@ -137,13 +129,13 @@ $n$
 
 木材腐朽を求める層の、すべての材料の質点で求める。そのうち、層の両端の質点（外気側の端と室内側の端）を、層の表面の質点とする。質点 $i$ の隣の質点は、同じ層の質点 $i - 1$ と $i + 1$ とする（層の端の質点は、層の内側の 1 つだけ）。
 
-はじめ（ステップ 0）は、どの質点も腐朽していないものとする（ $\tau_{i,0} = 0$、 $G_{i,0}$ は偽、 $L_{i,0} = 0$）。
+はじめ（ステップ 0）は、どの質点も腐朽していないものとする（ $D_{i,0} = 0$、 $G_{i,0}$ は偽、 $L_{i,0} = 0$）。
 
 ## 4 発芽期
 
 発芽期は、層の表面の質点だけで求める。表面の質点 $i$ が発芽していないとき、ステップ $n + 1$ の温度 $\theta_{i,n+1}$ と相対湿度 $\varphi_{i,n+1}$ から、次のように進める。
 
-腐朽が始まる相対湿度の下限 $\varphi_{\mathrm{c}}$ は、式 {eq}`dc-rhc` により計算される。
+菌が発芽に向けて活動する相対湿度の下限 $\varphi_{\mathrm{c}}$ は、式 {eq}`dc-rhc` により計算される。相対湿度がこの値以上のあいだ、発芽への進み具合を進め、進み具合が 1 に達したら発芽したとする。この値以上でも、発芽するまでは腐朽は進まず、発芽したあとも、5 節の $\varphi_{\mathrm{g}}$ 以上でなければ腐朽は進まない。
 
 $$
 \varphi_{\mathrm{c}} =
@@ -163,38 +155,36 @@ $$
 g = -2.2270 \thinspace \theta - 0.0347 \thinspace \varphi + 0.0244 \thinspace \theta \thinspace \varphi + WS \left( -0.504 \thinspace \theta + 0.0096 \thinspace \varphi + 0.0047 \thinspace \theta \thinspace \varphi \right)
 $$ (dc-g)
 
-質量減少率の式の値が 0 になる時間 $t'_{\mathrm{i}}$ は、式 {eq}`dc-ti-dash` により計算される。 $f = 0$ のときは、 $t'_{\mathrm{i}} = -\infty$ とする。
+$f > 0$ のとき、質量減少率の式の値が 0 になる時間 $t'_{\mathrm{i}}$ は、式 {eq}`dc-ti-dash` により計算される。
 
 $$
 t'_{\mathrm{i}} = - \frac{g}{f}
 $$ (dc-ti-dash)
 
-発芽までの時間 $t_{\mathrm{i}}$ は、式 {eq}`dc-ti` により計算される。
+発芽までの時間 $t_{\mathrm{i}}$ は、式 {eq}`dc-ti` により計算される。 $f \le 0$ のときは、質量減少率が時間とともに増えないので、発芽しない（無限大）。 $f > 0$ で $g \ge 0$ のときは、 $t'_{\mathrm{i}} \le 0$ となり、すぐに発芽する（0）。
 
 $$
-t_{\mathrm{i}} = t_{\mathrm{mon}} \max \left( t_{\mathrm{i,min}}, \thinspace
+t_{\mathrm{i}} =
 \begin{cases}
-t'_{\mathrm{i}} & \left( t'_{\mathrm{i}} > 0 \right) \\
-0 & \left( t_{\mathrm{i,neg}} < t'_{\mathrm{i}} \le 0 \right) \\
-t_{\mathrm{i,never}} & \left( t'_{\mathrm{i}} \le t_{\mathrm{i,neg}} \right)
+\infty & \left( f \le 0 \right) \\
+t_{\mathrm{mon}} \max \left( t'_{\mathrm{i}}, \thinspace 0 \right) & \left( f > 0 \right)
 \end{cases}
-\right)
 $$ (dc-ti)
 
-ステップ $n + 1$ までに、相対湿度が $\varphi_{\mathrm{c}}$ 以上の状態が続いた時間 $\tau_{i,n+1}$ は、 $\theta = \theta_{i,n+1}$ の $\varphi_{\mathrm{c}}$ を使って、式 {eq}`dc-tau` により計算される。0 deg.C 以下のときと、相対湿度が $\varphi_{\mathrm{c}}$ より低いときは、0 に戻す。
+ステップ $n + 1$ の、発芽への進み具合 $D_{i,n+1}$ は、 $\theta = \theta_{i,n+1}$、 $\varphi = \varphi_{i,n+1}$ の $\varphi_{\mathrm{c}}$ と $t_{\mathrm{i}}$ を使って、式 {eq}`dc-d` により計算される。0 deg.C 以下のときと、相対湿度が $\varphi_{\mathrm{c}}$ より低いときは、0 に戻す。それ以外のときは、時間刻みを発芽までの時間で割った分だけ進める。 $t_{\mathrm{i}} = \infty$ なら進まず、 $t_{\mathrm{i}} = 0$ ならすぐに 1 に達する（ $D_{i,n+1} = \infty$）。
 
 $$
-\tau_{i,n+1} =
+D_{i,n+1} =
 \begin{cases}
 0 & \left( \theta_{i,n+1} \le 0 \quad \text{または} \quad \varphi_{i,n+1} \lt \varphi_{\mathrm{c}} \right) \\
-\tau_{i,n} + \Delta t & (\text{それ以外})
+D_{i,n} + \dfrac{\Delta t}{t_{\mathrm{i}}} & (\text{それ以外})
 \end{cases}
-$$ (dc-tau)
+$$ (dc-d)
 
-ステップ $n + 1$ に発芽しているか $G_{i,n+1}$ は、 $\theta = \theta_{i,n+1}$、 $\varphi = \varphi_{i,n+1}$ の $t_{\mathrm{i}}$ を使って、式 {eq}`dc-germ` により決める。一度発芽した質点は、そのあとも発芽しているものとし、 $\tau_{i,n}$ は求めない。
+ステップ $n + 1$ に発芽しているか $G_{i,n+1}$ は、式 {eq}`dc-germ` により決める。一度発芽した質点は、そのあとも発芽しているものとし、 $D_{i,n}$ は求めない。
 
 $$
-G_{i,n+1} = \left( \tau_{i,n+1} > t_{\mathrm{i}} \right)
+G_{i,n+1} = \left( D_{i,n+1} \ge 1 \right)
 $$ (dc-germ)
 
 ## 5 成長期

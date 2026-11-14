@@ -45,13 +45,18 @@ class TestFunctions:
         assert decay.reaction_rate(3.0) > 0.0
 
     @pytest.mark.parametrize('theta, rh, months', [
-        (5.0, 98.0, 4.4640),   # -g / f が正：その値
-        (20.0, 98.5, 0.5),     # -g / f が正だが小さい（約 0.006 か月）：下限 0.5 か月
-        (25.0, 98.0, 0.5),     # -g / f が -0.59 より大きい負（約 -0.30）：0 とみなし、下限 0.5 か月
-        (30.0, 100.0, 100.0),  # -g / f が -0.59 より小さい：発芽しないとみなす（100 か月）
+        (5.0, 98.0, 4.4640),   # f > 0、g < 0：-g / f
+        (15.0, 98.0, 0.6880),  # f > 0、g < 0：-g / f
+        (25.0, 98.0, 0.0),     # f > 0、g > 0：すぐに発芽する
+        (30.0, 100.0, 0.0),    # f > 0、g > 0：すぐに発芽する
     ])
     def test_initial_response_time(self, theta, rh, months):
-        assert decay.initial_response_time(theta, rh) == pytest.approx(months * 30 * 86400, rel=1e-4)
+        assert decay.initial_response_time(theta, rh) == pytest.approx(months * 30 * 86400, rel=1e-4, abs=1e-9)
+
+    @pytest.mark.parametrize('theta, rh', [(5.0, 93.0), (10.0, 95.0)])
+    def test_never(self, theta, rh):
+        # f ≤ 0：質量減少率が時間とともに増えないので、発芽しない（無限大）
+        assert decay.initial_response_time(theta, rh) == np.inf
 
 
 class TestDecayNodes:
@@ -85,16 +90,17 @@ class TestAdvance:
         return state
 
     def test_germination(self):
-        # 20 deg.C・98.5% では、発芽までの時間は 15 日：15 日目までは発芽せず、16 日目に表面の質点だけ発芽する
-        assert not self._run(20.0, 98.5, 15).germinated_is.any()
-        state = self._run(20.0, 98.5, 16)
+        # 15 deg.C・98% では、発芽までの時間は約 20.6 日：20 日目までは発芽せず、21 日目に表面の質点だけ発芽する
+        assert not self._run(15.0, 98.0, 20).germinated_is.any()
+        state = self._run(15.0, 98.0, 21)
         assert list(np.flatnonzero(state.germinated_is)) == [7, 11]
 
     def test_spread(self):
-        # 発芽した日から表面で腐朽が進み、次の日から 1 日に 1 つずつ内部へ広がる（隣の質量減少率が始めに 0 より大きいとき）
+        # 20 deg.C・98.5% では、発芽までの時間は約 4 時間なので、1 日目に表面で発芽して腐朽が進む。
+        # 次の日から、1 日に 1 つずつ内部へ広がる（隣の質量減少率が始めに 0 より大きいとき）
         k = decay.reaction_rate(20.0) * 86400.0
-        state = self._run(20.0, 98.5, 17)
-        np.testing.assert_allclose(state.mass_loss_is[7:12], [2 * k, k, 0.0, k, 2 * k])
+        state = self._run(20.0, 98.5, 3)
+        np.testing.assert_allclose(state.mass_loss_is[7:12], [3 * k, 2 * k, k, 2 * k, 3 * k])
         assert state.mass_loss_is[:7].sum() == 0.0
 
     def test_dry_no_decay(self):
@@ -104,15 +110,29 @@ class TestAdvance:
         assert state.mass_loss_is.sum() == 0.0
 
     def test_reset(self):
-        # 相対湿度が φ_c より低い日があると、続いた時間は 0 に戻る
+        # 相対湿度が φ_c より低い日があると、発芽への進み具合は 0 に戻る（15 deg.C・98% の発芽までの時間は約 20.6 日）
         g = _wall(decay_layers=(2,))
         nodes = decay.DecayNodes.from_geometry(g)
         n = len(g.nodes)
         state = decay.DecayState.initial(n)
-        for rh in [98.5] * 10 + [80.0] + [98.5] * 10:
-            state = decay.advance(state, nodes, np.full(n, 20.0), np.full(n, rh), 86400.0)
-        assert state.time_wet_is[7] == pytest.approx(10 * 86400.0)
+        for rh in [98.0] * 10 + [80.0] + [98.0] * 10:
+            state = decay.advance(state, nodes, np.full(n, 15.0), np.full(n, rh), 86400.0)
+        assert state.progress_is[7] == pytest.approx(10 * 86400.0 / decay.initial_response_time(15.0, 98.0))
         assert not state.germinated_is.any()
+
+    def test_changing_conditions(self):
+        # 最初の 10 日は 20 deg.C・95%（発芽までの時間 約 40 日）、そのあと 15 deg.C・98%（約 20.6 日）。
+        # 進み具合は 10 日で約 0.25、そのあと 1 日に約 1/20.6 ずつ進み、26 日目に 1 に達して発芽する
+        g = _wall(decay_layers=(2,))
+        nodes = decay.DecayNodes.from_geometry(g)
+        n = len(g.nodes)
+        state = decay.DecayState.initial(n)
+        for day in range(1, 27):
+            theta, rh = (20.0, 95.0) if day <= 10 else (15.0, 98.0)
+            state = decay.advance(state, nodes, np.full(n, theta), np.full(n, rh), 86400.0)
+            if day == 10:
+                assert state.progress_is[7] == pytest.approx(10 * 86400.0 / decay.initial_response_time(20.0, 95.0))
+            assert state.germinated_is[7] == (day >= 26)
 
     def test_mass_loss_max(self):
         # 質量減少率は 0.6 で止まる
@@ -130,7 +150,7 @@ class TestWaterGeneration:
         state_nmns = decay.DecayState.initial(n)
         mass_loss_is = np.zeros(n)
         mass_loss_is[7] = 1.0e-4
-        state_n = decay.DecayState(time_wet_is=np.zeros(n), germinated_is=np.zeros(n, dtype=bool), mass_loss_is=mass_loss_is)
+        state_n = decay.DecayState(progress_is=np.zeros(n), germinated_is=np.zeros(n, dtype=bool), mass_loss_is=mass_loss_is)
         j_is = decay.water_generation_is(nodes, state_n, state_nmns, 3600.0)
         assert j_is[7] == pytest.approx(0.319 * 998.0 * 1.0e-4 / 3600.0 * g.nodes[7].width)
         assert np.count_nonzero(j_is) == 1
