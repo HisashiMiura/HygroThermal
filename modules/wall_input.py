@@ -22,6 +22,19 @@ _AIR_LAYER_KEYS = ('air_layer', 'thickness', 'alpha', 'initial_temperature', 'in
 # 境目の入力の dict のキー（すべて必ず指定する）
 _INTERFACE_KEYS = ('g_h', 'g_m')
 
+# 水膜を置く境目（層と層の境目）の入力の dict のキー（どちらも省いてよい。省いたらデフォルトの値）
+_FILM_INTERFACE_KEYS = ('left', 'right')
+
+# 水膜の片側のコンダクタンスのデフォルトの値（計算方法の文書の「熱・水分の流れ」の 3 節の表）
+# 材料と材料の境目の片側（2 つを直列にすると、熱 50 W/(m2 K)・湿気 7.75e-7 kg/(m2 s Pa)）
+_DEFAULT_CONTACT = {'g_h': 100.0, 'g_m': 1.55e-6}
+
+# 材料の表面と水膜の間（塗膜・バックシーラーなどがなく、抵抗がほとんどない）
+_DEFAULT_MATERIAL_SURFACE = {'g_h': 1000.0, 'g_m': 1.0e-5}
+
+# 通気層の空気と水膜の間（表面の伝達）
+_DEFAULT_AIR_SURFACE = {'g_h': 9.2, 'g_m': 3.43e-8}
+
 # 外表面の入力の dict のキー（すべて必ず指定する）
 _SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height')
 
@@ -260,6 +273,76 @@ class InterfaceInput:
 
 
 @dataclass(frozen=True, kw_only=True)
+class FilmInterfaceInput:
+    """水膜を置く境目（層と層の境目）1 つ分の入力。
+
+    層と層の境目には、いつも水膜の質点を置く（計算方法の文書の「壁の構成と質点」の 4 節）。
+    境目のコンダクタンスは、水膜の左（外気側）の分と右（室内側）の分の 2 組で持つ。
+    例：通気層に面する表面では、材料の側がバックシーラーなどの抵抗、空気の側が表面の伝達。
+    """
+
+    # 水膜の左（外気側）のつながりの、境目のコンダクタンス
+    left: InterfaceInput
+
+    # 水膜の右（室内側）のつながりの、境目のコンダクタンス
+    right: InterfaceInput
+
+    def __post_init__(self):
+        """作るときに値を確かめる。"""
+
+        # 左右が InterfaceInput でなければエラー
+        for key in _FILM_INTERFACE_KEYS:
+            value = getattr(self, key)
+            if not isinstance(value, InterfaceInput):
+                raise ValueError(f'水膜の {key} は InterfaceInput にしてください（{type(value).__name__}）。')
+
+    @classmethod
+    def from_dict(cls, d: dict, default_left: dict, default_right: dict) -> Self:
+        """dict から作る。
+
+        Args:
+            d: {'left', 'right'}（どちらも {'g_h', 'g_m'}。省いたものはデフォルトの値にする）
+            default_left: 左を省いたときの {'g_h', 'g_m'}（境目の両側の層の種類で決まる。_film_defaults）
+            default_right: 右を省いたときの {'g_h', 'g_m'}
+        """
+
+        # 知らないキー（打ち間違い、水膜を置かない形の 'g_h'・'g_m' など）があればエラー
+        unknown = sorted(set(d) - set(_FILM_INTERFACE_KEYS))
+        if unknown:
+            raise ValueError(f'層と層の境目の入力に知らないキー {unknown} があります'
+                             f'（使えるキー: {list(_FILM_INTERFACE_KEYS)}。層と層の境目には水膜を置くので、左右 2 組で書きます）。')
+
+        # 左右を作る（省いたらデフォルトの値）
+        left = _from_dict_at(InterfaceInput.from_dict, d.get('left', default_left), at='left')
+        right = _from_dict_at(InterfaceInput.from_dict, d.get('right', default_right), at='right')
+
+        return cls(left=left, right=right)
+
+
+def _film_defaults(left_layer: 'LayerInput', right_layer: 'LayerInput') -> tuple[dict, dict]:
+    """層と層の境目の、水膜の左右のコンダクタンスのデフォルトの値（境目の両側の層の種類で決まる）。
+
+    Args:
+        left_layer: 境目の左（外気側）の層
+        right_layer: 境目の右（室内側）の層
+
+    Returns:
+        左のデフォルトの値、右のデフォルトの値（どちらも {'g_h', 'g_m'}）
+    """
+
+    # 材料と通気層の間：材料の側は抵抗がほとんどない値、空気の側は表面の伝達
+    if isinstance(right_layer, AirLayerInput):
+        return _DEFAULT_MATERIAL_SURFACE, _DEFAULT_AIR_SURFACE
+
+    # 通気層と材料の間：同じく、向きが逆
+    if isinstance(left_layer, AirLayerInput):
+        return _DEFAULT_AIR_SURFACE, _DEFAULT_MATERIAL_SURFACE
+
+    # 材料と材料の間：左右とも、材料どうしの接触の片側
+    return _DEFAULT_CONTACT, _DEFAULT_CONTACT
+
+
+@dataclass(frozen=True, kw_only=True)
 class SurfaceInput:
     """壁の外表面の入力（向きと、日射・放射・風に関わる性質）。
 
@@ -338,6 +421,7 @@ class WallInput:
     """壁 1 枚分の入力。
 
     層と境目は外気側から順に並べる。境目は層の数 + 1 個（外気と最初の層、層と層、最後の層と室内）。
+    外表面と内表面の境目は 1 組のコンダクタンス（InterfaceInput）、層と層の境目は水膜の左右 2 組（FilmInterfaceInput）で持つ。
     壁の面積は、使うときに 縦の長さ × 横の長さ で求める。
     """
 
@@ -347,8 +431,8 @@ class WallInput:
     # 層（外気側から順、添え字 l）
     layers: tuple[LayerInput, ...]
 
-    # 境目（外気側から順。層の数 + 1 個。境目 l は層 l - 1 と層 l の間）
-    interfaces: tuple[InterfaceInput, ...]
+    # 境目（外気側から順。層の数 + 1 個。境目 l は層 l - 1 と層 l の間。最初と最後は InterfaceInput、ほかは FilmInterfaceInput）
+    interfaces: tuple[InterfaceInput | FilmInterfaceInput, ...]
 
     # 縦の長さ（壁の面に沿って測った長さ。傾いた面では斜面に沿った長さ）, m
     len_vertical: float
@@ -376,14 +460,16 @@ class WallInput:
             if not isinstance(layer, (MaterialLayerInput, AirLayerInput)):
                 raise ValueError(f'層 layers の {i} 番目が層の入力ではありません（{type(layer).__name__}）。')
 
-        # 境目が InterfaceInput でなければエラー
-        for i, interface in enumerate(self.interfaces):
-            if not isinstance(interface, InterfaceInput):
-                raise ValueError(f'境目 interfaces の {i} 番目が境目の入力ではありません（{type(interface).__name__}）。')
-
         # 境目の数が「層の数 + 1」でなければエラー
         if len(self.interfaces) != len(self.layers) + 1:
             raise ValueError(f'境目 interfaces の数は、層の数 + 1（{len(self.layers) + 1}）にしてください（{len(self.interfaces)}）。')
+
+        # 外表面・内表面の境目が InterfaceInput、層と層の境目が FilmInterfaceInput でなければエラー
+        for i, interface in enumerate(self.interfaces):
+            is_surface = i == 0 or i == len(self.interfaces) - 1
+            expected = InterfaceInput if is_surface else FilmInterfaceInput
+            if not isinstance(interface, expected):
+                raise ValueError(f'境目 interfaces の {i} 番目は {expected.__name__} にしてください（{type(interface).__name__}）。')
 
         # いちばん外側・いちばん内側の層が通気層ならエラー（外気・室内に面する表面には材料の質点が要る）
         if isinstance(self.layers[0], AirLayerInput) or isinstance(self.layers[-1], AirLayerInput):
@@ -418,7 +504,22 @@ class WallInput:
         # 外表面・層・境目を作る。どこでエラーになったかを、メッセージの頭に付ける（番号は外気側から 0, 1, 2, …）
         surface = _from_dict_at(SurfaceInput.from_dict, d['surface'], at='surface')
         layers = tuple(_from_dict_at(layer_input_from_dict, x, at=f'layers の {i} 番目') for i, x in enumerate(d['layers']))
-        interfaces = tuple(_from_dict_at(InterfaceInput.from_dict, x, at=f'interfaces の {i} 番目') for i, x in enumerate(d['interfaces']))
+
+        # 境目の数が「層の数 + 1」でなければエラー（層と層の境目のデフォルトの値は、両側の層で決まるため、先に確かめる）
+        n = len(layers)
+        if len(d['interfaces']) != n + 1:
+            raise ValueError(f'壁の入力の interfaces の数は、層の数 + 1（{n + 1}）にしてください（{len(d["interfaces"])}）。')
+
+        # 外表面・内表面は 1 組、層と層の境目は水膜の左右 2 組（省いた側はデフォルトの値）
+        interfaces = []
+        for i, x in enumerate(d['interfaces']):
+            if i == 0 or i == n:
+                interfaces.append(_from_dict_at(InterfaceInput.from_dict, x, at=f'interfaces の {i} 番目'))
+            else:
+                default_left, default_right = _film_defaults(layers[i - 1], layers[i])
+                interfaces.append(_from_dict_at(
+                    lambda y: FilmInterfaceInput.from_dict(y, default_left, default_right), x, at=f'interfaces の {i} 番目'))
+        interfaces = tuple(interfaces)
 
         # 境目の数・通気層の位置などは、ここで作るときに __post_init__ で確かめる
         return cls(surface=surface, layers=layers, interfaces=interfaces,

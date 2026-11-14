@@ -3,7 +3,8 @@ import dataclasses
 import pytest
 
 from modules.direction import Direction
-from modules.wall_input import MaterialLayerInput, AirLayerInput, layer_input_from_dict, InterfaceInput, SurfaceInput, WallInput
+from modules.wall_input import (MaterialLayerInput, AirLayerInput, layer_input_from_dict, InterfaceInput, FilmInterfaceInput,
+                                SurfaceInput, WallInput)
 
 
 def _material_layer() -> MaterialLayerInput:
@@ -271,10 +272,21 @@ def _wall_kwargs() -> dict:
         m('構造用合板1', 0.012, 6, 10.0, 80.0),
         m('石膏ボード', 0.042, 5, 10.0, 50.0),
     )
-    interfaces = tuple(InterfaceInput(g_h=h, g_m=w) for h, w in (
-        (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-        (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-    ))
+    # 層と層の境目は水膜の左右 2 組（デフォルトの値と、防湿層だけ右を指定した値）
+    def f(left, right):
+        return FilmInterfaceInput(left=InterfaceInput(g_h=left[0], g_m=left[1]), right=InterfaceInput(g_h=right[0], g_m=right[1]))
+
+    contact, material_surface, air_surface = (100.0, 1.55e-6), (1000.0, 1.0e-5), (9.2, 3.43e-8)
+    interfaces = (
+        InterfaceInput(g_h=22.4, g_m=2.0e-11),
+        f(material_surface, air_surface),
+        f(air_surface, material_surface),
+        f(contact, contact),
+        f(contact, contact),
+        f(contact, (100.0, 2.0e-11)),
+        f(contact, contact),
+        InterfaceInput(g_h=9.2, g_m=2.6e-10),
+    )
     return dict(surface=SurfaceInput.from_dict(_surface_dict()), layers=layers, interfaces=interfaces,
                 len_vertical=7.0, len_horizontal=0.42)
 
@@ -372,10 +384,13 @@ def _wall_dict() -> dict:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
-            (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-            (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-        )],
+        'interfaces': [
+            {'g_h': 22.4, 'g_m': 2.0e-11},
+            {}, {}, {}, {},
+            {'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
+            {},
+            {'g_h': 9.2, 'g_m': 2.6e-10},
+        ],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
     }
@@ -425,3 +440,50 @@ class TestWallInputFromDict:
         d['interfaces'] = d['interfaces'][:-1]
         with pytest.raises(ValueError, match='interfaces'):
             WallInput.from_dict(d)
+
+
+class TestFilmInterface:
+
+    def test_defaults(self):
+        # 省いた側は、境目の両側の層の種類で決まるデフォルトの値（材料と通気層、通気層と材料、材料と材料）
+        wall = WallInput.from_dict(_wall_dict())
+        g = lambda x: (x.g_h, x.g_m)
+        assert (g(wall.interfaces[1].left), g(wall.interfaces[1].right)) == ((1000.0, 1.0e-5), (9.2, 3.43e-8))
+        assert (g(wall.interfaces[2].left), g(wall.interfaces[2].right)) == ((9.2, 3.43e-8), (1000.0, 1.0e-5))
+        assert (g(wall.interfaces[3].left), g(wall.interfaces[3].right)) == ((100.0, 1.55e-6), (100.0, 1.55e-6))
+
+    def test_one_side(self):
+        # 片側だけ書くと、書いた側はその値、省いた側はデフォルトの値
+        wall = WallInput.from_dict(_wall_dict())
+        assert (wall.interfaces[5].left.g_m, wall.interfaces[5].right.g_m) == (1.55e-6, 2.0e-11)
+
+    def test_contact_in_series(self):
+        # 材料と材料のデフォルトを直列にすると、熱 50 W/(m2 K)・湿気 7.75e-7 kg/(m2 s Pa)
+        wall = WallInput.from_dict(_wall_dict())
+        x = wall.interfaces[3]
+        assert 1.0 / (1.0 / x.left.g_h + 1.0 / x.right.g_h) == pytest.approx(50.0)
+        assert 1.0 / (1.0 / x.left.g_m + 1.0 / x.right.g_m) == pytest.approx(7.75e-7)
+
+    def test_one_set_not_allowed(self):
+        # 層と層の境目を 1 組（g_h・g_m）で書くとエラー（水膜を置くので左右 2 組）
+        d = _wall_dict()
+        d['interfaces'][3] = {'g_h': 50.0, 'g_m': 7.75e-7}
+        with pytest.raises(ValueError, match='interfaces の 3 番目.*左右 2 組'):
+            WallInput.from_dict(d)
+
+    def test_error_location(self):
+        # 左右の中のエラーには、どちらの側かが付く
+        d = _wall_dict()
+        d['interfaces'][3] = {'left': {'g_h': 0.0, 'g_m': 1.0e-6}}
+        with pytest.raises(ValueError, match='interfaces の 3 番目.*left.*g_h'):
+            WallInput.from_dict(d)
+
+    @pytest.mark.parametrize('index', [0, 3])
+    def test_wrong_type(self, index):
+        # 外表面に FilmInterfaceInput、層と層の境目に InterfaceInput を渡すとエラー
+        kwargs = _wall_kwargs()
+        interfaces = list(kwargs['interfaces'])
+        interfaces[index] = kwargs['interfaces'][3] if index == 0 else kwargs['interfaces'][0]
+        kwargs['interfaces'] = tuple(interfaces)
+        with pytest.raises(ValueError, match=f'{index} 番目'):
+            WallInput(**kwargs)

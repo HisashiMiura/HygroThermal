@@ -159,7 +159,7 @@ def _plywood_gw_geometry() -> WallGeometry:
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [m | {'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6},
                    m | {'name': 'グラスウール1', 'thickness': 0.1, 'n_div': 5}],
-        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 50.0, 'g_m': 7.75e-7}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0,
         'len_horizontal': 1.0,
     }))
@@ -370,13 +370,15 @@ class TestHeatResidual:
 
 
 def _air_layer_geometry() -> WallGeometry:
-    """3 層の壁：構造用合板2 12 mm（分割数 2）＋ 通気層 25 mm（α 0.085）＋ 構造用合板2 12 mm（分割数 2）。質点 2 が空気。"""
+    """3 層の壁：構造用合板2 12 mm（分割数 2）＋ 通気層 25 mm（α 0.085）＋ 構造用合板2 12 mm（分割数 2）。
+
+    質点は 7 個：合板 0・1、水膜 2、空気 3、水膜 4、合板 5・6。
+    """
     m = {'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 2, 'initial_temperature': 20.0, 'initial_rh': 50.0}
     return WallGeometry.from_input(WallInput.from_dict({
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
         'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 20.0, 'initial_rh': 50.0}, m],
-        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 3.43e-8},
-                       {'g_h': 9.2, 'g_m': 3.43e-8}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
     }))
@@ -395,11 +397,11 @@ def _air_layer_state(g: WallGeometry) -> tuple[np.ndarray, np.ndarray, np.ndarra
 class TestVentilation:
 
     def test_rate(self):
-        # 換気量は通気層の空気の質点（2 番目）だけ正で、材料の質点は 0
+        # 換気量は通気層の空気の質点（3 番目）だけ正で、材料の質点・水膜の質点は 0
         g = _air_layer_geometry()
         t_is_npls = np.full(len(g.nodes), 293.15)
         q_v_is = ventilation_rate_is(g, t_is_npls, outdoor_n=OutdoorBoundary(state=State.init(t=273.15, rh=80.0)))
-        assert q_v_is[2] > 0.0
+        assert q_v_is[3] > 0.0
         assert np.count_nonzero(q_v_is) == 1
 
     def test_heat(self):
@@ -407,11 +409,11 @@ class TestVentilation:
         g = _air_layer_geometry()
         t_is_npls, mu_is_npls, t_is_n, _ = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
-        q_v_is = np.array([0.0, 0.0, 1.0e-3, 0.0, 0.0])
+        q_v_is = np.array([0.0, 0.0, 0.0, 1.0e-3, 0.0, 0.0, 0.0])
         without = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, 180.0, outdoor, indoor)
         with_v = heat_residual_is(g, t_is_npls, mu_is_npls, t_is_n, 180.0, outdoor, indoor, q_v_is_n=q_v_is)
-        expected = np.zeros(5)
-        expected[2] = -C_A * get_rho_a(273.15) * 1.0e-3 * (273.15 - t_is_npls[2])
+        expected = np.zeros(7)
+        expected[3] = -C_A * get_rho_a(273.15) * 1.0e-3 * (273.15 - t_is_npls[3])
         np.testing.assert_allclose(with_v - without, expected)
 
     def test_moisture(self):
@@ -419,17 +421,17 @@ class TestVentilation:
         g = _air_layer_geometry()
         t_is_npls, mu_is_npls, t_is_n, mu_is_n = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
-        q_v_is = np.array([0.0, 0.0, 1.0e-3, 0.0, 0.0])
+        q_v_is = np.array([0.0, 0.0, 0.0, 1.0e-3, 0.0, 0.0, 0.0])
         without = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, 180.0, outdoor, indoor)
         with_v = moisture_residual_is(g, t_is_npls, mu_is_npls, t_is_n, mu_is_n, 180.0, outdoor, indoor, q_v_is_n=q_v_is)
         rho_v_o = outdoor.state.p_v / (R_V * outdoor.state.t)
-        rho_v_i = State(t=t_is_npls[2], mu=mu_is_npls[2]).p_v / (R_V * t_is_npls[2])
-        expected = np.zeros(5)
-        expected[2] = -1.0e-3 * (rho_v_o - rho_v_i)
+        rho_v_i = State(t=t_is_npls[3], mu=mu_is_npls[3]).p_v / (R_V * t_is_npls[3])
+        expected = np.zeros(7)
+        expected[3] = -1.0e-3 * (rho_v_o - rho_v_i)
         np.testing.assert_allclose(with_v - without, expected, atol=1e-20)
 
     def test_no_condensation_heat_in_air(self):
-        # 空気の質点では、水蒸気の出入りに差があっても凝縮熱を数えない（熱伝導の出入りだけ）。材料の質点では数える
+        # 空気の質点（3）では、水蒸気の出入りに差があっても凝縮熱を数えない（熱伝導の出入りだけ）。水膜の質点（2）では数える
         g = _air_layer_geometry()
         t_is_npls, mu_is_npls, t_is_n, _ = _air_layer_state(g)
         outdoor, indoor = OutdoorBoundary(state=State.init(t=273.15, rh=80.0)), _indoor(293.15)
@@ -438,6 +440,6 @@ class TestVentilation:
         c_is = heat_capacity_is(g, t_is_npls, mu_is_npls)
         q_ks = heat_flow_ks(g, t_is_npls, outdoor, indoor)
         j_v_ks = vapour_flow_ks(g, t_is_npls, mu_is_npls, outdoor, indoor)
-        assert j_v_ks[2] != pytest.approx(j_v_ks[3])
-        assert res_is[2] == pytest.approx(c_is[2] * (t_is_npls[2] - t_is_n[2]) / dt - (q_ks[2] - q_ks[3]))
-        assert res_is[1] == pytest.approx(c_is[1] * (t_is_npls[1] - t_is_n[1]) / dt - (q_ks[1] - q_ks[2]) - L_V * (j_v_ks[1] - j_v_ks[2]))
+        assert j_v_ks[3] != pytest.approx(j_v_ks[4])
+        assert res_is[3] == pytest.approx(c_is[3] * (t_is_npls[3] - t_is_n[3]) / dt - (q_ks[3] - q_ks[4]))
+        assert res_is[2] == pytest.approx(c_is[2] * (t_is_npls[2] - t_is_n[2]) / dt - (q_ks[2] - q_ks[3]) - L_V * (j_v_ks[2] - j_v_ks[3]))

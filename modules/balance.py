@@ -12,7 +12,7 @@ import numpy as np
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.state import State
 from modules.air_water_properties import C_A, L_V, R_V, get_rho_a
-from modules.wall_geometry import AirNode, WallGeometry
+from modules.wall_geometry import AirNode, FilmNode, WallGeometry
 
 
 def heat_flow_ks(
@@ -53,6 +53,24 @@ def heat_flow_ks(
     q_ks_n = (t_left_ks_n - t_right_ks_n) / r_h_ks
 
     return q_ks_n
+
+
+def _mu_is(geometry: WallGeometry, x_is_n: np.ndarray) -> np.ndarray:
+    """ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]。
+
+    状態の水分化学ポテンシャルの欄は、水膜の質点では水膜の状態量 s_i,n なので、水分化学ポテンシャルに直す（ほかの質点はそのまま）。
+
+    Args:
+        geometry: 壁の形
+        x_is_n: ステップ n の状態の水分化学ポテンシャルの欄, [i]（水膜の質点では s_i,n）
+
+    Returns:
+        ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
+
+    Notes:
+        水膜の質点は、計算方法の文書の「熱・水分の収支」の式 (10) に対応する。
+    """
+    return np.array([FilmNode.mu(x) if isinstance(node, FilmNode) else x for node, x in zip(geometry.nodes, x_is_n)])
 
 
 def _state_left_right_ks(
@@ -107,8 +125,8 @@ def vapour_flow_ks(
         計算方法の文書の「熱・水分の流れ」の式 (10) に対応する。
     """
 
-    # つながり k の左の状態と右の状態, [k]（左の 0 番目は外気、右の最後は室内）
-    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, mu_is_n, outdoor_n, indoor_n)
+    # つながり k の左の状態と右の状態, [k]（左の 0 番目は外気、右の最後は室内。水膜の質点は水分化学ポテンシャルに直す）
+    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, _mu_is(geometry, mu_is_n), outdoor_n, indoor_n)
 
     # つながり k の左の水蒸気圧 p_v,k-1,n と右の水蒸気圧 p_v,k,n, Pa, [k]
     # 「湿り空気と水の性質」の式 (4)
@@ -155,8 +173,8 @@ def liquid_flow_ks(
         計算方法の文書の「熱・水分の流れ」の式 (11) に対応する。
     """
 
-    # つながり k の左の状態と右の状態, [k]
-    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, mu_is_n, outdoor_n, indoor_n)
+    # つながり k の左の状態と右の状態, [k]（水膜の質点は水分化学ポテンシャルに直す）
+    state_left_ks_n, state_right_ks_n = _state_left_right_ks(t_is_n, _mu_is(geometry, mu_is_n), outdoor_n, indoor_n)
 
     # つながり k の左の水分化学ポテンシャル μ_k-1,n と右の μ_k,n, J/kg, [k]
     mu_left_ks_n = np.array([s.mu for s in state_left_ks_n])
@@ -188,7 +206,8 @@ def water_amount_is(geometry: WallGeometry, t_is_n: np.ndarray, mu_is_n: np.ndar
         ステップ n の、各質点の水分量 W_i,n, kg/m2, [i]
 
     Notes:
-        計算方法の文書の「熱・水分の収支」の式 (1)・(2)（MaterialNode・AirNode の water_amount）を、質点ごとに並べる。
+        計算方法の文書の「熱・水分の収支」の式 (1)・(2)・(11)（MaterialNode・AirNode・FilmNode の water_amount）を、質点ごとに並べる。
+        水膜の質点では、状態の水分化学ポテンシャルの欄の水膜の状態量 s_i,n から、水膜の水分量を求める。
     """
     w_is_n = np.array([
         node.water_amount(State(t=t_i_n, mu=mu_i_n))
@@ -209,7 +228,7 @@ def heat_capacity_is(geometry: WallGeometry, t_is_n: np.ndarray, mu_is_n: np.nda
         ステップ n の、各質点の熱容量 C_i,n, J/(m2 K), [i]
 
     Notes:
-        計算方法の文書の「熱・水分の収支」の式 (3)・(4)（MaterialNode・AirNode の heat_capacity）を、質点ごとに並べる。
+        計算方法の文書の「熱・水分の収支」の式 (3)・(4)（MaterialNode・AirNode の heat_capacity）を、質点ごとに並べる。水膜の質点は 0（6 節）。
     """
     c_is_n = np.array([
         node.heat_capacity(State(t=t_i_n, mu=mu_i_n))
@@ -294,7 +313,7 @@ def moisture_residual_is(
     # ステップ n + 1 の外気と各質点の水蒸気の密度 ρ_v,ex,n+1・ρ_v,i,n+1, kg/m3
     # 「湿り空気と水の性質」の式 (5)
     rho_v_ex_npls = outdoor_npls.state.p_v / (R_V * outdoor_npls.state.t)
-    rho_v_is_npls = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, mu_is_npls)]) / (R_V * t_is_npls)
+    rho_v_is_npls = np.array([State(t=t_i, mu=mu_i).p_v for t_i, mu_i in zip(t_is_npls, _mu_is(geometry, mu_is_npls))]) / (R_V * t_is_npls)
 
     # 換気で入る水分 j_vent,i,n+1, kg/(m2 s), [i]（換気量が 0 の質点は 0）
     # 式 (5)（「熱・水分の収支」）
@@ -357,7 +376,7 @@ def heat_residual_is(
     q_left_is_npls = q_ks_npls[:-1]
     q_right_is_npls = q_ks_npls[1:]
 
-    # 凝縮熱 q_cond,i,n+1, W/m2, [i]（通気層の空気の質点は相変化しないので 0）
+    # 凝縮熱 q_cond,i,n+1, W/m2, [i]（材料の質点と水膜の質点は δ_i = 1。通気層の空気の質点は相変化しないので 0）
     # 式 (7)（「熱・水分の収支」）
     is_material_is = np.array([not isinstance(node, AirNode) for node in geometry.nodes])
     q_cond_is_npls = np.where(is_material_is, L_V * (j_v_ks_npls[:-1] - j_v_ks_npls[1:]), 0.0)

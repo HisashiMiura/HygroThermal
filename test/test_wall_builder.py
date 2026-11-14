@@ -23,10 +23,13 @@ def _main_wall_dict() -> dict:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
-            (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-            (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-        )],
+        'interfaces': [
+            {'g_h': 22.4, 'g_m': 2.0e-11},
+            {}, {}, {}, {},
+            {'left': {'g_h': 100.0, 'g_m': 1.55e-6}, 'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
+            {},
+            {'g_h': 9.2, 'g_m': 2.6e-10},
+        ],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
     }
@@ -39,29 +42,30 @@ def _build():
 class TestBuildWall:
 
     def test_size(self):
-        # 今の壁：質点 33 個、状態の長さも 33
+        # 今の壁：質点 39 個（水膜 6 個を含む）、状態の長さも 39
         geometry, state = _build()
-        assert (len(geometry.nodes), len(state)) == (33, 33)
+        assert (len(geometry.nodes), len(state)) == (39, 39)
 
     def test_initial_temperature(self):
-        # サイディング（質点 0〜4）・通気層（5）は 15 deg.C、それ以外は 10 deg.C
+        # サイディング（質点 0〜4）・その右の水膜（5）・通気層（6）・その右の水膜（7）は 15 deg.C、それ以外は 10 deg.C
+        # （水膜の質点の初期値は、左の層の値）
         _, state = _build()
-        expected = [15.0] * 6 + [10.0] * 27
+        expected = [15.0] * 8 + [10.0] * 31
         np.testing.assert_allclose(state.theta_is, expected)
 
     def test_initial_rh(self):
-        # 合板（質点 11〜16、22〜27）は 80%、それ以外は 50%
+        # 合板（質点 14〜19、27〜32）とその右の水膜（20、33）は 80%、それ以外は 50%
         _, state = _build()
-        expected = np.full(33, 50.0)
-        expected[11:17] = 80.0
-        expected[22:28] = 80.0
+        expected = np.full(39, 50.0)
+        expected[14:21] = 80.0
+        expected[27:34] = 80.0
         np.testing.assert_allclose(state.rh_is, expected)
 
     def test_air_node(self):
-        # 質点 5 は空気の質点で、初期値は通気層の値（15 deg.C・50%）
+        # 質点 6 は空気の質点で、初期値は通気層の値（15 deg.C・50%）
         geometry, state = _build()
-        assert isinstance(geometry.nodes[5], AirNode)
-        state_i = state.state(5)
+        assert isinstance(geometry.nodes[6], AirNode)
+        state_i = state.state(6)
         assert (round(state_i.theta, 10), round(state_i.rh, 10)) == (15.0, 50.0)
 
     def test_find_material(self):

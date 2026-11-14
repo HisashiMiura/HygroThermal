@@ -4,7 +4,7 @@
 今の cell.py・wall.py の Cell と質点の配列は、置き換えが終わったら消す。
 
 計算方法の文書の評価方法との対応：質点の分け方とつながり（_make_nodes・_make_links）は「壁の構成と質点」、
-つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量（water_amount・heat_capacity）は「熱・水分の収支」、
+つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量（water_amount・heat_capacity）と水膜の質点（FilmNode）は「熱・水分の収支」、
 換気量は「通気層の換気」。コメントの「式 (k)」は、とくに断りがなければ「壁の構成と質点」
 （docs/source/contents/03_04_eval_wall_nodes.md）の式の番号。
 
@@ -12,7 +12,8 @@
 層の中の質点はコントロールボリュームの中心にあり、層の端の質点は表面・境目の上にある。
 
 つながりは、質点に「質点からコントロールボリュームの端までの抵抗」を聞いて、境目の抵抗と足す。
-材料の質点と空気の質点は、同じ名前（width・heat_capacity・water_amount・r_h_left・r_h_right・layer_index）で使える。
+材料の質点・空気の質点・水膜の質点は、同じ名前（width・heat_capacity・water_amount・r_h_left・r_h_right・layer_index）で使える。
+層と層の境目には、いつも水膜の質点（厚さのない質点）を置く。
 """
 
 from collections.abc import Callable
@@ -25,12 +26,18 @@ from modules.direction import Direction
 from modules.material_loaders import load_materials
 from modules.materials import Material, Materials
 from modules.state import State
-from modules.air_water_properties import C_A, C_W, R_V, get_rho_a
-from modules.wall_input import AirLayerInput, InterfaceInput, LayerInput, WallInput
+from modules.air_water_properties import C_A, C_W, R_V, get_p_vs, get_rho_a
+from modules.wall_input import AirLayerInput, FilmInterfaceInput, InterfaceInput, LayerInput, WallInput
 
 
 # 重力加速度, m/s2
 _G = 9.8
+
+# 水膜の係数 k_i を求める基準の温度 T_ref, K（「熱・水分の収支」の式 (12)）
+_FILM_T_REF = 293.15
+
+# 水膜の係数 k_i を求める基準の時間 τ, s（「熱・水分の収支」の式 (12)）
+_FILM_TAU = 3600.0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -254,8 +261,87 @@ class AirNode:
         return 0.0
 
 
-# 質点：材料の質点か空気の質点のどちらか
-Node = MaterialNode | AirNode
+@dataclass(frozen=True, kw_only=True)
+class FilmNode:
+    """水膜の質点：層と層の境目の上に置く、厚さのない質点。境目にたまる水（結露した水・浸入した雨水）を受け持つ。
+
+    状態の水分化学ポテンシャルの欄には、水膜の状態量 s_i を入れる（負なら水膜なし、0 以上なら水膜あり）。
+    水分化学ポテンシャルは min(s, 0)、水膜の水分量は k_i × max(s, 0)。熱容量は 0（熱の収支は定常）。
+    厚さがないので、質点から端までの抵抗は 0。左右の境目のコンダクタンスは、つながりの境目が持つ。
+    """
+
+    # どの層の質点か（境目の左の層の番号。「壁の構成と質点」の 4 節）
+    layer_index: int
+
+    # 水膜の左（外気側）のつながりの、境目の湿気コンダクタンス G_m,L,i, kg/(m2 s Pa)
+    g_m_left: float
+
+    # 水膜の右（室内側）のつながりの、境目の湿気コンダクタンス G_m,R,i, kg/(m2 s Pa)
+    g_m_right: float
+
+    @property
+    def width(self) -> float:
+        """コントロールボリュームの幅 w_i, m（厚さがないので 0。「壁の構成と質点」の 4 節）"""
+        return 0.0
+
+    @property
+    def k(self) -> float:
+        """水膜の状態量を水膜の水分量に直す係数 k_i, (kg/m2)/(J/kg)（「熱・水分の収支」の式 (12)）
+
+        目盛りの換算で、計算の結果には影響しない。水膜なしと水膜ありで、水分の収支の傾きの大きさがそろうように決める。
+        """
+
+        # 係数 k_i, (kg/m2)/(J/kg)
+        # 式 (12)（「熱・水分の収支」）
+        k_i = _FILM_TAU * (self.g_m_left + self.g_m_right) * get_p_vs(_FILM_T_REF) / (R_V * _FILM_T_REF)
+        return k_i
+
+    def water_amount(self, state: State) -> float:
+        """水分量（水膜の水分量） W_i,n, kg/m2（「熱・水分の収支」の式 (11)）
+
+        Args:
+            state: この質点のステップ n の状態（mu の欄に水膜の状態量 s_i,n が入っている）
+        """
+
+        # 水膜の水分量 W_i,n, kg/m2（水膜がない s < 0 では 0）
+        # 式 (11)（「熱・水分の収支」）
+        w_i_n = self.k * max(state.mu, 0.0)
+        return w_i_n
+
+    def heat_capacity(self, state: State) -> float:
+        """熱容量 C_i,n, J/(m2 K)（厚さがないので 0。「熱・水分の収支」の 6 節）"""
+        return 0.0
+
+    @staticmethod
+    def mu(s: float) -> float:
+        """水膜の状態量 s から、水分化学ポテンシャル μ, J/kg（水膜があれば 0。「熱・水分の収支」の式 (10)）"""
+
+        # 水分化学ポテンシャル μ_i,n, J/kg
+        # 式 (10)（「熱・水分の収支」）
+        mu_i_n = min(s, 0.0)
+        return mu_i_n
+
+    @property
+    def r_h_left(self) -> float:
+        """質点から左の端までの熱抵抗, (m2 K)/W（厚さがないので 0）"""
+        return 0.0
+
+    @property
+    def r_h_right(self) -> float:
+        """質点から右の端までの熱抵抗, (m2 K)/W（厚さがないので 0）"""
+        return 0.0
+
+    def r_m_left(self, state: State) -> float:
+        """質点から左の端までの透湿抵抗, (m2 s Pa)/kg（厚さがないので 0）"""
+        return 0.0
+
+    def r_m_right(self, state: State) -> float:
+        """質点から右の端までの透湿抵抗, (m2 s Pa)/kg（厚さがないので 0）"""
+        return 0.0
+
+
+# 質点：材料の質点・空気の質点・水膜の質点のどれか
+Node = MaterialNode | AirNode | FilmNode
 
 
 @dataclass(frozen=True)
@@ -344,17 +430,23 @@ class Link:
         """作るときに、つながりの形を確かめる。"""
 
         # 左が質点か外気でなければエラー（室内を左に置くことはできない）
-        if not isinstance(self.left, (MaterialNode, AirNode, Outdoor)):
+        if not isinstance(self.left, (MaterialNode, AirNode, FilmNode, Outdoor)):
             raise ValueError(f'つながりの左 left は、質点か外気にしてください（{type(self.left).__name__}）。')
 
         # 右が質点か室内でなければエラー（外気を右に置くことはできない）
-        if not isinstance(self.right, (MaterialNode, AirNode, Indoor)):
+        if not isinstance(self.right, (MaterialNode, AirNode, FilmNode, Indoor)):
             raise ValueError(f'つながりの右 right は、質点か室内にしてください（{type(self.right).__name__}）。')
 
         # 外気・室内に面するつながりに境目がなければエラー（表面の伝達を境目で表すため）
         if isinstance(self.left, Outdoor) or isinstance(self.right, Indoor):
             if self.interface is None:
                 raise ValueError('外気・室内に面するつながりには、境目 interface（表面の伝達）が必要です。')
+            return
+
+        # 水膜の質点に面するつながりに境目がなければエラー（水膜の左右のコンダクタンスを境目で表すため）
+        if isinstance(self.left, FilmNode) or isinstance(self.right, FilmNode):
+            if self.interface is None:
+                raise ValueError('水膜の質点に面するつながりには、境目 interface が必要です。')
             return
 
         # 左右がどちらも質点のとき、同じ層なら境目なし、違う層なら境目ありでなければエラー
@@ -463,18 +555,25 @@ def material_finder() -> FindMaterial:
     return find
 
 
-def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> tuple[Node, ...]:
+def _make_nodes(
+        layers: tuple[LayerInput, ...],
+        interfaces: tuple[InterfaceInput | FilmInterfaceInput, ...],
+        find_material: FindMaterial
+    ) -> tuple[Node, ...]:
     """層の並び（外気側から順）から、質点の並び（外気側から順）を作る。
 
     材料の層（厚さ d_l、分割数 N_div,l）は、間隔 Δx_l で N_div,l 個の質点にする。層の両端の質点は表面・境目の上にあり、
     その側までの距離は 0、内側の端までの距離は Δx_l / 2。層の中の質点は、左右とも Δx_l / 2。
     通気層は、空気の質点 1 つにする。
+    層と層の境目には、水膜の質点を 1 つ置く（層の番号は左の層）。
 
-    内部用の関数。ふだんは WallGeometry.from_input から、WallInput の layers を渡して呼ぶ。
-    いちばん外側・いちばん内側が材料の層であること、通気層が 2 枚続かないことなどは WallInput で確かめ済みなので、ここでは確かめない。
+    内部用の関数。ふだんは WallGeometry.from_input から、WallInput の layers と interfaces を渡して呼ぶ。
+    いちばん外側・いちばん内側が材料の層であること、通気層が 2 枚続かないこと、層と層の境目が水膜の左右 2 組であることなどは
+    WallInput で確かめ済みなので、ここでは確かめない。
 
     Args:
         layers: 層の入力の並び（WallInput.layers）
+        interfaces: 境目の入力の並び（WallInput.interfaces。層の数 + 1 個）。水膜の質点の湿気コンダクタンスに使う
         find_material: 材料を探す関数（ふだんは material_finder() で作る）
 
     Returns:
@@ -487,6 +586,11 @@ def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> 
     nodes: list[Node] = []
 
     for i, layer in enumerate(layers):
+
+        # 層と層の境目（層 i - 1 と層 i の間）に、水膜の質点を置く（層の番号は左の層 i - 1）
+        if i > 0:
+            film = interfaces[i]
+            nodes.append(FilmNode(layer_index=i - 1, g_m_left=film.left.g_m, g_m_right=film.right.g_m))
 
         # 通気層なら、空気の質点を 1 つ作る
         if isinstance(layer, AirLayerInput):
@@ -519,11 +623,20 @@ def _make_nodes(layers: tuple[LayerInput, ...], find_material: FindMaterial) -> 
     return tuple(nodes)
 
 
-def _make_links(nodes: tuple[Node, ...], interfaces: tuple[InterfaceInput, ...]) -> tuple[Link, ...]:
+def _interface(x: InterfaceInput) -> Interface:
+    """入力の境目のコンダクタンス（G_h・G_m）を、計算の側の境目の抵抗（R_h,int・R_m,int）に変える（「熱・水分の流れ」の式 (1)・(2)）。"""
+
+    # 境目の熱抵抗 R_h,int,k, (m2 K)/W と透湿抵抗 R_m,int,k, (m2 s Pa)/kg
+    # 「熱・水分の流れ」の式 (1)・(2)
+    return Interface(r_h=1.0 / x.g_h, r_m=1.0 / x.g_m)
+
+
+def _make_links(nodes: tuple[Node, ...], interfaces: tuple[InterfaceInput | FilmInterfaceInput, ...]) -> tuple[Link, ...]:
     """質点の並びと境目の並びから、つながりの並び（外気側から順、質点の数 + 1 個）を作る。
 
     k 番目のつながりは、質点 k - 1 と質点 k の間（0 番目は外気と質点 0、最後は最後の質点と室内）。
     j 番目の境目は、層 j - 1 と層 j の間（0 番目は外表面、最後は内表面）。
+    層と層の境目には水膜の質点があり、水膜の左のつながりに境目の左の分、右のつながりに右の分のコンダクタンスが入る。
 
     内部用の関数。ふだんは WallGeometry.from_input から、_make_nodes で作った質点と WallInput の interfaces を渡して呼ぶ。
     正しく作れているかは、Link を作るときの確認（境目の有無と層の関係）でも確かめられる。
@@ -539,23 +652,28 @@ def _make_links(nodes: tuple[Node, ...], interfaces: tuple[InterfaceInput, ...])
         計算方法の文書の「壁の構成と質点」の 5 節に対応する。
     """
 
-    # 入力の境目（コンダクタンス G_h・G_m）を、計算の側の境目（抵抗 R_h,int・R_m,int）に変える
-    # 「熱・水分の流れ」の式 (1)・(2)
-    ifs = [Interface(r_h=1.0 / x.g_h, r_m=1.0 / x.g_m) for x in interfaces]
-
     # 外気と最初の質点（外表面）
-    links = [Link(left=OUTDOOR, right=nodes[0], interface=ifs[0])]
+    links = [Link(left=OUTDOOR, right=nodes[0], interface=_interface(interfaces[0]))]
 
     # 隣り合う質点どうし（0 番目と 1 番目、1 番目と 2 番目、…）
     for left, right in zip(nodes[:-1], nodes[1:]):
 
-        # 同じ層の中なら境目なし、層が変わるところなら右の層の手前の境目（層 i と層 i + 1 の間は ifs[i + 1]）
-        interface = None if left.layer_index == right.layer_index else ifs[right.layer_index]
+        # 水膜の質点の左のつながり：境目（層 l と層 l + 1 の間は interfaces[l + 1]）の左の分
+        if isinstance(right, FilmNode):
+            interface = _interface(interfaces[right.layer_index + 1].left)
+
+        # 水膜の質点の右のつながり：境目の右の分
+        elif isinstance(left, FilmNode):
+            interface = _interface(interfaces[left.layer_index + 1].right)
+
+        # 同じ層の中のつながり：境目なし
+        else:
+            interface = None
 
         links.append(Link(left=left, right=right, interface=interface))
 
     # 最後の質点と室内（内表面）
-    links.append(Link(left=nodes[-1], right=INDOOR, interface=ifs[-1]))
+    links.append(Link(left=nodes[-1], right=INDOOR, interface=_interface(interfaces[-1])))
 
     return tuple(links)
 
@@ -613,7 +731,7 @@ class WallGeometry:
             find_material = material_finder()
 
         # 質点の並びと、つながりの並び
-        nodes = _make_nodes(wall_input.layers, find_material)
+        nodes = _make_nodes(wall_input.layers, wall_input.interfaces, find_material)
         links = _make_links(nodes, wall_input.interfaces)
 
         # 入力の外表面を、計算の側の外表面に写す

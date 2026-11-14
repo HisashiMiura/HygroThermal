@@ -55,10 +55,13 @@ def _main_wall() -> tuple[WallGeometry, WallState]:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
-            (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-            (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-        )],
+        'interfaces': [
+            {'g_h': 22.4, 'g_m': 2.0e-11},
+            {}, {}, {}, {},
+            {'left': {'g_h': 100.0, 'g_m': 1.55e-6}, 'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
+            {},
+            {'g_h': 9.2, 'g_m': 2.6e-10},
+        ],
         'len_vertical': 7.0, 'len_horizontal': 0.42,
     }))
 
@@ -207,13 +210,12 @@ class TestStep:
 
 
 def _air_layer_wall(alpha: float) -> tuple[WallGeometry, WallState]:
-    """3 層の壁：構造用合板2 12 mm ＋ 通気層 25 mm（流量係数 alpha）＋ 構造用合板2 12 mm。初期は 20 deg.C・50%。"""
+    """3 層の壁：構造用合板2 12 mm ＋ 通気層 25 mm（流量係数 alpha）＋ 構造用合板2 12 mm。初期は 20 deg.C・50%。質点 3 が空気（2・4 は水膜）。"""
     m = {'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 2, 'initial_temperature': 20.0, 'initial_rh': 50.0}
     return build_wall(WallInput.from_dict({
         'surface': _SURFACE,
         'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': alpha, 'initial_temperature': 20.0, 'initial_rh': 50.0}, m],
-        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 3.43e-8},
-                       {'g_h': 9.2, 'g_m': 3.43e-8}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 7.0, 'len_horizontal': 0.42,
     }))
 
@@ -228,7 +230,7 @@ class TestVentilation:
             g, state = _air_layer_wall(alpha)
             for _ in range(48):
                 state, _ = step(g, state, dt=1800.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
-            theta_air[alpha] = state.theta_is[2]
+            theta_air[alpha] = state.theta_is[3]
         assert abs(theta_air[100.0] - 0.0) < 0.5
         assert theta_air[0.0] > 5.0
 
@@ -241,7 +243,7 @@ class TestVentilation:
             g, state = _air_layer_wall(alpha)
             for _ in range(24):
                 state, _ = step(g, state, dt=3600.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
-            rh_air[alpha] = state.rh_is[2]
+            rh_air[alpha] = state.rh_is[3]
         assert rh_air[0.085] < rh_air[0.0] - 1.0
 
     def test_conservation(self):
@@ -267,3 +269,74 @@ class TestVentilation:
         q_cond = (L_V * (j_v_ks[:-1] - j_v_ks[1:]))[is_material_is].sum()
         q_vent = (C_A * get_rho_a(outdoor.state.t) * q_v_is * (outdoor.state.t - state.t_is)).sum()
         assert h_stored == pytest.approx((q_h_ks[0] - q_h_ks[-1] + q_cond + q_vent) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
+
+
+def _film_wall() -> tuple[WallGeometry, WallState, int]:
+    """2 層の壁：構造用合板1 12 mm（外側、分割数 4）＋ グラスウール1 100 mm（分割数 5）。初期は 10 deg.C・60%。
+
+    境目の水膜の左（合板の側）を防湿層（2.0e-11）にして、冬に室内から入った水蒸気が水膜にたまるようにする。
+    質点は 10 個：合板 0〜3、水膜 4、グラスウール 5〜9。水膜の質点の番号も返す。
+    """
+    m = lambda name, d, n: {'source': 'whamcavity', 'name': name, 'thickness': d, 'n_div': n,
+                            'initial_temperature': 10.0, 'initial_rh': 60.0}
+    g, state = build_wall(WallInput.from_dict({
+        'surface': _SURFACE,
+        'layers': [m('構造用合板1', 0.012, 4), m('グラスウール1', 0.1, 5)],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11},
+                       {'left': {'g_h': 100.0, 'g_m': 2.0e-11}, 'right': {'g_h': 100.0, 'g_m': 1.55e-6}},
+                       {'g_h': 9.2, 'g_m': 2.6e-8}],
+        'len_vertical': 1.0, 'len_horizontal': 1.0,
+    }))
+    return g, state, 4
+
+
+def _run_film(g, state, outdoor, indoor, dt, n_steps):
+    """n_steps ステップ進め、最後の状態と、(壁にたまった水分の増え - 外気・室内から入った水分の合計)（保存のずれ）を返す。"""
+    w_0 = water_amount_is(g, state.t_is, state.mu_is).sum()
+    absorbed = 0.0
+    for _ in range(n_steps):
+        state, _ = step(g, state, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
+        j_ks = _moisture_flow_ks(g, state, outdoor, indoor)
+        absorbed += (j_ks[0] - j_ks[-1]) * dt
+    return state, water_amount_is(g, state.t_is, state.mu_is).sum() - w_0 - absorbed
+
+
+class TestFilm:
+
+    # 冬（外気 -5 deg.C・80%、室内 20 deg.C・40%）と夏（外気・室内とも 25 deg.C・40%）
+    _WINTER = (_outdoor(-5.0, 80.0), _indoor(20.0, 40.0))
+    _SUMMER = (_outdoor(25.0, 40.0), _indoor(25.0, 40.0))
+
+    def test_forms_in_winter(self):
+        # 冬に 30 日進めると、防湿層の室内側の水膜に水がたまる（水膜の状態量が正、相対湿度 100%）。
+        # 材料の中では結露しない（止まらない）。水分は、許容値の分（ステップ数 × 質点の数 × 許容値 × Δt）まで保存される
+        g, state, i_film = _film_wall()
+        dt, n_steps = 86400.0, 30
+        state, error = _run_film(g, state, *self._WINTER, dt, n_steps)
+        assert state.mu_is[i_film] > 0.0
+        assert g.nodes[i_film].water_amount(state.state(i_film)) > 0.1
+        assert state.rh_is[i_film] == pytest.approx(100.0)
+        assert abs(error) <= n_steps * len(g.nodes) * MOISTURE_RESIDUAL_TOL * dt
+
+    def test_dries_in_summer(self):
+        # 冬に水膜ができたあと、乾いた夏に 120 日進めると、水膜はなくなる（水膜の状態量が負、水膜の水分量 0）。水分は保存される
+        g, state, i_film = _film_wall()
+        dt = 86400.0
+        state, _ = _run_film(g, state, *self._WINTER, dt, 30)
+        state, error = _run_film(g, state, *self._SUMMER, dt, 120)
+        assert state.mu_is[i_film] < 0.0
+        assert g.nodes[i_film].water_amount(state.state(i_film)) == 0.0
+        assert abs(error) <= 120 * len(g.nodes) * MOISTURE_RESIDUAL_TOL * dt
+
+    def test_heat_conservation(self):
+        # 水膜があるときの 1 ステップ：たまった熱 = 外気側から入った熱 - 室内へ出た熱（潜熱を含む。水膜の熱容量は 0）
+        g, state, i_film = _film_wall()
+        state, _ = _run_film(g, state, *self._WINTER, 86400.0, 10)
+        assert state.mu_is[i_film] > 0.0
+        outdoor, indoor = self._WINTER
+        dt = 3600.0
+        state_npls, _ = step(g, state, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
+        h_stored = (heat_capacity_is(g, state_npls.t_is, state_npls.mu_is) * (state_npls.t_is - state.t_is)).sum()
+        q_ks = _total_heat_flow_ks(g, state_npls, outdoor, indoor)
+        assert h_stored == pytest.approx((q_ks[0] - q_ks[-1]) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
+

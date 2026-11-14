@@ -13,7 +13,7 @@ from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
 from modules.surface_radiation import get_solar_heat_gain
 from modules.air_water_properties import L_V
-from modules.wall_geometry import WallGeometry
+from modules.wall_geometry import FilmNode, WallGeometry
 from modules.wall_state import WallState
 
 # ヤコビ行列の帯の幅（下 3 本・上 3 本）：未知数を (T_0, μ_0, T_1, μ_1, …) と並べると、
@@ -106,11 +106,13 @@ def step(
     x0_ps = np.empty(2 * len(state_n))
     x0_ps[0::2], x0_ps[1::2] = state_n.t_is, state_n.mu_is
 
-    # 未知数の上限：温度は上限なし、水分化学ポテンシャルは 0（相対湿度 100%）
-    # （μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする）
+    # 未知数の上限：温度は上限なし、水分化学ポテンシャルは 0（相対湿度 100%）、水膜の状態量は上限なし
+    # （μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする。
+    #   水膜の状態量 s ≥ 0 は水膜があることを表し、残差は水膜の水分量で変わるので、上限を設けない）
     # 式 (5)
+    is_film_is = np.array([isinstance(node, FilmNode) for node in geometry.nodes])
     x_max_ps = np.empty(len(x0_ps))
-    x_max_ps[0::2], x_max_ps[1::2] = np.inf, 0.0
+    x_max_ps[0::2], x_max_ps[1::2] = np.inf, np.where(is_film_is, np.inf, 0.0)
 
     # 残差が 0（許容値の 1 倍以下）になる未知数を探す（1 回は必ず修正する）
     try:
@@ -119,9 +121,9 @@ def step(
 
         # 収束しないとき（5 節）
 
-        # 前の時刻に、相対湿度が 100% に近い質点の番号
+        # 前の時刻に、相対湿度が 100% に近い質点の番号（水膜の質点は、水がたまっても収支が合うので除く）
         rh_is_n = state_n.rh_is
-        i_wet_is = np.flatnonzero(rh_is_n >= CONDENSATION_RH)
+        i_wet_is = np.flatnonzero((rh_is_n >= CONDENSATION_RH) & ~is_film_is)
 
         # 100% に近い質点がなければ、結露ではない理由で収束しなかったので、そのまま例外を出す
         if len(i_wet_is) == 0:

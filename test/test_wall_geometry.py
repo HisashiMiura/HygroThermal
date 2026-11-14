@@ -9,8 +9,8 @@ from modules.materials import Materials
 from modules.state import State
 from modules.air_water_properties import C_A, C_W, R_V, T_0, get_rho_a
 from modules import wall_geometry
-from modules.wall_geometry import MaterialNode, AirNode, _make_nodes, _make_links, material_finder, Link, Interface, Surface, WallGeometry, Outdoor, Indoor, OUTDOOR, INDOOR
-from modules.wall_input import MaterialLayerInput, AirLayerInput, InterfaceInput, WallInput
+from modules.wall_geometry import MaterialNode, AirNode, FilmNode, _make_nodes, _make_links, material_finder, Link, Interface, Surface, WallGeometry, Outdoor, Indoor, OUTDOOR, INDOOR
+from modules.wall_input import MaterialLayerInput, AirLayerInput, InterfaceInput, FilmInterfaceInput, WallInput
 
 
 def _plywood():
@@ -76,6 +76,44 @@ class TestAirNode:
             AirNode(thickness=thickness, alpha=alpha, layer_index=1)
 
 
+class TestFilmNode:
+
+    def _film(self) -> FilmNode:
+        # 通気層の表面のデフォルト（材料の側 1.0e-5、空気の側 3.43e-8）
+        return FilmNode(layer_index=0, g_m_left=1.0e-5, g_m_right=3.43e-8)
+
+    def test_no_thickness(self):
+        # 厚さがないので、幅・熱容量・端までの抵抗は 0
+        f = self._film()
+        s = State(t=293.15, mu=-1000.0)
+        assert (f.width, f.heat_capacity(s), f.r_h_left, f.r_h_right, f.r_m_left(s), f.r_m_right(s)) == (0.0,) * 6
+
+    def test_k(self):
+        # k = τ (G_m,L + G_m,R) p_vs(T_ref) / (R_v T_ref)、τ = 3600 s、T_ref = 293.15 K
+        from modules.air_water_properties import get_p_vs
+        f = self._film()
+        assert f.k == pytest.approx(3600.0 * (1.0e-5 + 3.43e-8) * get_p_vs(293.15) / (R_V * 293.15))
+
+    @pytest.mark.parametrize('s, mu, w_per_k', [(-500.0, -500.0, 0.0), (0.0, 0.0, 0.0), (800.0, 0.0, 800.0)])
+    def test_state(self, s, mu, w_per_k):
+        # 水膜の状態量 s < 0：水膜なし（μ = s、水分量 0）。s ≥ 0：水膜あり（μ = 0、水分量 k s）
+        f = self._film()
+        assert FilmNode.mu(s) == mu
+        assert f.water_amount(State(t=293.15, mu=s)) == pytest.approx(f.k * w_per_k)
+
+    def test_link_needs_interface(self):
+        # 水膜の質点に面するつながりには、境目が必要
+        a = _node('構造用合板1', 0.0009, 0.0, 0)
+        with pytest.raises(ValueError, match='水膜'):
+            Link(left=a, right=self._film(), interface=None)
+
+    def test_link_same_layer_index(self):
+        # 水膜の質点の層の番号は左の層と同じだが、境目のあるつながりにできる
+        a = _node('構造用合板1', 0.0009, 0.0, 0)
+        link = Link(left=a, right=self._film(), interface=Interface(r_h=1 / 1000.0, r_m=1 / 1.0e-5))
+        assert link.r_h == pytest.approx(1 / 1000.0)
+
+
 def _layer(name: str, thickness: float, n_div: int) -> MaterialLayerInput:
     """旧 Excel の材料の層の入力（初期の温湿度は 10 deg.C・50%）。"""
     return MaterialLayerInput(source='whamcavity', name=name, thickness=thickness, n_div=n_div,
@@ -95,11 +133,26 @@ def _main_wall_layers() -> tuple:
     )
 
 
+def _surf(g_h: float) -> InterfaceInput:
+    """外表面・内表面の入力の境目（熱コンダクタンス g_h、湿気は 7.75e-7）。"""
+    return InterfaceInput(g_h=g_h, g_m=7.75e-7)
+
+
+def _film(g_h: float, g_m: float = 7.75e-7) -> FilmInterfaceInput:
+    """層と層の入力の境目。水膜の左右に 2 倍ずつ割り振り、直列にすると g_h・g_m になる。"""
+    half = InterfaceInput(g_h=2.0 * g_h, g_m=2.0 * g_m)
+    return FilmInterfaceInput(left=half, right=half)
+
+
+def _one_layer_interfaces() -> tuple:
+    return (_surf(22.4), _surf(9.2))
+
+
 class TestMakeNodes:
 
     def test_one_layer(self):
         # 合板 9 mm・分割数 6：質点 6 個、両端は表面の側までの距離が 0
-        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), find_material=material_finder())
+        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), _one_layer_interfaces(), find_material=material_finder())
         assert len(nodes) == 6
         assert nodes[0].d_left == 0.0
         assert nodes[-1].d_right == 0.0
@@ -107,43 +160,46 @@ class TestMakeNodes:
 
     def test_interior_width(self):
         # 層の中の質点の幅は dx = 9 mm / 5 = 1.8 mm、両端は dx / 2
-        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), find_material=material_finder())
+        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), _one_layer_interfaces(), find_material=material_finder())
         assert [n.width for n in nodes] == pytest.approx([0.0009, 0.0018, 0.0018, 0.0018, 0.0018, 0.0009])
 
     def test_two_layers_boundary(self):
-        # 合板とグラスウールの境目に、同じ位置の質点が 2 つ並ぶ（どちらも境目の側までの距離が 0）
+        # 合板とグラスウールの境目に、同じ位置の質点が 3 つ並ぶ（合板の端、水膜、グラスウールの端。どれも境目の側までの距離が 0）
         layers = (_layer('構造用合板1', 0.009, 6), _layer('グラスウール1', 0.1, 5))
-        nodes = _make_nodes(layers, find_material=material_finder())
-        left, right = nodes[5], nodes[6]
-        assert (left.d_right, right.d_left) == (0.0, 0.0)
-        assert (left.layer_index, right.layer_index) == (0, 1)
+        nodes = _make_nodes(layers, (_surf(22.4), _film(50.0, 7.75e-7), _surf(9.2)), find_material=material_finder())
+        left, film, right = nodes[5], nodes[6], nodes[7]
+        assert (left.d_right, film.width, right.d_left) == (0.0, 0.0, 0.0)
+        assert isinstance(film, FilmNode)
+        assert (left.layer_index, film.layer_index, right.layer_index) == (0, 0, 1)
+        assert (film.g_m_left, film.g_m_right) == (1.55e-6, 1.55e-6)
         assert (left.material.name, right.material.name) == ('構造用合板1', 'グラスウール1')
 
     def test_air_layer(self):
         # 通気層は空気の質点 1 つで、流量係数は入力の α のまま
         layers = (_layer('サイディング', 0.016, 5), _air_layer(), _layer('石膏ボード', 0.042, 5))
-        nodes = _make_nodes(layers, find_material=material_finder())
-        air = nodes[5]
+        nodes = _make_nodes(layers, (_surf(22.4), _film(9.2), _film(9.2), _surf(9.2)), find_material=material_finder())
+        air = nodes[6]
         assert isinstance(air, AirNode)
         assert (air.thickness, air.alpha) == (0.025, 0.085)
         assert air.layer_index == 1
 
     def test_main_wall(self):
-        # 今の壁 7 層：質点 33 個（今の Wall.read と同じ 5 + 1 + 5 + 6 + 5 + 6 + 5）
-        nodes = _make_nodes(_main_wall_layers(), find_material=material_finder())
-        assert len(nodes) == 33
+        # 今の壁 7 層：質点 39 個（材料と通気層の 5 + 1 + 5 + 6 + 5 + 6 + 5 = 33 個と、層と層の境目の水膜 6 個）
+        nodes = _make_nodes(_main_wall_layers(), _main_wall_interfaces(), find_material=material_finder())
+        assert len(nodes) == 39
+        assert [i for i, n in enumerate(nodes) if isinstance(n, FilmNode)] == [5, 7, 13, 20, 26, 33]
 
     def test_width_of_each_layer(self):
         # 各層の質点の幅の合計が、その層の厚さ
         layers = _main_wall_layers()
-        nodes = _make_nodes(layers, find_material=material_finder())
+        nodes = _make_nodes(layers, _main_wall_interfaces(), find_material=material_finder())
         for i, layer in enumerate(layers):
             assert sum(n.width for n in nodes if n.layer_index == i) == pytest.approx(layer.thickness)
 
     def test_material_not_found(self):
         layers = (_layer('構造用合板1', 0.009, 6), _layer('構造用合板3', 0.009, 6))
         with pytest.raises(ValueError, match="層 1 番目.*構造用合板3"):
-            _make_nodes(layers, find_material=material_finder())
+            _make_nodes(layers, (_surf(22.4), _film(50.0), _surf(9.2)), find_material=material_finder())
 
 
 class TestMaterialFinder:
@@ -171,11 +227,6 @@ def _node(name: str, d_left: float, d_right: float, layer_index: int) -> Materia
 def _interface(g_h: float) -> Interface:
     """熱コンダクタンス g_h の境目（湿気は 7.75e-7）。計算の側の境目なので抵抗で持つ。"""
     return Interface(r_h=1.0 / g_h, r_m=1.0 / 7.75e-7)
-
-
-def _interface_input(g_h: float) -> InterfaceInput:
-    """熱コンダクタンス g_h の入力の境目（湿気は 7.75e-7）。_make_links に渡す。"""
-    return InterfaceInput(g_h=g_h, g_m=7.75e-7)
 
 
 class TestLinkHeat:
@@ -247,54 +298,55 @@ def _lambda(name: str) -> float:
 
 
 def _main_wall_interfaces() -> tuple:
-    """今の main.py・Fortran の入力の壁の境目 8 個（外表面、通気層の両側、接触、防湿層、内表面）。"""
-    return tuple(InterfaceInput(g_h=h, g_m=w) for h, w in (
-        (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-        (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-    ))
+    """今の main.py・Fortran の入力の壁の境目 8 個（外表面、通気層の両側、接触、防湿層、内表面。層と層の境目は水膜の左右 2 組）。"""
+    return WallInput.from_dict(_main_wall_dict()).interfaces
 
 
 class TestMakeLinks:
 
     def test_one_layer_total(self):
         # 合板 9 mm・分割数 6：つながり 7 個、熱抵抗の合計 = 1/22.4 + 0.009/λ + 1/9.2
-        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), find_material=material_finder())
-        links = _make_links(nodes, (_interface_input(22.4), _interface_input(9.2)))
+        nodes = _make_nodes((_layer('構造用合板1', 0.009, 6),), _one_layer_interfaces(), find_material=material_finder())
+        links = _make_links(nodes, _one_layer_interfaces())
         assert len(links) == 7
         assert sum(l.r_h for l in links) == pytest.approx(1 / 22.4 + 0.009 / _lambda('構造用合板1') + 1 / 9.2)
 
     def test_two_layers_total(self):
-        # 合板 9 mm + GW 100 mm、接触 50：接触抵抗 1/50 が 1 回だけ入る
+        # 合板 9 mm + GW 100 mm、接触 50（水膜の左右に 1/100 ずつ）：接触抵抗の合計 1/50 が 1 回だけ入る
         layers = (_layer('構造用合板1', 0.009, 6), _layer('グラスウール1', 0.1, 5))
-        nodes = _make_nodes(layers, find_material=material_finder())
-        links = _make_links(nodes, (_interface_input(22.4), _interface_input(50.0), _interface_input(9.2)))
+        interfaces = (_surf(22.4), _film(50.0), _surf(9.2))
+        nodes = _make_nodes(layers, interfaces, find_material=material_finder())
+        links = _make_links(nodes, interfaces)
         expected = 1 / 22.4 + 0.009 / _lambda('構造用合板1') + 1 / 50.0 + 0.1 / _lambda('グラスウール1') + 1 / 9.2
         assert sum(l.r_h for l in links) == pytest.approx(expected)
 
     def test_air_layer_total(self):
-        # サイディング + 通気層 + 石膏ボード：通気層の両側は 1/9.2、空気の中の抵抗は 0
+        # サイディング + 通気層 + 石膏ボード：通気層の両側は 1/9.2（水膜の左右の合計）、空気の中の抵抗は 0
         layers = (_layer('サイディング', 0.016, 5), _air_layer(), _layer('石膏ボード', 0.042, 5))
-        nodes = _make_nodes(layers, find_material=material_finder())
-        links = _make_links(nodes, (_interface_input(22.4), _interface_input(9.2), _interface_input(9.2), _interface_input(9.2)))
+        interfaces = (_surf(22.4), _film(9.2), _film(9.2), _surf(9.2))
+        nodes = _make_nodes(layers, interfaces, find_material=material_finder())
+        links = _make_links(nodes, interfaces)
         expected = 1 / 22.4 + 0.016 / _lambda('サイディング') + 1 / 9.2 + 1 / 9.2 + 0.042 / _lambda('石膏ボード') + 1 / 9.2
         assert sum(l.r_h for l in links) == pytest.approx(expected)
 
     def test_main_wall_number(self):
-        # 今の壁 7 層・質点 33 個：つながり 34 個
-        nodes = _make_nodes(_main_wall_layers(), find_material=material_finder())
-        assert len(_make_links(nodes, _main_wall_interfaces())) == 34
+        # 今の壁 7 層・質点 39 個：つながり 40 個
+        nodes = _make_nodes(_main_wall_layers(), _main_wall_interfaces(), find_material=material_finder())
+        assert len(_make_links(nodes, _main_wall_interfaces())) == 40
 
     def test_each_interface_used_once(self):
-        # 境目を持つつながりは 8 個で、入力の境目の 8 個が外気側から順に 1 回ずつ、抵抗（1 / コンダクタンス）に変えて使われる
+        # 境目を持つつながりは 14 個（表面 2 個と、層と層の境目 6 個の水膜の左右）。
+        # 入力の境目が外気側から順に（層と層の境目は左、右の順に）1 回ずつ、抵抗（1 / コンダクタンス）に変えて使われる
         interfaces = _main_wall_interfaces()
-        nodes = _make_nodes(_main_wall_layers(), find_material=material_finder())
+        nodes = _make_nodes(_main_wall_layers(), interfaces, find_material=material_finder())
         used = [l.interface for l in _make_links(nodes, interfaces) if l.interface is not None]
-        assert len(used) == 8
-        assert [(u.r_h, u.r_m) for u in used] == pytest.approx([(1 / x.g_h, 1 / x.g_m) for x in interfaces])
+        expected = [interfaces[0]] + [x for f in interfaces[1:-1] for x in (f.left, f.right)] + [interfaces[-1]]
+        assert len(used) == 14
+        assert [(u.r_h, u.r_m) for u in used] == pytest.approx([(1 / x.g_h, 1 / x.g_m) for x in expected])
 
     def test_order(self):
         # k 番目のつながりは、質点 k - 1 と質点 k の間。両端は外気と室内
-        nodes = _make_nodes(_main_wall_layers(), find_material=material_finder())
+        nodes = _make_nodes(_main_wall_layers(), _main_wall_interfaces(), find_material=material_finder())
         links = _make_links(nodes, _main_wall_interfaces())
         assert links[0].left is OUTDOOR and links[0].right is nodes[0]
         assert links[-1].left is nodes[-1] and links[-1].right is INDOOR
@@ -428,10 +480,13 @@ def _main_wall_dict() -> dict:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
-            (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-            (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-        )],
+        'interfaces': [
+            {'g_h': 22.4, 'g_m': 2.0e-11},
+            {}, {}, {}, {},
+            {'left': {'g_h': 100.0, 'g_m': 1.55e-6}, 'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
+            {},
+            {'g_h': 9.2, 'g_m': 2.6e-10},
+        ],
         'len_vertical': 7.0,
         'len_horizontal': 0.42,
     }
@@ -444,16 +499,16 @@ def _main_wall_geometry() -> WallGeometry:
 class TestWallGeometry:
 
     def test_main_wall(self):
-        # 今の壁 7 層：質点 33 個、つながり 34 個
+        # 今の壁 7 層：質点 39 個（水膜 6 個を含む）、つながり 40 個
         g = _main_wall_geometry()
-        assert (len(g.nodes), len(g.links)) == (33, 34)
+        assert (len(g.nodes), len(g.links)) == (39, 40)
 
     def test_total_r_h(self):
-        # 熱抵抗の合計 = 外表面 + 各層の d/λ + 通気層の両側 + 接触 4 か所 + 内表面
+        # 熱抵抗の合計 = 外表面 + 各層の d/λ + 通気層の両側（表面の伝達と材料の側の水膜のデフォルト）+ 接触 4 か所 + 内表面
         g = _main_wall_geometry()
         layers = [('サイディング', 0.016), ('石膏ボード', 0.042), ('構造用合板1', 0.009),
                   ('グラスウール1', 0.1), ('構造用合板1', 0.012), ('石膏ボード', 0.042)]
-        expected = 1 / 22.4 + sum(d / _lambda(name) for name, d in layers) + 2 / 9.2 + 4 / 50.0 + 1 / 9.2
+        expected = 1 / 22.4 + sum(d / _lambda(name) for name, d in layers) + 2 * (1 / 9.2 + 1 / 1000.0) + 4 / 50.0 + 1 / 9.2
         assert sum(l.r_h for l in g.links) == pytest.approx(expected)
 
     def test_area(self):

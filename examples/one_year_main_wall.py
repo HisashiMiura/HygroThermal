@@ -60,10 +60,13 @@ def _main_wall_input() -> WallInput:
             m('構造用合板1', 0.012, 6, 10.0, 80.0),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
-        'interfaces': [{'g_h': h, 'g_m': w} for h, w in (
-            (22.4, 2.0e-11), (9.2, 3.43e-8), (9.2, 3.43e-8), (50.0, 7.75e-7),
-            (50.0, 7.75e-7), (50.0, 2.0e-11), (50.0, 7.75e-7), (9.2, 2.6e-10),
-        )],
+        'interfaces': [
+            {'g_h': 22.4, 'g_m': 2.0e-11},
+            {}, {}, {}, {},
+            {'left': {'g_h': 100.0, 'g_m': 1.55e-6}, 'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
+            {},
+            {'g_h': 9.2, 'g_m': 2.6e-10},
+        ],
         'len_vertical': 7.0, 'len_horizontal': 0.42,
     })
 
@@ -142,9 +145,9 @@ def plot(geometry: WallGeometry, result: SimulationResult, weather: WeatherOutdo
     # 図にする場所（外気・通気層・外側の構造用合板のグラスウール側・内側の構造用合板の外側（防湿層の室内側）・室内）
     places = [
         ('外気', np.array([b.state.theta for b in outdoor_ns]), np.array([b.state.rh for b in outdoor_ns])),
-        ('通気層（質点 5）', t_is[5] - T_0, rh_is[5]),
-        ('外側の合板・GW 側（質点 16）', t_is[16] - T_0, rh_is[16]),
-        ('内側の合板・外側（質点 22）', t_is[22] - T_0, rh_is[22]),
+        ('通気層（質点 6）', t_is[6] - T_0, rh_is[6]),
+        ('外側の合板・GW 側（質点 19）', t_is[19] - T_0, rh_is[19]),
+        ('内側の合板・外側（質点 27）', t_is[27] - T_0, rh_is[27]),
         ('室内', np.array([b.state.theta for b in indoor_ns]), np.array([b.state.rh for b in indoor_ns])),
     ]
     per_day = int(round(SECONDS_PER_DAY / SECONDS_PER_HOUR))
