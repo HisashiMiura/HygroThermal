@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
 
-from modules.balance import heat_capacity_is, heat_flow_ks, liquid_flow_ks, vapour_flow_ks, ventilation_rate_is, water_amount_is
+from modules.balance import drainage_is, heat_capacity_is, rain_is, heat_flow_ks, liquid_flow_ks, vapour_flow_ks, ventilation_rate_is, water_amount_is
 from modules.boundary import IndoorBoundary, OutdoorBoundary, SolarRadiation
 from modules.newton import NewtonNotConverged
+from modules.rain import get_rain_on_surface
 from modules.solver import HEAT_RESIDUAL_TOL, MOISTURE_RESIDUAL_TOL, Condensation, step
 from modules.state import State
 from modules.surface_radiation import get_solar_heat_gain
@@ -13,7 +14,7 @@ from modules.wall_geometry import AirNode, WallGeometry
 from modules.wall_input import WallInput
 from modules.wall_state import WallState
 
-_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2}
+_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
 
 
 def _outdoor(theta: float, rh: float) -> OutdoorBoundary:
@@ -291,13 +292,16 @@ def _film_wall() -> tuple[WallGeometry, WallState, int]:
 
 
 def _run_film(g, state, outdoor, indoor, dt, n_steps):
-    """n_steps ステップ進め、最後の状態と、(壁にたまった水分の増え - 外気・室内から入った水分の合計)（保存のずれ）を返す。"""
+    """n_steps ステップ進め、最後の状態と、保存のずれを返す。
+
+    保存のずれ = 壁にたまった水分の増え -（外気・室内から入った水分 - 水膜から流れ落ちた水）の合計。
+    """
     w_0 = water_amount_is(g, state.t_is, state.mu_is).sum()
     absorbed = 0.0
     for _ in range(n_steps):
         state, _ = step(g, state, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
         j_ks = _moisture_flow_ks(g, state, outdoor, indoor)
-        absorbed += (j_ks[0] - j_ks[-1]) * dt
+        absorbed += (j_ks[0] - j_ks[-1] - drainage_is(g, state.t_is, state.mu_is).sum()) * dt
     return state, water_amount_is(g, state.t_is, state.mu_is).sum() - w_0 - absorbed
 
 
@@ -309,12 +313,14 @@ class TestFilm:
 
     def test_forms_in_winter(self):
         # 冬に 30 日進めると、防湿層の室内側の水膜に水がたまる（水膜の状態量が正、相対湿度 100%）。
-        # 材料の中では結露しない（止まらない）。水分は、許容値の分（ステップ数 × 質点の数 × 許容値 × Δt）まで保存される
+        # 留まれる量（5 g/m2）を超えた分は流れ落ちるので、水膜の水分量は留まれる量の少し上に保たれる。
+        # 材料の中では結露しない（止まらない）。水分は、流れ落ちた水を含めて、許容値の分（ステップ数 × 質点の数 × 許容値 × Δt）まで保存される
         g, state, i_film = _film_wall()
         dt, n_steps = 86400.0, 30
         state, error = _run_film(g, state, *self._WINTER, dt, n_steps)
         assert state.mu_is[i_film] > 0.0
-        assert g.nodes[i_film].water_amount(state.state(i_film)) > 0.1
+        w_film = g.nodes[i_film].water_amount(state.state(i_film))
+        assert 0.005 < w_film < 0.006
         assert state.rh_is[i_film] == pytest.approx(100.0)
         assert abs(error) <= n_steps * len(g.nodes) * MOISTURE_RESIDUAL_TOL * dt
 
@@ -339,4 +345,68 @@ class TestFilm:
         h_stored = (heat_capacity_is(g, state_npls.t_is, state_npls.mu_is) * (state_npls.t_is - state.t_is)).sum()
         q_ks = _total_heat_flow_ks(g, state_npls, outdoor, indoor)
         assert h_stored == pytest.approx((q_ks[0] - q_ks[-1]) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
+
+
+def _rain_wall() -> tuple[WallGeometry, WallState]:
+    """3 層の壁（南向き）：構造用合板2 12 mm ＋ 通気層 25 mm（換気なし）＋ 構造用合板2 12 mm。
+
+    通気層と内側の合板の境目（防水層の外側に当たる）に、外表面に当たる雨水の 1% が浸入する。
+    質点は 7 個：合板 0・1、水膜 2、空気 3、水膜 4、合板 5・6。
+    """
+    m = {'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 2, 'initial_temperature': 15.0, 'initial_rh': 70.0}
+    return build_wall(WallInput.from_dict({
+        'surface': dict(_SURFACE, direction='s'),
+        'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': 0.0, 'initial_temperature': 15.0, 'initial_rh': 70.0}, m],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {'rain_fraction': 0.01}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+        'len_vertical': 3.0, 'len_horizontal': 1.0,
+    }))
+
+
+class TestRain:
+
+    # 雨（降水量 10 mm/h、南向きの壁に正面から 5 m/s の風）の外気と、室内
+    _OUT = OutdoorBoundary.from_theta_rh(theta=15.0, rh=90.0, rain=10.0, wind_north=5.0, wind_east=0.0)
+    _IN = _indoor(20.0, 50.0)
+
+    def test_into_film(self):
+        # 浸入した雨水は、指定した境目の水膜（質点 4）にだけ入る
+        g, _ = _rain_wall()
+        r_bv = get_rain_on_surface(g.surface, self._OUT)
+        j_is = rain_is(g, r_bv)
+        assert j_is[4] == pytest.approx(0.01 * r_bv)
+        assert j_is[4] > 0.0 and j_is.sum() == pytest.approx(j_is[4])
+
+    def test_film_and_drainage(self):
+        # 雨を 1 日当て続けると、水膜に水がたまり、留まれる量（5 g/m2）を超えた分が流れ落ちる。
+        # 水分は、浸入した雨水と流れ落ちた水を含めて保存される
+        g, state = _rain_wall()
+        dt, n_steps = 600.0, 144
+        w_0 = water_amount_is(g, state.t_is, state.mu_is).sum()
+        r_bv = get_rain_on_surface(g.surface, self._OUT)
+        net = 0.0
+        for _ in range(n_steps):
+            state, _ = step(g, state, dt=dt, outdoor_n=self._OUT, outdoor_npls=self._OUT, indoor_npls=self._IN)
+            j_ks = _moisture_flow_ks(g, state, self._OUT, self._IN)
+            net += (j_ks[0] - j_ks[-1] + rain_is(g, r_bv).sum() - drainage_is(g, state.t_is, state.mu_is).sum()) * dt
+        w_film = g.nodes[4].water_amount(state.state(4))
+        assert w_film > 0.005
+        assert drainage_is(g, state.t_is, state.mu_is)[4] > 0.0
+        error = water_amount_is(g, state.t_is, state.mu_is).sum() - w_0 - net
+        assert abs(error) <= n_steps * len(g.nodes) * MOISTURE_RESIDUAL_TOL * dt
+
+    def test_heat_conservation(self):
+        # 1 ステップ：たまった熱 = 入った熱 - 出た熱 + 雨水が持ち込む熱（水の比熱 × 浸入量 × (外気の温度 - 水膜の温度)）。
+        # 入った熱・出た熱は、両端のつながりの熱伝導と水蒸気の潜熱。通気層の空気の質点（3）では凝縮熱を数えないので、
+        # そこで水蒸気のままたまった分の潜熱（L_v × (入る水蒸気 - 出る水蒸気)）を引く
+        from modules.air_water_properties import C_W
+        g, state_n = _rain_wall()
+        dt = 600.0
+        state, _ = step(g, state_n, dt=dt, outdoor_n=self._OUT, outdoor_npls=self._OUT, indoor_npls=self._IN)
+        h_stored = (heat_capacity_is(g, state.t_is, state.mu_is) * (state.t_is - state_n.t_is)).sum()
+        q_ks = _total_heat_flow_ks(g, state, self._OUT, self._IN)
+        r_bv = get_rain_on_surface(g.surface, self._OUT)
+        q_rain = (C_W * rain_is(g, r_bv) * (self._OUT.state.t - state.t_is)).sum()
+        j_v_ks = vapour_flow_ks(g, state.t_is, state.mu_is, self._OUT, self._IN)
+        latent_air = L_V * (j_v_ks[3] - j_v_ks[4])
+        assert h_stored == pytest.approx((q_ks[0] - q_ks[-1] + q_rain - latent_air) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
 

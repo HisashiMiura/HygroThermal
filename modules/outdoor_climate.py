@@ -108,6 +108,24 @@ class WeatherOutdoor:
     # 日射・夜間放射の値が、どの 1 時間の値か（radiation_kind が INTERVAL のときだけ使う）
     radiation_interval: RadiationInterval = RadiationInterval.BEFORE
 
+    # 行 h の水平面の降水量 r_h,h, mm/h, [h]（1 時間の値。省くと雨なし）
+    rain_hs: np.ndarray | None = None
+
+    # 降水量の値が、どの 1 時間の値か
+    rain_interval: RadiationInterval = RadiationInterval.BEFORE
+
+    # 行 h の風速の北向きの成分 U_N,h, m/s, [h]（気象データの風速の高さの値。風が北へ吹いていくとき正。省くと無風）
+    wind_north_hs: np.ndarray | None = None
+
+    # 行 h の風速の東向きの成分 U_E,h, m/s, [h]（同じく。風が東へ吹いていくとき正。省くと無風）
+    wind_east_hs: np.ndarray | None = None
+
+    # 気象データの風速の高さ H_met, m
+    wind_height: float = 10.0
+
+    # 風速を高さ 10 m の値に直すべき乗則のべき指数 p_w, -
+    wind_exponent: float = 0.25
+
     # 読み込むときに、相対湿度が 100% を超えていて 100% に丸めた行の数
     n_rh_clamped: int = 0
 
@@ -126,9 +144,27 @@ class WeatherOutdoor:
         if not isinstance(self.radiation_interval, RadiationInterval):
             raise ValueError(f'radiation_interval は RadiationInterval にしてください（{self.radiation_interval}）。')
 
+        if not isinstance(self.rain_interval, RadiationInterval):
+            raise ValueError(f'rain_interval は RadiationInterval にしてください（{self.rain_interval}）。')
+
+        # 風速の高さが 0 より大きくなければ、べき指数が 0 以上でなければエラー
+        if not self.wind_height > 0.0:
+            raise ValueError(f'風速の高さ wind_height は 0 より大きくしてください（{self.wind_height}）。')
+        if not self.wind_exponent >= 0.0:
+            raise ValueError(f'べき指数 wind_exponent は 0 以上にしてください（{self.wind_exponent}）。')
+
+        # 降水量・風速を省いたときは、雨なし・無風（0 の並び）
+        for name in ('rain_hs', 'wind_north_hs', 'wind_east_hs'):
+            if getattr(self, name) is None:
+                object.__setattr__(self, name, np.zeros(HOURS_PER_YEAR))
+
         # frozen の dataclass の項目は、ふつうの代入ができないので、この書き方で写しに入れ直す
-        for name in ('theta_ex_hs', 'p_v_ex_hs', 'i_dn_hs', 'i_sky_hs', 'r_eff_hs'):
+        for name in ('theta_ex_hs', 'p_v_ex_hs', 'i_dn_hs', 'i_sky_hs', 'r_eff_hs', 'rain_hs', 'wind_north_hs', 'wind_east_hs'):
             object.__setattr__(self, name, _readonly_copy(getattr(self, name), name))
+
+        # 降水量が負ならエラー
+        if (self.rain_hs < 0.0).any():
+            raise ValueError('降水量 rain_hs は 0 以上にしてください。')
 
         # 日射量が負ならエラー（夜間放射は負の値もあるので確かめない）
         if (self.i_dn_hs < 0.0).any() or (self.i_sky_hs < 0.0).any():
@@ -142,11 +178,15 @@ class WeatherOutdoor:
             longitude: float,
             radiation_kind: RadiationKind,
             radiation_interval: RadiationInterval,
-            radiation_unit: RadiationUnit
+            radiation_unit: RadiationUnit,
+            rain_interval: RadiationInterval,
+            wind_height: float,
+            wind_exponent: float
         ) -> Self:
         """今の気象データの形の CSV（Shift_JIS、weather.csv と同じ列）から作る。
 
-        使う列：気温（deg.C）、絶対湿度（g/kg(DA)）、気圧（Pa）、法線面直達日射量・水平面天空日射量・夜間放射（単位は radiation_unit）。
+        使う列：気温（deg.C）、絶対湿度（g/kg(DA)）、気圧（Pa）、法線面直達日射量・水平面天空日射量・夜間放射（単位は radiation_unit）、
+        降水量（mm/h）、南北風・東西風（m/s。風が北・東へ吹いていく向きを正とする成分）。
         水蒸気圧は p_v = p_atm x / (622 + x)。相対湿度が 100% を超える行は、水蒸気圧を飽和水蒸気圧に丸めて、行の数を数える。
 
         Args:
@@ -156,6 +196,9 @@ class WeatherOutdoor:
             radiation_kind: 日射・夜間放射の値の種類
             radiation_interval: 日射・夜間放射の値が、どの 1 時間の値か
             radiation_unit: 日射・夜間放射の単位
+            rain_interval: 降水量の値が、どの 1 時間の値か
+            wind_height: 気象データの風速の高さ, m
+            wind_exponent: 風速を高さ 10 m の値に直すべき乗則のべき指数, -
 
         Returns:
             1 時間ごとの気象データ（行 h の値は、式 (1)〜(4) で求めたもの）
@@ -199,6 +242,13 @@ class WeatherOutdoor:
         # 式 (4)。気象データに書かれた値 R̂_eff,h に f_u を掛ける
         r_eff_hs = f_u * d['夜間放射'].to_numpy(dtype=float)
 
+        # 水平面の降水量 r_h,h, mm/h, [h]
+        rain_hs = d['降水量'].to_numpy(dtype=float)
+
+        # 風速の北向き・東向きの成分 U_N,h・U_E,h, m/s, [h]（気象データの風速の高さの値）
+        wind_north_hs = d['南北風'].to_numpy(dtype=float)
+        wind_east_hs = d['東西風'].to_numpy(dtype=float)
+
         return cls(
             latitude=latitude,
             longitude=longitude,
@@ -209,6 +259,12 @@ class WeatherOutdoor:
             r_eff_hs=r_eff_hs,
             radiation_kind=radiation_kind,
             radiation_interval=radiation_interval,
+            rain_hs=rain_hs,
+            rain_interval=rain_interval,
+            wind_north_hs=wind_north_hs,
+            wind_east_hs=wind_east_hs,
+            wind_height=wind_height,
+            wind_exponent=wind_exponent,
             n_rh_clamped=int(over_hs.sum()),
         )
 
@@ -244,12 +300,13 @@ class WeatherOutdoor:
 
         return x_n
 
-    def _get_interval(self, x_hs: np.ndarray, t_y_n: float) -> float:
+    def _get_interval(self, x_hs: np.ndarray, t_y_n: float, interval: RadiationInterval) -> float:
         """1 時間の値の並び x_hs の、ステップ n の時刻を含む 1 時間の値（区間は始まりを含まず、終わりを含む）。
 
         Args:
             x_hs: 行 h の値 X_h, [h]
             t_y_n: ステップ n の、1 年の中での時刻 t_y,n（式 (5)）, h
+            interval: 行 h の値が、どの 1 時間の値か
 
         Returns:
             ステップ n の値 X_n
@@ -264,7 +321,7 @@ class WeatherOutdoor:
 
         # ステップ n の時刻を含む 1 時間の値が書かれた行の番号 h_n, -
         # 式 (10)
-        match self.radiation_interval:
+        match interval:
 
             # 前：h - 1 〜 h 時。時刻を含む 1 時間の終わりの時刻の行
             case RadiationInterval.BEFORE:
@@ -280,7 +337,7 @@ class WeatherOutdoor:
 
             # 上のどれでもなければエラー（RadiationInterval に値を足して、ここを直し忘れたとき）
             case _:
-                raise ValueError(f'radiation_interval の {self.radiation_interval} の扱いが決まっていません。')
+                raise ValueError(f'interval の {interval} の扱いが決まっていません。')
 
         # ステップ n の値 X_n
         # 式 (11)
@@ -307,7 +364,7 @@ class WeatherOutdoor:
 
             # 1 時間の値：その 1 時間の中は一定
             case RadiationKind.INTERVAL:
-                return self._get_interval(x_hs, t_y_n)
+                return self._get_interval(x_hs, t_y_n, self.radiation_interval)
 
             # 上のどれでもなければエラー（RadiationKind に値を足して、ここを直し忘れたとき）
             case _:
@@ -371,4 +428,18 @@ class WeatherOutdoor:
         # 式 (12)。行の間を補った時刻でも 100% を超えないようにする
         rh_ex_n = min(100.0 * p_v_ex_n / get_p_vs(theta_ex_n + T_0), 100.0)
 
-        return OutdoorBoundary.from_theta_rh(theta=theta_ex_n, rh=rh_ex_n, solar=self._get_solar(t_n, t_y_n))
+        # 水平面の降水量 r_h,n, mm/h
+        # 式 (10)・(11)（1 時間の値）
+        r_h_n = self._get_interval(self.rain_hs, t_y_n, self.rain_interval)
+
+        # 高さ 10 m の風速に直す係数 f_w, -
+        # 式 (13)
+        f_w = (10.0 / self.wind_height) ** self.wind_exponent
+
+        # 高さ 10 m の風速の北向き・東向きの成分 U_10,N,n・U_10,E,n, m/s
+        # 式 (6)〜(9)（瞬時値）と式 (14)
+        u_10_n_n = f_w * self._get_instant(self.wind_north_hs, t_y_n)
+        u_10_e_n = f_w * self._get_instant(self.wind_east_hs, t_y_n)
+
+        return OutdoorBoundary.from_theta_rh(theta=theta_ex_n, rh=rh_ex_n, solar=self._get_solar(t_n, t_y_n),
+                                             rain=r_h_n, wind_north=u_10_n_n, wind_east=u_10_e_n)

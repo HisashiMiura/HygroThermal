@@ -15,8 +15,11 @@ _H = 3600.0
 _CSV = os.path.join(os.path.dirname(__file__), '..', 'modules', 'weather.csv')
 
 
-def _weather(kind: RadiationKind, interval: RadiationInterval = RadiationInterval.BEFORE) -> WeatherOutdoor:
-    """確かめやすい作りもののデータ：行 h の気温は 0.001 h deg.C、直達日射は h W/m2、天空日射は 2h、夜間放射は -h。"""
+def _weather(kind: RadiationKind = RadiationKind.INTERVAL, interval: RadiationInterval = RadiationInterval.BEFORE, **kwargs) -> WeatherOutdoor:
+    """確かめやすい作りもののデータ：行 h の気温は 0.001 h deg.C、直達日射は h W/m2、天空日射は 2h、夜間放射は -h。
+
+    降水量・風速などは kwargs で渡す（省くと雨なし・無風）。
+    """
     h_hs = np.arange(HOURS_PER_YEAR, dtype=float)
     return WeatherOutdoor(
         latitude=36.7,
@@ -28,6 +31,7 @@ def _weather(kind: RadiationKind, interval: RadiationInterval = RadiationInterva
         r_eff_hs=-h_hs,
         radiation_kind=kind,
         radiation_interval=interval,
+        **kwargs,
     )
 
 
@@ -129,7 +133,8 @@ class TestFromCsv:
     @pytest.fixture(scope='class')
     def weather(self):
         return WeatherOutdoor.from_csv(_CSV, latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
-                                       radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H)
+                                       radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
+                                       rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
 
     def test_values(self, weather):
         # 1 月 1 日 12 時の気温は CSV の 12 時の行、11 時 30 分の直達日射は 12 時の行（MJ/(m2 h) を W/m2 に直したもの）
@@ -151,11 +156,13 @@ class TestFromCsv:
         x_hs = np.full(n, 3.0)
         x_hs[[5, 100]] = 30.0  # 0 deg.C で 30 g/kg は飽和（約 3.8 g/kg）を大きく超える
         d = pd.DataFrame({'気温': np.zeros(n), '絶対湿度': x_hs, '気圧': np.full(n, 101325.0),
-                          '法線面直達日射量': np.zeros(n), '水平面天空日射量': np.zeros(n), '夜間放射': np.zeros(n)})
+                          '法線面直達日射量': np.zeros(n), '水平面天空日射量': np.zeros(n), '夜間放射': np.zeros(n),
+                          '降水量': np.zeros(n), '南北風': np.zeros(n), '東西風': np.zeros(n)})
         path = tmp_path / 'weather.csv'
         d.to_csv(path, index=False, encoding='shift_jis')
         w = WeatherOutdoor.from_csv(str(path), latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
-                                    radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H)
+                                    radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
+                                    rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
         assert w.n_rh_clamped == 2
         assert w.get_outdoor_boundary(5 * _H).state.rh == pytest.approx(100.0)
 
@@ -176,3 +183,43 @@ class TestInvalid:
                 'radiation_kind': RadiationKind.INTERVAL} | kwargs
         with pytest.raises(ValueError, match=match):
             WeatherOutdoor(**args)
+
+
+class TestRainWind:
+
+    def test_csv_columns(self):
+        # weather.csv の降水量・南北風・東西風を読み込む（1 月 1 日 1 時の行：降水量 0、南北風 0.447464、東西風 1.685656）
+        w = WeatherOutdoor.from_csv(_CSV, latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
+                                    radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
+                                    rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
+        assert (w.rain_hs[1], w.wind_north_hs[1], w.wind_east_hs[1]) == pytest.approx((0.0, 0.447464, 1.685656))
+        assert w.rain_hs.sum() == pytest.approx(1445.41, abs=0.01)
+
+    def test_wind_to_10m(self):
+        # 風速の成分は瞬時値として補い、高さ 10 m の値に直す（(10 / 6.5)^0.25 倍）
+        n = HOURS_PER_YEAR
+        north = np.zeros(n); north[2], north[3] = 2.0, 4.0
+        east = np.zeros(n); east[2] = -1.0
+        w = _weather(wind_north_hs=north, wind_east_hs=east, wind_height=6.5, wind_exponent=0.25)
+        b = w.get_outdoor_boundary(2.5 * _H)
+        f = (10.0 / 6.5) ** 0.25
+        assert (b.wind_north, b.wind_east) == pytest.approx((3.0 * f, -0.5 * f))
+
+    def test_rain_interval(self):
+        # 降水量は 1 時間の値（区間は前）：2 時 30 分は、3 時の行（2〜3 時の値）
+        n = HOURS_PER_YEAR
+        rain = np.zeros(n); rain[3] = 5.0
+        w = _weather(rain_hs=rain)
+        assert w.get_outdoor_boundary(2.5 * _H).rain == 5.0
+        assert w.get_outdoor_boundary(3.5 * _H).rain == 0.0
+
+    def test_default_no_rain_no_wind(self):
+        # 省くと、雨なし・無風
+        b = _weather().get_outdoor_boundary(2.5 * _H)
+        assert (b.rain, b.wind_north, b.wind_east) == (0.0, 0.0, 0.0)
+
+    def test_negative_rain(self):
+        rain = np.zeros(HOURS_PER_YEAR); rain[0] = -1.0
+        with pytest.raises(ValueError, match='降水量'):
+            _weather(rain_hs=rain)
+

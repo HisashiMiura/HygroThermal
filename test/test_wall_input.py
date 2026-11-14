@@ -1,4 +1,5 @@
 import dataclasses
+import warnings
 
 import pytest
 
@@ -202,7 +203,7 @@ class TestInterfaceInput:
 
 def _surface_dict() -> dict:
     """外表面の正しい入力の dict（東向きの垂直な壁、Fortran の入力の値）。"""
-    return {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2}
+    return {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
 
 
 class TestSurfaceInput:
@@ -487,3 +488,74 @@ class TestFilmInterface:
         kwargs['interfaces'] = tuple(interfaces)
         with pytest.raises(ValueError, match=f'{index} 番目'):
             WallInput(**kwargs)
+
+
+class TestRainFraction:
+
+    def test_default_zero(self):
+        # 省くと 0（浸入しない）
+        wall = WallInput.from_dict(_wall_dict())
+        assert all(x.rain_fraction == 0.0 for x in wall.interfaces[1:-1])
+
+    def test_read(self):
+        d = _wall_dict()
+        d['interfaces'][2]['rain_fraction'] = 0.01
+        assert WallInput.from_dict(d).interfaces[2].rain_fraction == 0.01
+
+    @pytest.mark.parametrize('value', [-0.1, 1.5])
+    def test_out_of_range(self, value):
+        d = _wall_dict()
+        d['interfaces'][2]['rain_fraction'] = value
+        with pytest.raises(ValueError, match='rain_fraction'):
+            WallInput.from_dict(d)
+
+    def test_total_over_1(self):
+        # 合計が 1 を超えるとエラー
+        d = _wall_dict()
+        d['interfaces'][1]['rain_fraction'] = 0.6
+        d['interfaces'][2]['rain_fraction'] = 0.6
+        with pytest.raises(ValueError, match='合計'):
+            WallInput.from_dict(d)
+
+    def test_total_over_ashrae(self):
+        # 合計が 1%（ASHRAE Standard 160 のデフォルト）を超えると warning、1% ちょうどなら出さない
+        d = _wall_dict()
+        d['interfaces'][2]['rain_fraction'] = 0.02
+        with pytest.warns(UserWarning, match='ASHRAE'):
+            WallInput.from_dict(d)
+        d['interfaces'][2]['rain_fraction'] = 0.01
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            WallInput.from_dict(d)
+
+    @pytest.mark.parametrize('angle', [80.0, 100.0])
+    def test_not_vertical(self, angle):
+        # 雨水が浸入するのに、鉛直（90 ± 5 度）でなければエラー
+        d = _wall_dict()
+        d['surface']['angle'] = angle
+        d['interfaces'][2]['rain_fraction'] = 0.01
+        with pytest.raises(ValueError, match='鉛直'):
+            WallInput.from_dict(d)
+
+    @pytest.mark.parametrize('angle', [85.0, 93.0])
+    def test_nearly_vertical(self, angle):
+        # 90 ± 5 度の範囲で 90 度でなければ warning
+        d = _wall_dict()
+        d['surface']['angle'] = angle
+        d['interfaces'][2]['rain_fraction'] = 0.01
+        with pytest.warns(UserWarning, match='鉛直な壁として'):
+            WallInput.from_dict(d)
+
+    def test_roof_without_rain(self):
+        # 雨水が浸入しなければ、傾いた面でもよい
+        d = _wall_dict()
+        d['surface']['angle'] = 30.0
+        WallInput.from_dict(d)
+
+    @pytest.mark.parametrize('key', ['exposure_factor', 'deposition_factor'])
+    def test_surface_factor_required(self, key):
+        d = _wall_dict()
+        del d['surface'][key]
+        with pytest.raises(ValueError, match=key):
+            WallInput.from_dict(d)
+

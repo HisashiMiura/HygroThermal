@@ -452,12 +452,12 @@ class TestInterface:
 class TestSurface:
 
     def test_values(self):
-        surface = Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2)
+        surface = Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2, exposure_factor=1.0, deposition_factor=1.0)
         assert surface.direction == Direction.E
         assert (surface.angle, surface.albedo, surface.absorptance, surface.emissivity, surface.eva_height) == (90.0, 0.3, 0.9, 0.9, 4.2)
 
     def test_frozen(self):
-        surface = Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2)
+        surface = Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2, exposure_factor=1.0, deposition_factor=1.0)
         with pytest.raises(dataclasses.FrozenInstanceError):
             surface.angle = 45.0
 
@@ -470,7 +470,7 @@ def _main_wall_dict() -> dict:
                 'initial_temperature': temperature, 'initial_rh': rh}
 
     return {
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [
             m('サイディング', 0.016, 5, 15.0, 50.0),
             {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0},
@@ -517,7 +517,7 @@ class TestWallGeometry:
     def test_copied_values(self):
         # 外表面と壁の大きさが、入力と同じ値で写される
         g = _main_wall_geometry()
-        assert g.surface == Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2)
+        assert g.surface == Surface(direction=Direction.E, angle=90.0, albedo=0.3, absorptance=0.9, emissivity=0.9, eva_height=4.2, exposure_factor=1.0, deposition_factor=1.0)
         assert (g.len_vertical, g.len_horizontal) == (7.0, 0.42)
 
     @pytest.mark.parametrize('direction, angle, expected', [

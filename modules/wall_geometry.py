@@ -39,6 +39,12 @@ _FILM_T_REF = 293.15
 # 水膜の係数 k_i を求める基準の時間 τ, s（「熱・水分の収支」の式 (12)）
 _FILM_TAU = 3600.0
 
+# 水膜が流れ落ちずに留まれる水分量 W_f,max, kg/m2（「熱・水分の収支」の式 (13)）
+FILM_W_MAX = 0.005
+
+# 水膜の留まれる量を超えた水が流れ落ちる時定数 τ_d, s（「熱・水分の収支」の式 (13)）
+FILM_TAU_DRAIN = 600.0
+
 
 @dataclass(frozen=True, kw_only=True)
 class MaterialNode:
@@ -279,6 +285,9 @@ class FilmNode:
     # 水膜の右（室内側）のつながりの、境目の湿気コンダクタンス G_m,R,i, kg/(m2 s Pa)
     g_m_right: float
 
+    # 外表面に当たる雨水のうち、この水膜に浸入する割合 f_p,i, -
+    rain_fraction: float = 0.0
+
     @property
     def width(self) -> float:
         """コントロールボリュームの幅 w_i, m（厚さがないので 0。「壁の構成と質点」の 4 節）"""
@@ -311,6 +320,18 @@ class FilmNode:
     def heat_capacity(self, state: State) -> float:
         """熱容量 C_i,n, J/(m2 K)（厚さがないので 0。「熱・水分の収支」の 6 節）"""
         return 0.0
+
+    def drainage(self, state: State) -> float:
+        """流れ落ちる水 j_drain,i,n, kg/(m2 s)（留まれる量を超えた分が、時定数 τ_d で壁の外へ流れ出す。「熱・水分の収支」の式 (13)）
+
+        Args:
+            state: この質点のステップ n の状態（mu の欄に水膜の状態量 s_i,n が入っている）
+        """
+
+        # 流れ落ちる水 j_drain,i,n, kg/(m2 s)
+        # 式 (13)（「熱・水分の収支」）
+        j_drain_i_n = max(self.water_amount(state) - FILM_W_MAX, 0.0) / FILM_TAU_DRAIN
+        return j_drain_i_n
 
     @staticmethod
     def mu(s: float) -> float:
@@ -506,7 +527,7 @@ class Surface:
 
     入力の外表面（wall_input.SurfaceInput）から、WallGeometry.from_input で作る。
     値は入力で確かめ済みなので、ここでは確かめない。
-    外表面の日射の熱は surface_radiation.get_solar_heat_gain が、この値を使って求める。風速は段階 7 で足す。
+    外表面の日射の熱は surface_radiation.get_solar_heat_gain が、外表面に当たる雨水は rain.get_rain_on_surface が、この値を使って求める。
     """
 
     # 方位（真上・真下を向いた面は TOP・BOTTOM）
@@ -526,6 +547,12 @@ class Surface:
 
     # 風速を求める評価高さ, m
     eva_height: float
+
+    # 雨水暴露係数 F_E, -
+    exposure_factor: float
+
+    # 雨水付着係数 F_D, -
+    deposition_factor: float
 
 
 
@@ -590,7 +617,8 @@ def _make_nodes(
         # 層と層の境目（層 i - 1 と層 i の間）に、水膜の質点を置く（層の番号は左の層 i - 1）
         if i > 0:
             film = interfaces[i]
-            nodes.append(FilmNode(layer_index=i - 1, g_m_left=film.left.g_m, g_m_right=film.right.g_m))
+            nodes.append(FilmNode(layer_index=i - 1, g_m_left=film.left.g_m, g_m_right=film.right.g_m,
+                                  rain_fraction=film.rain_fraction))
 
         # 通気層なら、空気の質点を 1 つ作る
         if isinstance(layer, AirLayerInput):
@@ -737,7 +765,8 @@ class WallGeometry:
         # 入力の外表面を、計算の側の外表面に写す
         s = wall_input.surface
         surface = Surface(direction=s.direction, angle=s.angle, albedo=s.albedo,
-                          absorptance=s.absorptance, emissivity=s.emissivity, eva_height=s.eva_height)
+                          absorptance=s.absorptance, emissivity=s.emissivity, eva_height=s.eva_height,
+                          exposure_factor=s.exposure_factor, deposition_factor=s.deposition_factor)
 
         return cls(nodes=nodes, links=links, surface=surface,
                    len_vertical=wall_input.len_vertical, len_horizontal=wall_input.len_horizontal)

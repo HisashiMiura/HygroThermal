@@ -11,7 +11,7 @@ import numpy as np
 
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.state import State
-from modules.air_water_properties import C_A, L_V, R_V, get_rho_a
+from modules.air_water_properties import C_A, C_W, L_V, R_V, get_rho_a
 from modules.wall_geometry import AirNode, FilmNode, WallGeometry
 
 
@@ -258,6 +258,47 @@ def ventilation_rate_is(geometry: WallGeometry, t_is_n: np.ndarray, outdoor_n: O
     return q_v_is_n
 
 
+def rain_is(geometry: WallGeometry, r_bv_npls: float) -> np.ndarray:
+    """ステップ n + 1 の、各質点に浸入する雨水 j_rain,i,n+1, kg/(m2 s), [i]（水膜の質点だけ。ほかの質点は 0）。
+
+    Args:
+        geometry: 壁の形
+        r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface）
+
+    Returns:
+        ステップ n + 1 の、各質点に浸入する雨水 j_rain,i,n+1, kg/(m2 s), [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (14) に対応する。
+    """
+
+    # 浸入する雨水 j_rain,i,n+1, kg/(m2 s), [i]
+    # 式 (14)（「熱・水分の収支」）
+    j_rain_is_npls = np.array([node.rain_fraction * r_bv_npls if isinstance(node, FilmNode) else 0.0 for node in geometry.nodes])
+    return j_rain_is_npls
+
+
+def drainage_is(geometry: WallGeometry, t_is_n: np.ndarray, mu_is_n: np.ndarray) -> np.ndarray:
+    """ステップ n の、各質点から流れ落ちる水 j_drain,i,n, kg/(m2 s), [i]（水膜の質点だけ。ほかの質点は 0）。
+
+    Args:
+        geometry: 壁の形
+        t_is_n: ステップ n の各質点の温度 T_i,n, K, [i]
+        mu_is_n: ステップ n の各質点の状態の水分化学ポテンシャルの欄, [i]（水膜の質点では水膜の状態量 s_i,n）
+
+    Returns:
+        ステップ n の、各質点から流れ落ちる水 j_drain,i,n, kg/(m2 s), [i]
+
+    Notes:
+        計算方法の文書の「熱・水分の収支」の式 (13)（FilmNode.drainage）を、質点ごとに並べる。
+    """
+    j_drain_is_n = np.array([
+        node.drainage(State(t=t_i_n, mu=mu_i_n)) if isinstance(node, FilmNode) else 0.0
+        for node, t_i_n, mu_i_n in zip(geometry.nodes, t_is_n, mu_is_n)
+    ])
+    return j_drain_is_n
+
+
 def moisture_residual_is(
         geometry: WallGeometry,
         t_is_npls: np.ndarray,
@@ -267,11 +308,12 @@ def moisture_residual_is(
         dt: float,
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary,
-        q_v_is_n: np.ndarray | None = None
+        q_v_is_n: np.ndarray | None = None,
+        r_bv_npls: float = 0.0
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
 
-    たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分）。
+    たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分 + 浸入する雨水 - 流れ落ちる水）。
     正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
@@ -284,12 +326,14 @@ def moisture_residual_is(
         outdoor_npls: ステップ n + 1 の外気の境界条件
         indoor_npls: ステップ n + 1 の室内の境界条件
         q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+        r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface。省くと雨なし）
 
     Returns:
         質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]
 
     Notes:
-        計算方法の文書の「熱・水分の収支」の式 (8) に対応する（左辺 - 右辺）。換気で入る水分は式 (5)。
+        計算方法の文書の「熱・水分の収支」の式 (8) に対応する（左辺 - 右辺）。換気で入る水分は式 (5)、
+        浸入する雨水は式 (14)（「熱・水分の収支」）、流れ落ちる水は式 (13)（「熱・水分の収支」）。
     """
 
     # 換気量を省いたときは、換気なし（どの質点も 0）
@@ -321,7 +365,12 @@ def moisture_residual_is(
 
     # 水分の収支の残差 res_m,i, kg/(m2 s), [i]
     # 式 (8) の左辺 - 右辺（「熱・水分の収支」）
-    res_m_is = (w_is_npls - w_is_n) / dt - (j_left_is_npls - j_right_is_npls + j_vent_is_npls)
+    # 浸入する雨水 j_rain,i,n+1 と流れ落ちる水 j_drain,i,n+1, kg/(m2 s), [i]（水膜の質点だけ）
+    # 式 (14)・(13)（「熱・水分の収支」）
+    j_rain_is_npls = rain_is(geometry, r_bv_npls)
+    j_drain_is_npls = drainage_is(geometry, t_is_npls, mu_is_npls)
+
+    res_m_is = (w_is_npls - w_is_n) / dt - (j_left_is_npls - j_right_is_npls + j_vent_is_npls + j_rain_is_npls - j_drain_is_npls)
     return res_m_is
 
 
@@ -334,11 +383,12 @@ def heat_residual_is(
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary,
         q_sol_npls: float = 0.0,
-        q_v_is_n: np.ndarray | None = None
+        q_v_is_n: np.ndarray | None = None,
+        r_bv_npls: float = 0.0
     ) -> np.ndarray:
     """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]。
 
-    たまる量 -（左のつながりの熱の流れ - 右のつながりの熱の流れ + 凝縮熱 + 外から直接入る熱 + 換気で入る熱）。
+    たまる量 -（左のつながりの熱の流れ - 右のつながりの熱の流れ + 凝縮熱 + 外から直接入る熱 + 換気で入る熱 + 雨水が持ち込む熱）。
     正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
@@ -351,12 +401,14 @@ def heat_residual_is(
         indoor_npls: ステップ n + 1 の室内の境界条件
         q_sol_npls: ステップ n + 1 の、外表面に外から直接入る熱 q_sol,n+1, W/m2（surface_radiation.get_solar_heat_gain）
         q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
+        r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface。省くと雨なし）
 
     Returns:
         質点ごとの熱の収支の残差 res_h,i, W/m2, [i]
 
     Notes:
-        計算方法の文書の「熱・水分の収支」の式 (9) に対応する（左辺 - 右辺）。換気で入る熱は式 (6)、凝縮熱は式 (7)。
+        計算方法の文書の「熱・水分の収支」の式 (9) に対応する（左辺 - 右辺）。換気で入る熱は式 (6)、凝縮熱は式 (7)、
+        雨水が持ち込む熱は式 (15)（「熱・水分の収支」）。
     """
 
     # 換気量を省いたときは、換気なし（どの質点も 0）
@@ -393,8 +445,12 @@ def heat_residual_is(
     # 式 (6)（「熱・水分の収支」）
     q_vent_is_npls = C_A * rho_a_ex_npls * q_v_is_n * (outdoor_npls.state.t - t_is_npls)
 
+    # 雨水が持ち込む熱 q_rain,i,n+1, W/m2, [i]（雨水は外気の温度で入ってくる。浸入する雨水が 0 の質点は 0）
+    # 式 (15)（「熱・水分の収支」）
+    q_rain_is_npls = C_W * rain_is(geometry, r_bv_npls) * (outdoor_npls.state.t - t_is_npls)
+
     # 熱の収支の残差 res_h,i, W/m2, [i]
     # 式 (9) の左辺 - 右辺（「熱・水分の収支」）
     res_h_is = c_is_npls * (t_is_npls - t_is_n) / dt - (
-        q_left_is_npls - q_right_is_npls + q_cond_is_npls + q_sol_is_npls + q_vent_is_npls)
+        q_left_is_npls - q_right_is_npls + q_cond_is_npls + q_sol_is_npls + q_vent_is_npls + q_rain_is_npls)
     return res_h_is

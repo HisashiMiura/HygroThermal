@@ -1,6 +1,6 @@
 """境界条件：ある時刻の外気と室内の条件（計算方法の文書の根拠「支配方程式と離散化」の 8 節）。
 
-外気と室内は、持つ値が違うので別のクラスにする（外気は日射・夜間放射を持つ。段階 7 で雨・風を足す）。
+外気と室内は、持つ値が違うので別のクラスにする（外気は日射・夜間放射と、雨・風を持つ）。
 壁の形の外気（Outdoor）・室内（Indoor）に対応する。
 """
 
@@ -74,7 +74,7 @@ def _check_state(state: State, where: str):
 class OutdoorBoundary:
     """ある時刻の外気の境界条件。
 
-    雨・風速・風向は、段階 7 で足す。
+    風は、高さ 10 m の風速の、北向きと東向きの成分で持つ（風が吹いていく向きを正とする）。
     """
 
     # 外気の状態（温度・水分化学ポテンシャル。温度 state.t、相対湿度 state.rh、水蒸気圧 state.p_v を取り出せる）
@@ -83,18 +83,39 @@ class OutdoorBoundary:
     # 太陽の位置と、日射・夜間放射（既定は、日射も夜間放射もない）
     solar: SolarRadiation = NO_SUN
 
+    # 水平面の降水量 r_h, mm/h（既定は、雨なし）
+    rain: float = 0.0
+
+    # 高さ 10 m の風速の北向きの成分 U_10,N, m/s（風が北へ吹いていくとき正。既定は、無風）
+    wind_north: float = 0.0
+
+    # 高さ 10 m の風速の東向きの成分 U_10,E, m/s（風が東へ吹いていくとき正。既定は、無風）
+    wind_east: float = 0.0
+
     def __post_init__(self):
         """作るときに値を確かめる。"""
         _check_state(self.state, where='外気')
+
+        # 降水量が負ならエラー
+        if not self.rain >= 0.0:
+            raise ValueError(f'降水量 rain は 0 以上にしてください（{self.rain}）。')
 
         # 日射が SolarRadiation でなければエラー
         if not isinstance(self.solar, SolarRadiation):
             raise ValueError(f'外気の solar は SolarRadiation にしてください（{type(self.solar).__name__}）。')
 
     @classmethod
-    def from_theta_rh(cls, theta: float, rh: float, solar: SolarRadiation = NO_SUN) -> Self:
-        """外気温（deg.C）と相対湿度（%）、日射から作る。"""
-        return cls(state=_state_from_theta_rh(theta, rh), solar=solar)
+    def from_theta_rh(
+            cls,
+            theta: float,
+            rh: float,
+            solar: SolarRadiation = NO_SUN,
+            rain: float = 0.0,
+            wind_north: float = 0.0,
+            wind_east: float = 0.0
+        ) -> Self:
+        """外気温（deg.C）と相対湿度（%）、日射、降水量（mm/h）、高さ 10 m の風速の北向き・東向きの成分（m/s）から作る。"""
+        return cls(state=_state_from_theta_rh(theta, rh), solar=solar, rain=rain, wind_north=wind_north, wind_east=wind_east)
 
 
 @dataclass(frozen=True, kw_only=True)

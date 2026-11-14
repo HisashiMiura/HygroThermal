@@ -11,6 +11,7 @@ import numpy as np
 from modules.balance import heat_residual_is, moisture_residual_is, ventilation_rate_is
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
+from modules.rain import get_rain_on_surface
 from modules.surface_radiation import get_solar_heat_gain
 from modules.air_water_properties import L_V
 from modules.wall_geometry import FilmNode, WallGeometry
@@ -76,6 +77,10 @@ def step(
     # 評価方法の「外表面の日射・夜間放射」のステップ n に、ここではステップ n + 1 の外気の値を入れる（後退差分）
     q_sol_npls = get_solar_heat_gain(geometry.surface, outdoor_npls.solar)
 
+    # ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（質点の状態によらないので、1 ステップの中では一定）
+    # 「雨水の浸入」の式 (2)
+    r_bv_npls = get_rain_on_surface(geometry.surface, outdoor_npls)
+
     # ステップ n の、通気層の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ステップ n の質点と外気の温度で求め、1 ステップの中では一定にする。
     # 換気量は √|ρ_a,ex - ρ_a,i| に比例し、外気と同じ温度の所で傾きが無限大になるので、ニュートン法の未知数に含めない）
     # 「通気層の換気」の式 (2)
@@ -91,9 +96,9 @@ def step(
         # 熱と水分の残差を、それぞれの許容値で割る
         # 式 (2)
         res_h_is = heat_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n) / HEAT_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n, r_bv_npls) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n, r_bv_npls) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         # 式 (2)

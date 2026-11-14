@@ -6,6 +6,7 @@
 段階 1（docs/design/class_structure.md）で作る。今の input_wall.py・wall.Layer は、置き換えが終わったら消す。
 """
 
+import warnings
 from dataclasses import dataclass
 from typing import Self
 
@@ -22,8 +23,14 @@ _AIR_LAYER_KEYS = ('air_layer', 'thickness', 'alpha', 'initial_temperature', 'in
 # 境目の入力の dict のキー（すべて必ず指定する）
 _INTERFACE_KEYS = ('g_h', 'g_m')
 
-# 水膜を置く境目（層と層の境目）の入力の dict のキー（どちらも省いてよい。省いたらデフォルトの値）
-_FILM_INTERFACE_KEYS = ('left', 'right')
+# 水膜を置く境目（層と層の境目）の入力の dict のキー（どれも省いてよい。左右は省いたらデフォルトの値、浸入する雨水の割合は 0）
+_FILM_INTERFACE_KEYS = ('left', 'right', 'rain_fraction')
+
+# 浸入する雨水の割合の合計が、これを超えたら warning を出す（ASHRAE Standard 160 のデフォルトの 1%）
+_RAIN_FRACTION_ASHRAE = 0.01
+
+# 雨水の浸入を扱う外表面の傾斜角の範囲, 度（鉛直 90 度 ± 5 度。ASHRAE Standard 160 は壁だけを扱う）
+_RAIN_ANGLE_TOLERANCE = 5.0
 
 # 水膜の片側のコンダクタンスのデフォルトの値（計算方法の文書の「熱・水分の流れ」の 3 節の表）
 # 材料と材料の境目の片側（2 つを直列にすると、熱 50 W/(m2 K)・湿気 7.75e-7 kg/(m2 s Pa)）
@@ -36,7 +43,7 @@ _DEFAULT_MATERIAL_SURFACE = {'g_h': 1000.0, 'g_m': 1.0e-5}
 _DEFAULT_AIR_SURFACE = {'g_h': 9.2, 'g_m': 3.43e-8}
 
 # 外表面の入力の dict のキー（すべて必ず指定する）
-_SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height')
+_SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height', 'exposure_factor', 'deposition_factor')
 
 # 壁の入力の dict のキー（すべて必ず指定する）
 _WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal')
@@ -287,21 +294,28 @@ class FilmInterfaceInput:
     # 水膜の右（室内側）のつながりの、境目のコンダクタンス
     right: InterfaceInput
 
+    # 外表面に当たる雨水のうち、この境目の水膜に浸入する割合 f_p, -（省くと 0：浸入しない）
+    rain_fraction: float = 0.0
+
     def __post_init__(self):
         """作るときに値を確かめる。"""
 
         # 左右が InterfaceInput でなければエラー
-        for key in _FILM_INTERFACE_KEYS:
+        for key in ('left', 'right'):
             value = getattr(self, key)
             if not isinstance(value, InterfaceInput):
                 raise ValueError(f'水膜の {key} は InterfaceInput にしてください（{type(value).__name__}）。')
+
+        # 浸入する雨水の割合が 0 以上 1 以下でなければエラー
+        if not 0.0 <= self.rain_fraction <= 1.0:
+            raise ValueError(f'浸入する雨水の割合 rain_fraction は 0 以上 1 以下にしてください（{self.rain_fraction}）。')
 
     @classmethod
     def from_dict(cls, d: dict, default_left: dict, default_right: dict) -> Self:
         """dict から作る。
 
         Args:
-            d: {'left', 'right'}（どちらも {'g_h', 'g_m'}。省いたものはデフォルトの値にする）
+            d: {'left', 'right', 'rain_fraction'}（左右は {'g_h', 'g_m'}。省いた側はデフォルトの値、rain_fraction は省くと 0）
             default_left: 左を省いたときの {'g_h', 'g_m'}（境目の両側の層の種類で決まる。_film_defaults）
             default_right: 右を省いたときの {'g_h', 'g_m'}
         """
@@ -316,7 +330,7 @@ class FilmInterfaceInput:
         left = _from_dict_at(InterfaceInput.from_dict, d.get('left', default_left), at='left')
         right = _from_dict_at(InterfaceInput.from_dict, d.get('right', default_right), at='right')
 
-        return cls(left=left, right=right)
+        return cls(left=left, right=right, rain_fraction=d.get('rain_fraction', 0.0))
 
 
 def _film_defaults(left_layer: 'LayerInput', right_layer: 'LayerInput') -> tuple[dict, dict]:
@@ -367,6 +381,12 @@ class SurfaceInput:
     # 風速を求める評価高さ, m
     eva_height: float
 
+    # 雨水暴露係数 F_E, -（ASHRAE Standard 160 の表 4.6.1。建物の高さと暴露の分類で選ぶ）
+    exposure_factor: float
+
+    # 雨水付着係数 F_D, -（ASHRAE Standard 160。急勾配の屋根の下の壁 0.35、緩勾配の屋根の下の壁 0.5、流下雨水を受ける壁 1.0）
+    deposition_factor: float
+
     def __post_init__(self):
         """作るときに値を確かめる。"""
 
@@ -397,12 +417,18 @@ class SurfaceInput:
         if not self.eva_height > 0.0:
             raise ValueError(f'評価高さ eva_height は 0 より大きくしてください（{self.eva_height}）。')
 
+        # 雨水暴露係数・雨水付着係数が 0 以上でなければエラー
+        for key in ('exposure_factor', 'deposition_factor'):
+            value = getattr(self, key)
+            if not value >= 0.0:
+                raise ValueError(f'{key} は 0 以上にしてください（{value}）。')
+
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         """dict から作る。方位は文字列（'s'・'sw'・'w'・'nw'・'n'・'ne'・'e'・'se'・'top'・'bottom'）で受け取る。
 
         Args:
-            d: {'direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height'}（すべて必ず指定する）
+            d: {'direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height', 'exposure_factor', 'deposition_factor'}（すべて必ず指定する）
         """
 
         _check_keys(d, _SURFACE_KEYS, where='外表面の入力')
@@ -470,6 +496,24 @@ class WallInput:
             expected = InterfaceInput if is_surface else FilmInterfaceInput
             if not isinstance(interface, expected):
                 raise ValueError(f'境目 interfaces の {i} 番目は {expected.__name__} にしてください（{type(interface).__name__}）。')
+
+        # 浸入する雨水の割合の合計が 1 を超えればエラー、ASHRAE Standard 160 のデフォルト（1%）を超えれば warning
+        total = sum(x.rain_fraction for x in self.interfaces[1:-1])
+        if total > 1.0:
+            raise ValueError(f'浸入する雨水の割合 rain_fraction の合計は 1 以下にしてください（{total}）。')
+        if total > _RAIN_FRACTION_ASHRAE:
+            warnings.warn(f'浸入する雨水の割合 rain_fraction の合計 {total} は、ASHRAE Standard 160 のデフォルト'
+                          f'（外装材の表面に達する雨水の {_RAIN_FRACTION_ASHRAE * 100:g}%）より多くなっています。', stacklevel=2)
+
+        # 雨水が浸入するのに、外表面が鉛直（90 度 ± 5 度）でなければエラー、鉛直の範囲でも 90 度でなければ warning
+        # （ASHRAE Standard 160 の壁面の雨量の式は鉛直な壁の式で、屋根は扱わない）
+        if total > 0.0:
+            tilt = abs(self.surface.angle - 90.0)
+            if tilt > _RAIN_ANGLE_TOLERANCE:
+                raise ValueError(f'雨水の浸入は鉛直な壁（傾斜角 90 度 ± {_RAIN_ANGLE_TOLERANCE:g} 度）だけで扱います。'
+                                 f'傾斜角 {self.surface.angle} 度の面では、rain_fraction を 0 にしてください。')
+            if tilt > 0.0:
+                warnings.warn(f'傾斜角 {self.surface.angle} 度の面を、鉛直な壁として雨水の浸入を計算します。', stacklevel=2)
 
         # いちばん外側・いちばん内側の層が通気層ならエラー（外気・室内に面する表面には材料の質点が要る）
         if isinstance(self.layers[0], AirLayerInput) or isinstance(self.layers[-1], AirLayerInput):
