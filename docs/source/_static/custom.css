@@ -41,3 +41,27 @@ div.symbols dl dd {
 div.symbols dl dd p {
     margin: 0 !important;
 }
+
+/* 注（参考文献と注を通し番号で並べる）：「[n]　本文」を 2 列にそろえ、本文より少し小さい字にする */
+div.notes {
+    font-size: 0.9em;
+}
+div.notes dl {
+    display: grid;
+    grid-template-columns: max-content auto;
+    column-gap: 1em;
+    row-gap: 0.6em;
+}
+div.notes dl dt {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    font-weight: normal !important;
+}
+div.notes dl dd {
+    margin: 0 !important;
+}
+div.notes dl dd p:first-child {
+    margin-top: 0 !important;
+}
