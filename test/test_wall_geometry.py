@@ -126,7 +126,7 @@ def _air_layer() -> AirLayerInput:
 
 
 def _main_wall_layers() -> tuple:
-    """今の main.py・Fortran の入力の壁 7 層。"""
+    """Fortran の入力の壁 7 層。"""
     return (
         _layer('サイディング', 0.016, 5), _air_layer(), _layer('石膏ボード', 0.042, 5), _layer('構造用合板1', 0.009, 6),
         _layer('グラスウール1', 0.1, 5), _layer('構造用合板1', 0.012, 6), _layer('石膏ボード', 0.042, 5),
@@ -298,7 +298,7 @@ def _lambda(name: str) -> float:
 
 
 def _main_wall_interfaces() -> tuple:
-    """今の main.py・Fortran の入力の壁の境目 8 個（外表面、通気層の両側、接触、防湿層、内表面。層と層の境目は水膜の左右 2 組）。"""
+    """Fortran の入力の壁の境目 8 個（外表面、通気層の両側、接触、防湿層、内表面。層と層の境目は水膜の左右 2 組）。"""
     return WallInput.from_dict(_main_wall_dict()).interfaces
 
 
@@ -463,7 +463,7 @@ class TestSurface:
 
 
 def _main_wall_dict() -> dict:
-    """今の main.py・Fortran の入力の壁の dict（test_wall_input.py の _wall_dict と同じ壁）。"""
+    """Fortran の入力の壁の dict（test_wall_input.py の _wall_dict と同じ壁）。"""
 
     def m(name, thickness, n_div, temperature, rh):
         return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,

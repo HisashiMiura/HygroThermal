@@ -2,8 +2,6 @@
 
 入力の dict から作り、値がそろっていておかしくないことを、作るときに 1 回だけ確かめる。
 作ったあとは値を変えない（frozen）。計算する部品は、ここで確かめた値だけを受け取る。
-
-段階 1（docs/design/class_structure.md）で作る。今の input_wall.py・wall.Layer は、置き換えが終わったら消す。
 """
 
 import warnings

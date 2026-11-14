@@ -3,7 +3,6 @@
 各値のコメントは、1 行目に「名前 記号, 単位」（無次元は -）、2 行目に「式 (k)」と補足を書く。
 コメントの「式 (k)」は、計算方法の文書の「外表面の日射・夜間放射」（docs/source/contents/03_09_eval_surface_solar.md）の式の番号。
 変数の名前は、その節の記号に合わせる。ステップ n の値には、記号と同じく _n を付ける（例：cos ψ_n は cos_psi_n）。時刻によらない値（β_w・α_w・F_sky）には付けない。
-今の surface_solar.py・wall_surface.py（古いコード）は、段階 8 で消す。
 """
 
 import numpy as np

@@ -6,7 +6,7 @@ from modules.wall_input import WallInput
 
 
 def _main_wall_dict() -> dict:
-    """今の main.py・Fortran の入力の壁の dict（test_wall_geometry.py の _main_wall_dict と同じ壁）。"""
+    """Fortran の入力の壁の dict（test_wall_geometry.py の _main_wall_dict と同じ壁）。"""
 
     def m(name, thickness, n_div, temperature, rh):
         return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,

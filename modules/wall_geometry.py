@@ -1,7 +1,6 @@
 """壁の形（時間で変わらないもの）：質点とつながり。
 
-壁の入力（wall_input.WallInput）から作る。段階 2（docs/design/class_structure.md）で作る。
-今の cell.py・wall.py の Cell と質点の配列は、置き換えが終わったら消す。
+壁の入力（wall_input.WallInput）から作る。
 
 計算方法の文書の評価方法との対応：質点の分け方とつながり（_make_nodes・_make_links）は「壁の構成と質点」、
 つながりの抵抗（Link・Interface、質点の r_h_left など）は「熱・水分の流れ」、水分量・熱容量（water_amount・heat_capacity）と水膜の質点（FilmNode）は「熱・水分の収支」、

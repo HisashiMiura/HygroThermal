@@ -274,7 +274,7 @@ class TestSurfaceInput:
             SurfaceInput.from_dict(d)
 
     def test_unknown_key(self):
-        # 今の InputWall の打ち間違いのキー 'absoption' はエラー
+        # 消した古い入力（InputWall）が使っていた打ち間違いのキー 'absoption' はエラー
         d = _surface_dict()
         d['absoption'] = 0.9
         with pytest.raises(ValueError, match='absoption'):
@@ -299,7 +299,7 @@ class TestSurfaceInput:
 
 
 def _wall_kwargs() -> dict:
-    """壁の正しい入力の値（今の main.py・Fortran の入力の壁 7 層、境目 8 個）。"""
+    """壁の正しい入力の値（Fortran の入力の壁 7 層、境目 8 個）。"""
 
     def m(name, thickness, n_div, temperature, rh):
         return MaterialLayerInput(source='whamcavity', name=name, thickness=thickness, n_div=n_div,

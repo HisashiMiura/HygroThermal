@@ -1,11 +1,11 @@
-"""今の壁 7 層を、気象データと室内の余弦の条件で 2 年間計算し、結果の図を描く（段階 6-5）。
+"""Fortran の入力の壁 7 層を、気象データと室内の余弦の条件で 2 年間計算し、結果の図を描く。
 
 使い方（リポジトリの一番上のフォルダで）：
     python examples/one_year_main_wall.py            # Δt = 3600 秒
     python examples/one_year_main_wall.py --dt 900   # Δt = 900 秒（Δt で答えが変わらないかを比べる）
 
 結果の数値（npz）と図（png）は examples/output/ に書き出す（git には入れない）。
-まだ入っていないもの：通気層の換気・雨・結露した水（段階 7）。結露したら Condensation で止まる。
+通気層の換気、境目の水膜、材料の中の自由水、木材腐朽（構造用合板の 2 層）を含む。雨水を浸入させる境目はない。
 """
 
 import argparse
@@ -43,7 +43,7 @@ _SURFACE = '#fcfcfb'
 
 
 def _main_wall_input() -> WallInput:
-    """今の main.py・Fortran の入力の壁 7 層（test/test_solver.py の _main_wall と同じ）。構造用合板の 2 層で木材腐朽を求める。"""
+    """Fortran の入力の壁 7 層（test/test_solver.py の _main_wall と同じ）。構造用合板の 2 層で木材腐朽を求める。"""
 
     def m(name, thickness, n_div, temperature, rh, wood_decay=False):
         return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,

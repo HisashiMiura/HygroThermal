@@ -46,7 +46,7 @@ def _one_layer(
 
 
 def _main_wall() -> tuple[WallGeometry, WallState]:
-    """今の main.py・Fortran の入力の壁 7 層（通気層を含む。換気はまだ扱わない）。"""
+    """Fortran の入力の壁 7 層（通気層を含む。換気はまだ扱わない）。"""
 
     def m(name, thickness, n_div, temperature, rh):
         return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,

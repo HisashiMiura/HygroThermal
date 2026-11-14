@@ -4,7 +4,6 @@
 コメントの「式 (k)」は、計算方法の文書の「室内の条件」（docs/source/contents/03_08_eval_indoor.md）の式の番号。
 変数の名前は、その節の記号に合わせる。ステップ n の値には、記号と同じく _n を付ける（例：θ_in,n は theta_in_n）。
 経過時間の起点は 1 月 1 日 0 時、1 年は 365 日（time_axis.py）。
-今の room.Room（ステップ番号で配列から取り出す）は、置き換えが終わったら消す。
 """
 
 from dataclasses import dataclass
