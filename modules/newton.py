@@ -21,8 +21,9 @@ Residual = Callable[[np.ndarray], np.ndarray]
 MAX_HALVING = 10
 
 # 残差を計算するときに、未知数が計算できない範囲に入ったときに出るエラー
-# （0 で割る、exp があふれる、負の数の対数など。数値の誤り ArithmeticError と、値の誤り ValueError）
-_RESIDUAL_ERRORS = (ArithmeticError, ValueError)
+# （0 で割る、exp があふれる、負の数の対数など。数値の誤り ArithmeticError と、値の誤り ValueError。
+# 負の数の小数乗は複素数になり、それを math の関数に渡すと型の誤り TypeError になる）
+_RESIDUAL_ERRORS = (ArithmeticError, ValueError, TypeError)
 
 
 class NewtonNotConverged(RuntimeError):

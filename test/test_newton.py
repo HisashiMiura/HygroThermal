@@ -133,6 +133,13 @@ class TestNewtonSolve:
         with pytest.raises(NewtonNotConverged):
             newton_solve(lambda x: np.array([math.log(v) for v in x]), np.full(3, -1.0), band=(1, 1), tol=1e-10)
 
+    def test_residual_type_error_in_line_search(self):
+        # F = 1 - exp(-x^0.5) - 0.5（答え (ln 2)^2）：x0 = 4 では傾きが小さく、修正をそのまま足すと x < 0 へ行き過ぎる。
+        # x < 0 では x^0.5 が複素数になり（Python の float の場合）math.exp が TypeError を出すが、計算できなかったとして修正の幅を小さくし、収束する
+        f = lambda x: np.array([1.0 - math.exp(-float(v) ** 0.5) - 0.5 for v in x])
+        x_ps, _ = newton_solve(f, np.full(3, 4.0), band=(1, 1), tol=1e-10)
+        np.testing.assert_allclose(x_ps, math.log(2.0) ** 2, rtol=1e-8)
+
     def test_line_search(self):
         # F = atan(x)：x0 = 2 から修正をそのまま足すと、答え 0 を飛び越えて発散する（ふつうのニュートン法の失敗例）。
         # 修正の幅を小さくすれば、収束する
