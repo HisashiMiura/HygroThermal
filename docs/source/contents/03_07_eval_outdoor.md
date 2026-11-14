@@ -285,3 +285,7 @@ $$ (oc-rh)
 ステップ $n$ の太陽高度の正弦 $\sin h_{\mathrm{sun},n}$ と余弦 $\cos h_{\mathrm{sun},n}$、太陽方位角の正弦 $\sin a_{\mathrm{sun},n}$ と余弦 $\cos a_{\mathrm{sun},n}$ は、緯度 $\phi_{\mathrm{lat}}$、経度 $\lambda_{\mathrm{lon}}$、時刻 $t_n$ から、「{doc}`太陽位置 <03_06_eval_solar_position>`」により計算される。
 
 「{doc}`太陽位置 <03_06_eval_solar_position>`」には、1 年の中での時刻 $t_{\mathrm{y},n}$ ではなく、時刻 $t_n$ を与える。通算日とその日の標準時は、「{doc}`太陽位置 <03_06_eval_solar_position>`」の中で $t_n$ から求める。
+
+## 9 根拠
+
+日射・夜間放射の時刻の表し方と確かめ方、1 時間の中を一定にする理由、区間の終わりの時刻を含める理由、湿度を水蒸気圧で補う理由、表し方を取り違えたときの影響、このプログラムの気象データの確かめの結果は、「{doc}`気象データと時刻 <04_04_basis_weather_time>`」に示す。
