@@ -17,6 +17,9 @@ from modules.material_loaders import MATERIAL_SOURCES
 # 材料の層の入力の dict のキー（すべて必ず指定する）
 _MATERIAL_LAYER_KEYS = ('source', 'name', 'thickness', 'n_div', 'initial_temperature', 'initial_rh')
 
+# 材料の層の入力の dict の、省いてよいキー（空隙率。省くと自由水の上限を確かめない）
+_MATERIAL_LAYER_OPTIONAL_KEYS = ('porosity',)
+
 # 通気層の入力の dict のキー（すべて必ず指定する。'air_layer' は True）
 _AIR_LAYER_KEYS = ('air_layer', 'thickness', 'alpha', 'initial_temperature', 'initial_rh')
 
@@ -49,13 +52,14 @@ _SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'e
 _WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal')
 
 
-def _check_keys(d: dict, required: tuple[str, ...], where: str):
+def _check_keys(d: dict, required: tuple[str, ...], where: str, optional: tuple[str, ...] = ()):
     """dict のキーを確かめる。必ず指定するキーがない、または知らないキー（打ち間違いなど）があればエラーにする。
 
     Args:
         d: 入力の dict
-        required: 必ず指定するキー（これ以外のキーは使えない）
+        required: 必ず指定するキー
         where: エラーのメッセージに出す、どの入力か
+        optional: 省いてよいキー（必ず指定するキーと、省いてよいキーのほかは使えない）
     """
 
     # 必ず指定するキーのうち、dict にないものを集める。1 つでもあればエラー
@@ -64,9 +68,9 @@ def _check_keys(d: dict, required: tuple[str, ...], where: str):
         raise ValueError(f'{where} に {missing} がありません。')
 
     # dict のキーのうち、使えるキーにないもの（打ち間違いなど）を集める。1 つでもあればエラー
-    unknown = sorted(set(d) - set(required))
+    unknown = sorted(set(d) - set(required) - set(optional))
     if unknown:
-        raise ValueError(f'{where} に知らないキー {unknown} があります（使えるキー: {list(required)}）。')
+        raise ValueError(f'{where} に知らないキー {unknown} があります（使えるキー: {list(required) + list(optional)}）。')
 
 
 def _from_dict_at(from_dict, d, at: str):
@@ -114,6 +118,9 @@ class MaterialLayerInput:
     # 初期の相対湿度, %
     initial_rh: float
 
+    # 空隙率 ψ, -（省くと None：自由水の上限を確かめない。計算方法の文書の「熱・水分の収支」の 7 節）
+    porosity: float | None = None
+
     def __post_init__(self):
         """作るときに値を確かめる（直接作っても、from_dict で作っても働く）。
 
@@ -144,17 +151,22 @@ class MaterialLayerInput:
         if not 0.0 < self.initial_rh < 100.0:
             raise ValueError(f'初期の相対湿度 initial_rh は 0 より大きく 100 より小さくしてください（{self.initial_rh}）。')
 
+        # 空隙率を与えたとき、真偽値か、0 より大きく 1 以下でなければエラー（空隙の体積の割合なので）
+        if self.porosity is not None and (isinstance(self.porosity, bool) or not 0.0 < self.porosity <= 1.0):
+            raise ValueError(f'空隙率 porosity は 0 より大きく 1 以下にしてください（{self.porosity!r}）。')
+
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         """dict から作る。
 
         Args:
-            d: {'source', 'name', 'thickness', 'n_div', 'initial_temperature', 'initial_rh'}（すべて必ず指定する）
+            d: {'source', 'name', 'thickness', 'n_div', 'initial_temperature', 'initial_rh'}（すべて必ず指定する）と、
+               'porosity'（省いてよい）
         """
 
-        _check_keys(d, _MATERIAL_LAYER_KEYS, where='材料の層の入力')
+        _check_keys(d, _MATERIAL_LAYER_KEYS, where='材料の層の入力', optional=_MATERIAL_LAYER_OPTIONAL_KEYS)
 
-        return cls(**{k: d[k] for k in _MATERIAL_LAYER_KEYS})
+        return cls(**{k: d[k] for k in _MATERIAL_LAYER_KEYS + _MATERIAL_LAYER_OPTIONAL_KEYS if k in d})
 
 
 @dataclass(frozen=True, kw_only=True)

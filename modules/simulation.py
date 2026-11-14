@@ -74,7 +74,8 @@ def simulate(
         時間を進めた結果
 
     Raises:
-        Condensation: 結露して、相対湿度 100% 以下では収支が合わないとき（solver.step）
+        Condensation: 通気層の空気の質点で結露して、相対湿度 100% 以下では収支が合わないとき（solver.step）
+        PoresFilled: 空隙率を与えた材料の質点の水分量が、空隙を水で満たす水分量を超えたとき（solver.step）
         NewtonNotConverged: それ以外の理由で収束しなかったとき（solver.step）
 
     Notes:

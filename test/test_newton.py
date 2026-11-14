@@ -155,6 +155,29 @@ class TestNewtonSolve:
         x_ps, _ = newton_solve(lambda x: x - 0.3, np.zeros(3), band=(1, 1), tol=1e-10, x_max_ps=np.full(3, 0.5))
         np.testing.assert_allclose(x_ps, 0.3)
 
+    def test_stop_backward_difference(self):
+        # 止める値にいる未知数と、ずらすと止める値をまたぐ未知数は、小さい側にずらして傾きを測る
+        # F = min(x, 0) + 0.001 max(x, 0)：x ≤ 0 では傾き 1、x > 0 では傾き 0.001。x = 0 と、x がわずかに負のとき、傾き 1 になること
+        f = lambda x: np.minimum(x, 0.0) + 0.001 * np.maximum(x, 0.0)
+        for x0 in (0.0, -1e-9):
+            ab = _banded_jacobian(f, np.full(3, x0), f(np.full(3, x0)), band=(1, 1), x_stop_ps=np.zeros(3))
+            np.testing.assert_allclose(ab[1], 1.0, rtol=1e-6)
+
+        # 止める値より大きい未知数は、ふつうに大きい側にずらす（傾き 0.001）
+        ab = _banded_jacobian(f, np.full(3, 1.0), f(np.full(3, 1.0)), band=(1, 1), x_stop_ps=np.zeros(3))
+        np.testing.assert_allclose(ab[1], 0.001, rtol=1e-6)
+
+    def test_stop(self):
+        # F = x - 1（答え 1）に、止める値 0.5 を付ける。1 回目の修正は 0.5 で止まり、2 回目の修正で答えに着く（止める値は上限ではない）
+        x_ps, m = newton_solve(lambda x: x - 1.0, np.zeros(3), band=(1, 1), tol=1e-10, x_stop_ps=np.full(3, 0.5))
+        np.testing.assert_allclose(x_ps, 1.0)
+        assert m == 2
+
+        # 大きい側から小さい側へまたぐときも、いったん止まる（答え 0、始め 1）
+        x_ps, m = newton_solve(lambda x: x, np.ones(3), band=(1, 1), tol=1e-10, x_stop_ps=np.full(3, 0.5))
+        np.testing.assert_allclose(x_ps, 0.0, atol=1e-12)
+        assert m == 2
+
     def test_same_as_fsolve(self):
         # 同じ非線形の式を scipy の fsolve（MINPACK）でも解き、答えが一致することで正しさを確かめる
         n = 10

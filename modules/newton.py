@@ -58,7 +58,8 @@ def _banded_jacobian(
         x_ps: np.ndarray,
         f_ps: np.ndarray,
         band: tuple[int, int],
-        x_max_ps: np.ndarray | None = None
+        x_max_ps: np.ndarray | None = None,
+        x_stop_ps: np.ndarray | None = None
     ) -> np.ndarray:
     """数値微分で、帯のヤコビ行列を詰めた形で作る。
 
@@ -66,6 +67,8 @@ def _banded_jacobian(
     帯の幅 w = l + u + 1 ごとに離れた未知数（q, q + w, q + 2w, …）は、影響する式が重ならないので同時にずらす。
     そのため、残差を計算する回数は w 回（未知数の数によらない）。
     ずらすと上限を超える未知数は、反対の向きにずらす（上限の外の、残差が平らなところで傾きを測らないため）。
+    止める値にいる未知数と、ずらすと止める値をまたぐ未知数も、反対の向き（止める値より小さい側）にずらす
+    （傾きが大きく変わる値の、小さい側の傾きを測るため）。
 
     Args:
         f: 残差の関数
@@ -73,6 +76,7 @@ def _banded_jacobian(
         f_ps: x_ps での残差の並び, [p]（呼ぶ側で計算済みのものを使い回す）
         band: ヤコビ行列の帯の幅 (対角の下の本数 l, 上の本数 u)
         x_max_ps: 未知数の上限, [p]（省略すると上限なし）
+        x_stop_ps: 未知数を 1 回の修正でまたがせない値, [p]（省略するとどの未知数も止めない）
 
     Returns:
         帯のヤコビ行列の詰めた形 ab（形は (l + u + 1, 未知数の数)）
@@ -94,11 +98,13 @@ def _banded_jacobian(
     w = l + u + 1
 
     # ずらす量 h_q, [q]（値の大きさに比例させる。値が 0 に近いときは 1 を基準にする）
-    # ずらすと上限を超える未知数は、反対の向きにずらす
+    # ずらすと上限を超える未知数と、止める値にいるか、ずらすと止める値をまたぐ未知数は、反対の向きにずらす
     # 式 (7)
     h_ps = np.sqrt(np.finfo(float).eps) * np.maximum(np.abs(x_ps), 1.0)
     if x_max_ps is not None:
         h_ps = np.where(x_ps + h_ps > x_max_ps, -h_ps, h_ps)
+    if x_stop_ps is not None:
+        h_ps = np.where((x_ps <= x_stop_ps) & (x_ps + h_ps > x_stop_ps), -h_ps, h_ps)
 
     ab = np.zeros((w, n))
 
@@ -132,7 +138,8 @@ def newton_solve(
         tol: float,
         max_iter: int = 20,
         min_iter: int = 0,
-        x_max_ps: np.ndarray | None = None
+        x_max_ps: np.ndarray | None = None,
+        x_stop_ps: np.ndarray | None = None
     ) -> tuple[np.ndarray, int]:
     """ニュートン・ラフソン法で、残差 F(x) = 0 となる x を求める。
 
@@ -143,6 +150,9 @@ def newton_solve(
     （直線探索。最大 MAX_HALVING 回）。答えの近くでは Δx がそのまま通るので、ふつうのニュートン法と同じになる。
     上限 x_max_ps を渡すと、修正した x が上限を超えるときは上限に置き換える（上限の外で残差が平らになり、
     ヤコビ行列が特異に近くなって、次の修正が途方もなく大きくなるのを防ぐ）。
+    止める値 x_stop_ps を渡すと、1 回の修正で、止める値より小さい x がそれを超えるときは、いったん止める値に置き換える
+    （残差の傾きが大きく変わる値をまたいで、大きく行き過ぎるのを防ぐ。止める値にいる x は、次の修正で超えてよい）。
+    大きい側から小さい側へまたぐときも同じ。止める値にいる x のヤコビ行列は、小さい側で求める。
 
     Args:
         f: 残差の関数
@@ -152,6 +162,7 @@ def newton_solve(
         max_iter: 修正の回数の上限
         min_iter: 修正の回数の下限（最初の仮の値の残差が tol 以下でも、この回数は修正する）
         x_max_ps: 未知数の上限, [p]（上限のない未知数は inf。省略すると上限なし）
+        x_stop_ps: 未知数を 1 回の修正でまたがせない値, [p]（止めない未知数は inf。省略するとどの未知数も止めない）
 
     Returns:
         答え x_ps, [p]、修正した回数
@@ -168,6 +179,9 @@ def newton_solve(
 
     # 未知数の上限, [p]（省略したら、どの未知数も上限なし）
     x_max_ps = np.full(len(x_ps), np.inf) if x_max_ps is None else np.asarray(x_max_ps, dtype=float)
+
+    # 未知数を 1 回の修正でまたがせない値, [p]（省略したら、どの未知数も止めない）
+    x_stop_ps = np.full(len(x_ps), np.inf) if x_stop_ps is None else np.asarray(x_stop_ps, dtype=float)
 
     # 最初の仮の値の残差（計算できなければ、始められないので止める）
     f_ps = _try_residual(f, x_ps)
@@ -186,7 +200,7 @@ def newton_solve(
             break
 
         # 帯のヤコビ行列
-        ab = _banded_jacobian(f, x_ps, f_ps, band, x_max_ps)
+        ab = _banded_jacobian(f, x_ps, f_ps, band, x_max_ps, x_stop_ps)
 
         # J Δx = -F を解く。ヤコビ行列が解けない（特異な）ときは、収束しなかったとして止める
         # 式 (8)
@@ -200,6 +214,9 @@ def newton_solve(
         # 式 (9)・(10)
         for s in range(MAX_HALVING + 1):
             x_new_ps = np.minimum(x_ps + dx_ps / 2 ** s, x_max_ps)
+            x_new_ps = np.where(
+                ((x_ps < x_stop_ps) & (x_new_ps > x_stop_ps)) | ((x_ps > x_stop_ps) & (x_new_ps < x_stop_ps)),
+                x_stop_ps, x_new_ps)
             f_new_ps = _try_residual(f, x_new_ps)
             if f_new_ps is not None and (
                     np.sum(f_new_ps ** 2) < np.sum(f_ps ** 2) or np.max(np.abs(f_new_ps)) <= tol):

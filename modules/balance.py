@@ -12,7 +12,7 @@ import numpy as np
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.state import State
 from modules.air_water_properties import C_A, C_W, L_V, R_V, get_rho_a
-from modules.wall_geometry import AirNode, FilmNode, WallGeometry
+from modules.wall_geometry import AirNode, FilmNode, MaterialNode, WallGeometry
 
 
 def heat_flow_ks(
@@ -58,19 +58,23 @@ def heat_flow_ks(
 def _mu_is(geometry: WallGeometry, x_is_n: np.ndarray) -> np.ndarray:
     """ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]。
 
-    状態の水分化学ポテンシャルの欄は、水膜の質点では水膜の状態量 s_i,n なので、水分化学ポテンシャルに直す（ほかの質点はそのまま）。
+    状態の水分化学ポテンシャルの欄は、水膜の質点と材料の質点では状態量 s_i,n なので、水分化学ポテンシャルに直す
+    （空気の質点はそのまま。解き方で 0 以下に抑えている）。
 
     Args:
         geometry: 壁の形
-        x_is_n: ステップ n の状態の水分化学ポテンシャルの欄, [i]（水膜の質点では s_i,n）
+        x_is_n: ステップ n の状態の水分化学ポテンシャルの欄, [i]（水膜の質点と材料の質点では s_i,n）
 
     Returns:
         ステップ n の各質点の水分化学ポテンシャル μ_i,n, J/kg, [i]
 
     Notes:
-        水膜の質点は、計算方法の文書の「熱・水分の収支」の式 (10) に対応する。
+        計算方法の文書の「熱・水分の収支」の式 (10)（水膜の質点）・(16)（材料の質点）に対応する。
     """
-    return np.array([FilmNode.mu(x) if isinstance(node, FilmNode) else x for node, x in zip(geometry.nodes, x_is_n)])
+    return np.array([
+        node.mu(x) if isinstance(node, (FilmNode, MaterialNode)) else x
+        for node, x in zip(geometry.nodes, x_is_n)
+    ])
 
 
 def _state_left_right_ks(

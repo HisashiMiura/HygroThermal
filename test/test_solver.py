@@ -5,12 +5,12 @@ from modules.balance import drainage_is, heat_capacity_is, rain_is, heat_flow_ks
 from modules.boundary import IndoorBoundary, OutdoorBoundary, SolarRadiation
 from modules.newton import NewtonNotConverged
 from modules.rain import get_rain_on_surface
-from modules.solver import HEAT_RESIDUAL_TOL, MOISTURE_RESIDUAL_TOL, Condensation, step
+from modules.solver import HEAT_RESIDUAL_TOL, MOISTURE_RESIDUAL_TOL, Condensation, PoresFilled, step
 from modules.state import State
 from modules.surface_radiation import get_solar_heat_gain
-from modules.air_water_properties import C_A, L_V, T_0, get_mu, get_p_vs, get_rho_a
+from modules.air_water_properties import C_A, L_V, R_V, RHO_W, T_0, get_mu, get_p_vs, get_rho_a
 from modules.wall_builder import build_wall
-from modules.wall_geometry import AirNode, WallGeometry
+from modules.wall_geometry import AirNode, MaterialNode, WallGeometry
 from modules.wall_input import WallInput
 from modules.wall_state import WallState
 
@@ -27,12 +27,19 @@ def _indoor(theta: float, rh: float) -> IndoorBoundary:
     return IndoorBoundary.from_theta_rh(theta=theta, rh=rh)
 
 
-def _one_layer(name: str, thickness: float, n_div: int, theta: float, rh: float) -> tuple[WallGeometry, WallState]:
-    """1 層の壁（外表面 22.4・2.0e-11、内表面 9.2・2.6e-10）。初期は theta（deg.C）・rh（%）で一様。"""
+def _one_layer(
+        name: str,
+        thickness: float,
+        n_div: int,
+        theta: float,
+        rh: float,
+        **layer
+    ) -> tuple[WallGeometry, WallState]:
+    """1 層の壁（外表面 22.4・2.0e-11、内表面 9.2・2.6e-10）。初期は theta（deg.C）・rh（%）で一様。layer は層の入力に足すキー（porosity など）。"""
     return build_wall(WallInput.from_dict({
         'surface': _SURFACE,
         'layers': [{'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,
-                    'initial_temperature': theta, 'initial_rh': rh}],
+                    'initial_temperature': theta, 'initial_rh': rh, **layer}],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 1.0, 'len_horizontal': 1.0,
     }))
@@ -163,15 +170,6 @@ class TestStep:
         q_vent = C_A * get_rho_a(outdoor.state.t) * q_v_is[i_air] * (outdoor.state.t - state.t_is[i_air])
         assert q_v_is[i_air] > 0.0
         assert q_h_ks[i_air] - q_h_ks[i_air + 1] + q_vent == pytest.approx(0.0, abs=1e-4)
-
-    def test_condensation(self):
-        # 構造用合板1 の 1 層、外気 -5 deg.C・90%、室内 25 deg.C・95%。
-        # 室内側から入る水蒸気を外表面から逃がせず、外側の質点（0 番目）が飽和すると、結露として止まる
-        g, state = _one_layer('構造用合板1', 0.009, 6, 0.0, 95.0)
-        outdoor, indoor = _outdoor(-5.0, 90.0), _indoor(25.0, 95.0)
-        with pytest.raises(Condensation, match='質点 0（層 0'):
-            for _ in range(24 * 30):
-                state, _ = step(g, state, dt=3600.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
 
     def test_condensation_is_not_converged(self):
         # 結露は、収束しなかったことの一種（NewtonNotConverged で受けても捕まえられる）
@@ -345,6 +343,80 @@ class TestFilm:
         h_stored = (heat_capacity_is(g, state_npls.t_is, state_npls.mu_is) * (state_npls.t_is - state.t_is)).sum()
         q_ks = _total_heat_flow_ks(g, state_npls, outdoor, indoor)
         assert h_stored == pytest.approx((q_ks[0] - q_ks[-1]) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
+
+
+class TestFreeWater:
+
+    # 構造用合板1 の 1 層、外気 -5 deg.C・90%、室内 25 deg.C・95%（室内側から入る水蒸気を外表面から逃がせず、外側の質点が飽和する）
+    _WET = (_outdoor(-5.0, 90.0), _indoor(25.0, 95.0))
+
+    # 乾いた条件（外気・室内とも 25 deg.C・40%）
+    _DRY = (_outdoor(25.0, 40.0), _indoor(25.0, 40.0))
+
+    def test_forms(self):
+        # 30 日進めると、外側の質点（0 番目）に自由水がたまる（状態量が正、相対湿度 100%）。止まらない。
+        # 水分は、許容値の分（ステップ数 × 質点の数 × 許容値 × Δt）まで保存される
+        g, state = _one_layer('構造用合板1', 0.009, 6, 0.0, 95.0)
+        dt, n_steps = 3600.0, 24 * 30
+        state, error = _run_film(g, state, *self._WET, dt, n_steps)
+        assert state.mu_is[0] > 0.0
+        assert g.nodes[0].free_water(state.state(0)) > 0.0
+        assert g.nodes[0].mu(state.mu_is[0]) == 0.0
+        assert abs(error) <= n_steps * len(g.nodes) * MOISTURE_RESIDUAL_TOL * dt
+
+    def test_dries(self):
+        # 自由水がたまったあと、乾いた条件で 60 日進めると、自由水はなくなる（どの質点も状態量が負）。水分は保存される
+        g, state = _one_layer('構造用合板1', 0.009, 6, 0.0, 95.0)
+        state, _ = _run_film(g, state, *self._WET, 3600.0, 24 * 30)
+        assert state.mu_is[0] > 0.0
+        state, error = _run_film(g, state, *self._DRY, 86400.0, 60)
+        assert state.mu_is.max() < 0.0
+        assert abs(error) <= 60 * len(g.nodes) * MOISTURE_RESIDUAL_TOL * 86400.0
+
+    def test_heat_conservation(self):
+        # 自由水があるときの 1 ステップ：たまった熱 = 外気側から入った熱 - 室内へ出た熱（潜熱を含む）
+        g, state = _one_layer('構造用合板1', 0.009, 6, 0.0, 95.0)
+        state, _ = _run_film(g, state, *self._WET, 3600.0, 24 * 30)
+        assert state.mu_is[0] > 0.0
+        outdoor, indoor = self._WET
+        dt = 3600.0
+        state_npls, _ = step(g, state, dt=dt, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
+        h_stored = (heat_capacity_is(g, state_npls.t_is, state_npls.mu_is) * (state_npls.t_is - state.t_is)).sum()
+        q_ks = _total_heat_flow_ks(g, state_npls, outdoor, indoor)
+        assert h_stored == pytest.approx((q_ks[0] - q_ks[-1]) * dt, rel=0.0, abs=len(g.nodes) * HEAT_RESIDUAL_TOL * dt)
+
+    def test_slope_continuous(self):
+        # 相対湿度 100% の前後で、水分量の傾き（状態量 s あたり）がつながる（係数 k は 20 deg.C で決めるので、20 deg.C で比べる）
+        g, _ = _one_layer('構造用合板1', 0.009, 6, 20.0, 50.0)
+        node = g.nodes[2]
+        t, h = 293.15, 1.0
+        w = lambda s: node.water_amount(State(t=t, mu=s))
+        slope_below = (w(0.0) - w(-h)) / h
+        slope_above = (w(h) - w(0.0)) / h
+        assert slope_above == pytest.approx(node.k)
+        assert slope_below == pytest.approx(slope_above, rel=1e-2)
+
+    def test_k_lower_limit(self):
+        # 吸湿しない材料（平衡含水率が 0）でも、係数 k は 0 にならない（下限 1 kg/m3 × 幅 / (R_v T_ref)）
+        g, _ = build_wall(WallInput.from_dict({
+            'surface': _SURFACE,
+            'layers': [{'source': 'mews_ashrae', 'name': 'MEWS Exterior Grade Gypsum Board', 'thickness': 0.0127, 'n_div': 3,
+                        'initial_temperature': 20.0, 'initial_rh': 50.0}],
+            'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+            'len_vertical': 1.0, 'len_horizontal': 1.0,
+        }))
+        node = g.nodes[1]
+        assert node.water_amount(State(t=293.15, mu=-1.0e4)) == 0.0
+        assert node.k == pytest.approx(1.0 * node.width / (R_V * 293.15))
+
+    def test_pores_filled(self):
+        # 空隙率を、相対湿度 100% の含水量（約 638 kg/m3）のすぐ上にすると、自由水がたまって上限を超え、止まる
+        g, state = _one_layer('構造用合板1', 0.009, 6, 0.0, 95.0, porosity=0.64)
+        assert g.nodes[0].water_limit == pytest.approx(0.64 * RHO_W * g.nodes[0].width)
+        outdoor, indoor = self._WET
+        with pytest.raises(PoresFilled, match='質点 0（層 0'):
+            for _ in range(24 * 30):
+                state, _ = step(g, state, dt=3600.0, outdoor_n=outdoor, outdoor_npls=outdoor, indoor_npls=indoor)
 
 
 def _rain_wall() -> tuple[WallGeometry, WallState]:

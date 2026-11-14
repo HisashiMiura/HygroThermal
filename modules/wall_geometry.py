@@ -14,10 +14,12 @@
 つながりは、質点に「質点からコントロールボリュームの端までの抵抗」を聞いて、境目の抵抗と足す。
 材料の質点・空気の質点・水膜の質点は、同じ名前（width・heat_capacity・water_amount・r_h_left・r_h_right・layer_index）で使える。
 層と層の境目には、いつも水膜の質点（厚さのない質点）を置く。
+材料の質点と水膜の質点の状態の水分化学ポテンシャルの欄には状態量 s を入れ、0 を超えた分で自由水・水膜の水を表す（mu で水分化学ポテンシャルに直す）。
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Self
 
 import numpy as np
@@ -26,7 +28,7 @@ from modules.direction import Direction
 from modules.material_loaders import load_materials
 from modules.materials import Material, Materials
 from modules.state import State
-from modules.air_water_properties import C_A, C_W, R_V, get_p_vs, get_rho_a
+from modules.air_water_properties import C_A, C_W, R_V, RHO_W, get_p_vs, get_rho_a
 from modules.wall_input import AirLayerInput, FilmInterfaceInput, InterfaceInput, LayerInput, WallInput
 
 
@@ -45,6 +47,16 @@ FILM_W_MAX = 0.005
 # 水膜の留まれる量を超えた水が流れ落ちる時定数 τ_d, s（「熱・水分の収支」の式 (13)）
 FILM_TAU_DRAIN = 600.0
 
+# 材料の自由水の係数 k_i を求める基準の温度 T_ref, K（「熱・水分の収支」の式 (19)）
+_FREE_WATER_T_REF = 293.15
+
+# 平衡含水率の、相対湿度 100% の手前の傾きを求める相対湿度の比の差 Δr, -（「熱・水分の収支」の式 (18)）
+_FREE_WATER_DR = 1.0e-4
+
+# 材料の自由水の係数 k_i を求めるときの、乾燥密度 × 平衡含水率の傾きの下限 (ρ_s u'_1)_min, kg/m3
+# （吸湿しない材料（平衡含水率が 0）でも、自由水を表せるようにする。「熱・水分の収支」の式 (19)）
+_FREE_WATER_RHO_DU_MIN = 1.0
+
 
 @dataclass(frozen=True, kw_only=True)
 class MaterialNode:
@@ -61,6 +73,9 @@ class MaterialNode:
 
     # どの層の質点か（外気側から 0, 1, 2, …）
     layer_index: int
+
+    # 空隙率 ψ, -（None なら、自由水の上限を確かめない。「熱・水分の収支」の式 (20)）
+    porosity: float | None = None
 
     def __post_init__(self):
         """作るときに値を確かめる。"""
@@ -83,16 +98,66 @@ class MaterialNode:
         """乾燥した材料の熱容量, J/(m2 K)（幅 × 容積比熱 c_s ρ_s。「熱・水分の収支」の式 (3) の第 1 項）"""
         return self.width * self.material.c_rho
 
-    def water_amount(self, state: State) -> float:
-        """水分量 W_i,n, kg/m2（乾燥密度 × 質量含水率 × 幅。「熱・水分の収支」の式 (1)）
+    @staticmethod
+    def mu(s: float) -> float:
+        """状態量 s から、水分化学ポテンシャル μ, J/kg（自由水があれば 0。「熱・水分の収支」の式 (16)）"""
+
+        # 水分化学ポテンシャル μ_i,n, J/kg
+        # 式 (16)（「熱・水分の収支」）
+        mu_i_n = min(s, 0.0)
+        return mu_i_n
+
+    @cached_property
+    def k(self) -> float:
+        """状態量を自由水の量に直す係数 k_i, (kg/m2)/(J/kg)（「熱・水分の収支」の式 (18)・(19)）
+
+        目盛りの換算で、計算の結果には影響しない。相対湿度 100% の前後で、水分量の傾きがつながるように決める。
+        材料と幅で決まるので、1 回だけ求めて覚えておく。
+        """
+
+        # 平衡含水率の、相対湿度 100% の手前の傾き u'_1, kg/kg
+        # 式 (18)（「熱・水分の収支」）
+        du_1 = (self.material.get_u(100.0) - self.material.get_u(100.0 * (1.0 - _FREE_WATER_DR))) / _FREE_WATER_DR
+
+        # 係数 k_i, (kg/m2)/(J/kg)
+        # 式 (19)（「熱・水分の収支」）
+        k_i = max(self.material.rho_s * du_1, _FREE_WATER_RHO_DU_MIN) * self.width / (R_V * _FREE_WATER_T_REF)
+        return k_i
+
+    def free_water(self, state: State) -> float:
+        """自由水の量 W_fw,i,n, kg/m2（平衡含水率の相対湿度 100% の値を超えてたまる水。「熱・水分の収支」の式 (17)）
 
         Args:
-            state: この質点のステップ n の状態
+            state: この質点のステップ n の状態（mu の欄に状態量 s_i,n が入っている）
         """
+
+        # 自由水の量 W_fw,i,n, kg/m2（自由水がない s ≤ 0 では 0）
+        # 式 (17)（「熱・水分の収支」）
+        w_fw_i_n = self.k * max(state.mu, 0.0)
+        return w_fw_i_n
+
+    @property
+    def water_limit(self) -> float | None:
+        """空隙を水で満たす水分量 W_max,i, kg/m2（空隙率 × 水の密度 × 幅。空隙率がなければ None。「熱・水分の収支」の式 (20)）"""
+
+        # 空隙を水で満たす水分量 W_max,i, kg/m2
+        # 式 (20)（「熱・水分の収支」）
+        return None if self.porosity is None else self.porosity * RHO_W * self.width
+
+    def water_amount(self, state: State) -> float:
+        """水分量 W_i,n, kg/m2（乾燥密度 × 質量含水率 × 幅 ＋ 自由水の量。「熱・水分の収支」の式 (1)）
+
+        Args:
+            state: この質点のステップ n の状態（mu の欄に状態量 s_i,n が入っている）
+        """
+
+        # 相対湿度 φ_i,n, %（自由水がある s > 0 では、水分化学ポテンシャルが 0 なので 100%）
+        # 式 (16)（「熱・水分の収支」）
+        rh_i_n = 100.0 if state.mu > 0.0 else state.rh
 
         # 水分量 W_i,n, kg/m2
         # 式 (1)（「熱・水分の収支」）
-        w_i_n = self.material.rho_s * self.material.get_u(state.rh) * self.width
+        w_i_n = self.material.rho_s * self.material.get_u(rh_i_n) * self.width + self.free_water(state)
         return w_i_n
 
     def heat_capacity(self, state: State) -> float:
@@ -646,7 +711,8 @@ def _make_nodes(
             # 式 (3)
             d_right = 0.0 if j == layer.n_div - 1 else dx / 2
 
-            nodes.append(MaterialNode(d_left=d_left, d_right=d_right, material=material, layer_index=i))
+            nodes.append(MaterialNode(d_left=d_left, d_right=d_right, material=material, layer_index=i,
+                                      porosity=layer.porosity))
 
     return tuple(nodes)
 

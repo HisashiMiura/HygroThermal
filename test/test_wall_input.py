@@ -85,6 +85,27 @@ class TestMaterialLayerInputValues:
         assert MaterialLayerInput.from_dict(d).n_div == 2
 
 
+class TestMaterialLayerInputPorosity:
+
+    def test_default_none(self):
+        # 空隙率は省いてよく、省くと None（自由水の上限を確かめない）
+        assert MaterialLayerInput.from_dict(_material_layer_dict()).porosity is None
+
+    @pytest.mark.parametrize('value', [0.5, 1.0])
+    def test_read(self, value):
+        d = _material_layer_dict()
+        d['porosity'] = value
+        assert MaterialLayerInput.from_dict(d).porosity == value
+
+    @pytest.mark.parametrize('value', [0.0, -0.1, 1.19, True])
+    def test_invalid_value(self, value):
+        # 0 以下、1 を超える値、真偽値はエラー（空隙の体積の割合なので）
+        d = _material_layer_dict()
+        d['porosity'] = value
+        with pytest.raises(ValueError, match='porosity'):
+            MaterialLayerInput.from_dict(d)
+
+
 def _air_layer_dict() -> dict:
     """通気層の正しい入力の dict（25 mm、α = 0.085）。"""
     return {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0}

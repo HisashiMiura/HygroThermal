@@ -14,7 +14,7 @@ from modules.newton import NewtonNotConverged, newton_solve
 from modules.rain import get_rain_on_surface
 from modules.surface_radiation import get_solar_heat_gain
 from modules.air_water_properties import L_V
-from modules.wall_geometry import FilmNode, WallGeometry
+from modules.wall_geometry import AirNode, MaterialNode, WallGeometry
 from modules.wall_state import WallState
 
 # ヤコビ行列の帯の幅（下 3 本・上 3 本）：未知数を (T_0, μ_0, T_1, μ_1, …) と並べると、
@@ -33,10 +33,14 @@ CONDENSATION_RH = 99.9
 
 
 class Condensation(NewtonNotConverged):
-    """結露した：水分が入りすぎて、相対湿度 100% 以下（μ ≤ 0）では収支が合わない。
+    """通気層の空気の質点で結露した：水分が入りすぎて、相対湿度 100% 以下（μ ≤ 0）では収支が合わない。
 
-    結露した水（水膜・結露水）を持つモデルは段階 7 で作る。それまでは、水を消さずにここで止める。
+    材料の質点は自由水、層と層の境目は水膜の質点で、相対湿度 100% を超える水を持てる。空気の質点は持てないので、水を消さずにここで止める。
     """
+
+
+class PoresFilled(Exception):
+    """材料の質点の水分量が、空隙を水で満たす水分量を超えた（空隙率を与えた層だけ確かめる）。"""
 
 
 def step(
@@ -52,7 +56,8 @@ def step(
     未知数を (T_0, μ_0, T_1, μ_1, …) と並べ、熱と水分の残差をそれぞれの許容値で割って（許容値の何倍かにして）、
     交互に並べた残差が 0 になるように、ニュートン法で求める（許容値 1）。最初の仮の値は前の時刻の状態。
     最初の仮の値の残差が許容値より小さくても、1 回は修正する（平衡の近くで、1 ステップの変化が小さいと進まなくなるのを防ぐ）。
-    収束せず、前の時刻に相対湿度が CONDENSATION_RH 以上の質点があれば、結露したとして Condensation を出す。
+    収束せず、前の時刻に相対湿度が CONDENSATION_RH 以上の通気層の空気の質点があれば、結露したとして Condensation を出す。
+    求めた状態で、空隙率を与えた材料の質点の水分量が、空隙を水で満たす水分量を超えたら、PoresFilled を出す。
 
     Args:
         geometry: 壁の形
@@ -66,8 +71,9 @@ def step(
         次の時刻の状態、ニュートン法の修正の回数
 
     Raises:
-        Condensation: 結露して、相対湿度 100% 以下では収支が合わないとき
+        Condensation: 通気層の空気の質点で結露して、相対湿度 100% 以下では収支が合わないとき
         NewtonNotConverged: それ以外の理由で収束しなかったとき
+        PoresFilled: 材料の質点の水分量が、空隙を水で満たす水分量を超えたとき
 
     Notes:
         計算方法の文書の「1 ステップの解き方」に対応する（ニュートン法の中身は newton.newton_solve）。
@@ -111,24 +117,34 @@ def step(
     x0_ps = np.empty(2 * len(state_n))
     x0_ps[0::2], x0_ps[1::2] = state_n.t_is, state_n.mu_is
 
-    # 未知数の上限：温度は上限なし、水分化学ポテンシャルは 0（相対湿度 100%）、水膜の状態量は上限なし
-    # （μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする。
-    #   水膜の状態量 s ≥ 0 は水膜があることを表し、残差は水膜の水分量で変わるので、上限を設けない）
+    # 未知数の上限：温度は上限なし、通気層の空気の質点の水分化学ポテンシャルは 0（相対湿度 100%）、
+    # 材料の質点と水膜の質点の状態量は上限なし
+    # （空気の質点で μ > 0 では相対湿度が 100% で頭打ちになり、残差が μ によらなくなるので、ニュートン法の修正がそこへ行き過ぎないようにする。
+    #   材料の質点と水膜の質点の状態量 s > 0 は自由水・水膜の水があることを表し、残差は水分量で変わるので、上限を設けない）
     # 式 (5)
-    is_film_is = np.array([isinstance(node, FilmNode) for node in geometry.nodes])
+    is_air_is = np.array([isinstance(node, AirNode) for node in geometry.nodes])
     x_max_ps = np.empty(len(x0_ps))
-    x_max_ps[0::2], x_max_ps[1::2] = np.inf, np.where(is_film_is, np.inf, 0.0)
+    x_max_ps[0::2], x_max_ps[1::2] = np.inf, np.where(is_air_is, 0.0, np.inf)
+
+    # 未知数を 1 回の修正でまたがせない値：材料の質点の状態量は 0（自由水ができ始める所）、ほかは止めない
+    # （材料の質点は、相対湿度 100% の手前で平衡含水率が急に増えるので、乾いた状態から自由水の側へ大きく行き過ぎやすい。
+    #   いったん 0 で止め、自由水が要るときは、次の修正で 0 を超えさせる）
+    # 式 (5)
+    is_material_is = np.array([isinstance(node, MaterialNode) for node in geometry.nodes])
+    x_stop_ps = np.full(len(x0_ps), np.inf)
+    x_stop_ps[1::2] = np.where(is_material_is, 0.0, np.inf)
 
     # 残差が 0（許容値の 1 倍以下）になる未知数を探す（1 回は必ず修正する）
     try:
-        x_ps, m = newton_solve(residual, x0_ps, band=HEAT_MOISTURE_BAND, tol=1.0, min_iter=1, x_max_ps=x_max_ps)
+        x_ps, m = newton_solve(residual, x0_ps, band=HEAT_MOISTURE_BAND, tol=1.0, min_iter=1, x_max_ps=x_max_ps, x_stop_ps=x_stop_ps)
     except NewtonNotConverged as e:
 
         # 収束しないとき（5 節）
 
-        # 前の時刻に、相対湿度が 100% に近い質点の番号（水膜の質点は、水がたまっても収支が合うので除く）
+        # 前の時刻に、相対湿度が 100% に近い通気層の空気の質点の番号
+        # （材料の質点と水膜の質点は、自由水・水膜の水がたまっても収支が合うので除く）
         rh_is_n = state_n.rh_is
-        i_wet_is = np.flatnonzero((rh_is_n >= CONDENSATION_RH) & ~is_film_is)
+        i_wet_is = np.flatnonzero((rh_is_n >= CONDENSATION_RH) & is_air_is)
 
         # 100% に近い質点がなければ、結露ではない理由で収束しなかったので、そのまま例外を出す
         if len(i_wet_is) == 0:
@@ -138,8 +154,40 @@ def step(
         where = '、'.join(
             f'質点 {i}（層 {geometry.nodes[i].layer_index}、{rh_is_n[i]:.3f}%）' for i in i_wet_is
         )
-        raise Condensation(f'結露しました（相対湿度 100% 以下では水分の収支が合いません）：{where}。') from e
+        raise Condensation(f'通気層の空気が結露しました（相対湿度 100% 以下では水分の収支が合いません）：{where}。') from e
 
     # 答えを、温度と水分化学ポテンシャルに分ける
     # 式 (11)
-    return WallState(t_is=x_ps[0::2], mu_is=x_ps[1::2]), m
+    state_npls = WallState(t_is=x_ps[0::2], mu_is=x_ps[1::2])
+
+    # 空隙率を与えた材料の質点で、水分量が空隙を水で満たす水分量を超えたら止める（6 節）
+    _check_pores(geometry, state_npls)
+
+    return state_npls, m
+
+
+def _check_pores(geometry: WallGeometry, state: WallState):
+    """空隙率を与えた材料の質点の水分量が、空隙を水で満たす水分量 W_max,i を超えていないかを確かめる。
+
+    Args:
+        geometry: 壁の形
+        state: 確かめる状態
+
+    Raises:
+        PoresFilled: 水分量が W_max,i を超えた質点があるとき
+
+    Notes:
+        「1 ステップの解き方」の 6 節に対応する。上限は、計算方法の文書の「熱・水分の収支」の式 (20)。
+    """
+
+    # 水分量が上限を超えた質点の、番号・層の番号・水分量・上限
+    over = []
+    for i, node in enumerate(geometry.nodes):
+        if not isinstance(node, MaterialNode) or node.water_limit is None:
+            continue
+        w_i = node.water_amount(state.state(i))
+        if w_i > node.water_limit:
+            over.append(f'質点 {i}（層 {node.layer_index}、{w_i:.4g} kg/m2 > {node.water_limit:.4g} kg/m2）')
+
+    if over:
+        raise PoresFilled(f'材料の水分量が、空隙を水で満たす水分量を超えました：{"、".join(over)}。')
