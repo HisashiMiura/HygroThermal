@@ -9,6 +9,7 @@
 04_02_basis_materials
 04_03_basis_ventilation
 04_04_basis_weather_time
+04_05_basis_solver
 ```
 
 % 話題の一覧（書いたときに上の目次に足す）
