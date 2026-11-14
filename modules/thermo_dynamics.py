@@ -184,7 +184,7 @@ def get_lambda_dsh_mu_l(
     液相水分伝導率 = 材料の乾燥密度 × 液水拡散係数 × |Δu / Δμ|
 
     液水拡散係数は、出典（RR-110 の式 (5)、ASHRAE RP-1018）で J_l = -ρ0 D_w grad u（ρ0：乾燥密度、u：質量含水率 kg/kg）と
-    定義されているので、掛けるのは材料の乾燥密度（docs/governing_equations.md の式 3.4）。
+    定義されているので、掛けるのは材料の乾燥密度（計算方法の文書の根拠「材料の性質の扱い」の 2 節）。
     Fortran の DIFF は水の密度 998 を掛けているが、意図して変えた（2026-10-24、docs/note_fortran_diff_density.md）。
 
     Args:
