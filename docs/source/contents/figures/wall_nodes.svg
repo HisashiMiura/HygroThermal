@@ -1,163 +1,133 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 350" width="860" height="350" font-family="'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif" font-size="13" fill="#2b2a28">
-  <g transform="translate(20,0)">
-  <!-- 例：層 0 = 材料（分割数 3）、層 1 = 通気層、層 2 = 材料（分割数 3）。
-       層と層の境目には水膜の質点を置く。質点は N = 9 個、つながりは 10 本。
-       境目は厚さがないが、水膜の質点が見えるように、境目を広げて（帯で）描く -->
-
-  <!-- 層の背景（材料は薄い茶、通気層は薄い青、広げて描いた境目は薄い緑） -->
-  <rect x="80" y="70" width="220" height="200" fill="#f3ece0"/>
-  <rect x="300" y="70" width="60" height="200" fill="#e3f1ec"/>
-  <rect x="360" y="70" width="120" height="200" fill="#e6eff6"/>
-  <rect x="480" y="70" width="60" height="200" fill="#e3f1ec"/>
-  <rect x="540" y="70" width="220" height="200" fill="#f3ece0"/>
-
-  <!-- 層の名前 -->
-  <text x="190" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 0（材料）</text>
-  <text x="420" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 1（通気層）</text>
-  <text x="650" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 2（材料）</text>
-
-  <!-- 外気・室内 -->
-  <text x="40" y="154" text-anchor="middle">外気</text>
-  <text x="800" y="154" text-anchor="middle">室内</text>
-
-  <!-- 層の表面（外表面・材料の表面・内表面）。広げて描いた境目の両側の線は、同じ位置の表面を表す -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1030 350" width="1030" height="350" font-family="'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif" font-size="13" fill="#2b2a28">
+  <!-- 例：層 0 = 材料（分割数 3）、層 1 = 通気層、層 2 = 材料（分割数 3）。層と層の境目には水膜の質点を置く。質点は N = 9 個、つながりは 10 本。境目は厚さがないが、水膜の質点が見えるように、境目を広げて（帯で）描く。つながりの抵抗は、幅一定のギザギザを線の中央に描く（線が短いときだけ縮める） -->
+  <rect x="100" y="70" width="220" height="200" fill="#f3ece0"/>
+  <rect x="320" y="70" width="90" height="200" fill="#e3f1ec"/>
+  <rect x="410" y="70" width="200" height="200" fill="#e6eff6"/>
+  <rect x="610" y="70" width="90" height="200" fill="#e3f1ec"/>
+  <rect x="700" y="70" width="220" height="200" fill="#f3ece0"/>
+  <text x="210" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 0（材料）</text>
+  <text x="510" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 1（通気層）</text>
+  <text x="810" y="58" text-anchor="middle">層 <tspan font-style="italic">l</tspan> = 2（材料）</text>
+  <text x="40" y="162" text-anchor="middle">外気</text>
+  <text x="980" y="162" text-anchor="middle">室内</text>
   <g stroke="#2b2a28" stroke-width="2.5">
-    <line x1="80" y1="70" x2="80" y2="270"/>
-    <line x1="300" y1="70" x2="300" y2="270"/>
-    <line x1="360" y1="70" x2="360" y2="270"/>
-    <line x1="480" y1="70" x2="480" y2="270"/>
-    <line x1="540" y1="70" x2="540" y2="270"/>
-    <line x1="760" y1="70" x2="760" y2="270"/>
+    <line x1="100" y1="70" x2="100" y2="270"/>
+    <line x1="320" y1="70" x2="320" y2="270"/>
+    <line x1="410" y1="70" x2="410" y2="270"/>
+    <line x1="610" y1="70" x2="610" y2="270"/>
+    <line x1="700" y1="70" x2="700" y2="270"/>
+    <line x1="920" y1="70" x2="920" y2="270"/>
   </g>
   <g text-anchor="middle" font-size="12" fill="#52514e">
-    <text x="80" y="290">外表面</text>
-    <text x="330" y="290">境目</text>
-    <text x="510" y="290">境目</text>
-    <text x="760" y="290">内表面</text>
+    <text x="100" y="290">外表面</text>
+    <text x="365" y="290">境目</text>
+    <text x="655" y="290">境目</text>
+    <text x="920" y="290">内表面</text>
   </g>
-
-  <!-- 質点の間隔 Δx_0 -->
   <g stroke="#52514e" stroke-width="1" fill="none">
-    <line x1="80" y1="96" x2="190" y2="96"/>
-    <path d="M86,92 L80,96 L86,100 M184,92 L190,96 L184,100"/>
+    <line x1="100" y1="96" x2="210" y2="96"/>
+    <path d="M106,92 L100,96 L106,100 M204,92 L210,96 L204,100"/>
   </g>
-  <text x="135" y="90" text-anchor="middle" font-size="12">Δ<tspan font-style="italic">x</tspan><tspan font-size="9" dy="3">0</tspan></text>
-
-  <!-- つながり：境目の抵抗が入るものはオレンジ、層の中のものは灰色 -->
-  <g stroke-width="3" stroke-linecap="round">
-    <line x1="48" y1="140" x2="80" y2="140" stroke="#d9822b"/>
-    <line x1="80" y1="140" x2="190" y2="140" stroke="#9a9893"/>
-    <line x1="190" y1="140" x2="300" y2="140" stroke="#9a9893"/>
-    <line x1="300" y1="140" x2="330" y2="140" stroke="#d9822b"/>
-    <line x1="330" y1="140" x2="420" y2="140" stroke="#d9822b"/>
-    <line x1="420" y1="140" x2="510" y2="140" stroke="#d9822b"/>
-    <line x1="510" y1="140" x2="540" y2="140" stroke="#d9822b"/>
-    <line x1="540" y1="140" x2="650" y2="140" stroke="#9a9893"/>
-    <line x1="650" y1="140" x2="760" y2="140" stroke="#9a9893"/>
-    <line x1="760" y1="140" x2="792" y2="140" stroke="#d9822b"/>
-  </g>
-
-  <!-- つながりの番号 k -->
+  <text x="155" y="90" text-anchor="middle" font-size="12">Δ<tspan font-style="italic">x</tspan><tspan font-size="9" dy="3">0</tspan></text>
+  <path d="M30,140 L45.0,140 L48.3,135 L55.0,145 L61.7,135 L68.3,145 L75.0,135 L81.7,145 L85.0,140 L100,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M100,140 L135.0,140 L138.3,135 L145.0,145 L151.7,135 L158.3,145 L165.0,135 L171.7,145 L175.0,140 L210,140" fill="none" stroke="#9a9893" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M210,140 L245.0,140 L248.3,135 L255.0,145 L261.7,135 L268.3,145 L275.0,135 L281.7,145 L285.0,140 L320,140" fill="none" stroke="#9a9893" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M320,140 L326.0,140 L328.8,135 L334.2,145 L339.8,135 L345.2,145 L350.8,135 L356.2,145 L359.0,140 L365,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M365,140 L417.5,140 L420.8,135 L427.5,145 L434.2,135 L440.8,145 L447.5,135 L454.2,145 L457.5,140 L510,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M510,140 L562.5,140 L565.8,135 L572.5,145 L579.2,135 L585.8,145 L592.5,135 L599.2,145 L602.5,140 L655,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M655,140 L661.0,140 L663.8,135 L669.2,145 L674.8,135 L680.2,145 L685.8,135 L691.2,145 L694.0,140 L700,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M700,140 L735.0,140 L738.3,135 L745.0,145 L751.7,135 L758.3,145 L765.0,135 L771.7,145 L775.0,140 L810,140" fill="none" stroke="#9a9893" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M810,140 L845.0,140 L848.3,135 L855.0,145 L861.7,135 L868.3,145 L875.0,135 L881.7,145 L885.0,140 L920,140" fill="none" stroke="#9a9893" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M920,140 L935.0,140 L938.3,135 L945.0,145 L951.7,135 L958.3,145 L965.0,135 L971.7,145 L975.0,140 L990,140" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
   <g text-anchor="middle" font-size="12">
-    <text x="64" y="128"><tspan font-style="italic">k</tspan>=0</text>
-    <text x="135" y="128"><tspan font-style="italic">k</tspan>=1</text>
-    <text x="245" y="128"><tspan font-style="italic">k</tspan>=2</text>
-    <text x="315" y="114"><tspan font-style="italic">k</tspan>=3</text>
-    <text x="378" y="128"><tspan font-style="italic">k</tspan>=4</text>
-    <text x="462" y="128"><tspan font-style="italic">k</tspan>=5</text>
-    <text x="525" y="114"><tspan font-style="italic">k</tspan>=6</text>
-    <text x="595" y="128"><tspan font-style="italic">k</tspan>=7</text>
-    <text x="705" y="128"><tspan font-style="italic">k</tspan>=8</text>
-    <text x="776" y="128"><tspan font-style="italic">k</tspan>=9</text>
+    <text x="65" y="124"><tspan font-style="italic">k</tspan>=0</text>
+    <text x="155" y="124"><tspan font-style="italic">k</tspan>=1</text>
+    <text x="265" y="124"><tspan font-style="italic">k</tspan>=2</text>
+    <text x="342.5" y="124"><tspan font-style="italic">k</tspan>=3</text>
+    <text x="437.5" y="124"><tspan font-style="italic">k</tspan>=4</text>
+    <text x="582.5" y="124"><tspan font-style="italic">k</tspan>=5</text>
+    <text x="677.5" y="124"><tspan font-style="italic">k</tspan>=6</text>
+    <text x="755" y="124"><tspan font-style="italic">k</tspan>=7</text>
+    <text x="865" y="124"><tspan font-style="italic">k</tspan>=8</text>
+    <text x="955" y="124"><tspan font-style="italic">k</tspan>=9</text>
   </g>
-
-  <!-- 質点（材料の層の端の質点は表面の線の上。水膜の質点はひし形） -->
-  <g fill="#2b2a28" stroke="#fcfcfb" stroke-width="2">
-    <circle cx="80" cy="140" r="6"/>
-    <circle cx="190" cy="140" r="6"/>
-    <circle cx="300" cy="140" r="6"/>
-    <path d="M330,132 L338,140 L330,148 L322,140 Z" fill="#1b8a6b"/>
-    <circle cx="420" cy="140" r="6" fill="#2f6f9f"/>
-    <path d="M510,132 L518,140 L510,148 L502,140 Z" fill="#1b8a6b"/>
-    <circle cx="540" cy="140" r="6"/>
-    <circle cx="650" cy="140" r="6"/>
-    <circle cx="760" cy="140" r="6"/>
+  <g stroke="#fcfcfb" stroke-width="2">
+    <circle cx="100" cy="140" r="6" fill="#2b2a28"/>
+    <circle cx="210" cy="140" r="6" fill="#2b2a28"/>
+    <circle cx="320" cy="140" r="6" fill="#2b2a28"/>
+    <path d="M365,132 L373,140 L365,148 L357,140 Z" fill="#1b8a6b"/>
+    <circle cx="510" cy="140" r="6" fill="#2f6f9f"/>
+    <path d="M655,132 L663,140 L655,148 L647,140 Z" fill="#1b8a6b"/>
+    <circle cx="700" cy="140" r="6" fill="#2b2a28"/>
+    <circle cx="810" cy="140" r="6" fill="#2b2a28"/>
+    <circle cx="920" cy="140" r="6" fill="#2b2a28"/>
   </g>
-
-  <!-- 質点の番号 i（表面の線と重なっても読めるように、後ろに背景の四角を敷く。水膜の質点は 1 段下） -->
   <g fill="#fcfcfb">
-    <rect x="63" y="154" width="34" height="16" rx="3"/>
-    <rect x="173" y="154" width="34" height="16" rx="3"/>
-    <rect x="283" y="154" width="34" height="16" rx="3"/>
-    <rect x="313" y="172" width="34" height="16" rx="3"/>
-    <rect x="403" y="154" width="34" height="16" rx="3"/>
-    <rect x="493" y="172" width="34" height="16" rx="3"/>
-    <rect x="523" y="154" width="34" height="16" rx="3"/>
-    <rect x="633" y="154" width="34" height="16" rx="3"/>
-    <rect x="743" y="154" width="34" height="16" rx="3"/>
+    <rect x="83" y="154" width="34" height="16" rx="3"/>
+    <rect x="193" y="154" width="34" height="16" rx="3"/>
+    <rect x="303" y="154" width="34" height="16" rx="3"/>
+    <rect x="348" y="172" width="34" height="16" rx="3"/>
+    <rect x="493" y="154" width="34" height="16" rx="3"/>
+    <rect x="638" y="172" width="34" height="16" rx="3"/>
+    <rect x="683" y="154" width="34" height="16" rx="3"/>
+    <rect x="793" y="154" width="34" height="16" rx="3"/>
+    <rect x="903" y="154" width="34" height="16" rx="3"/>
   </g>
   <g text-anchor="middle" font-size="12">
-    <text x="80" y="166"><tspan font-style="italic">i</tspan>=0</text>
-    <text x="190" y="166"><tspan font-style="italic">i</tspan>=1</text>
-    <text x="300" y="166"><tspan font-style="italic">i</tspan>=2</text>
-    <text x="330" y="184" fill="#1b8a6b"><tspan font-style="italic">i</tspan>=3</text>
-    <text x="420" y="166"><tspan font-style="italic">i</tspan>=4</text>
-    <text x="510" y="184" fill="#1b8a6b"><tspan font-style="italic">i</tspan>=5</text>
-    <text x="540" y="166"><tspan font-style="italic">i</tspan>=6</text>
-    <text x="650" y="166"><tspan font-style="italic">i</tspan>=7</text>
-    <text x="760" y="166"><tspan font-style="italic">i</tspan>=8</text>
+    <text x="100" y="166"><tspan font-style="italic">i</tspan>=0</text>
+    <text x="210" y="166"><tspan font-style="italic">i</tspan>=1</text>
+    <text x="320" y="166"><tspan font-style="italic">i</tspan>=2</text>
+    <text x="365" y="184" fill="#1b8a6b"><tspan font-style="italic">i</tspan>=3</text>
+    <text x="510" y="166"><tspan font-style="italic">i</tspan>=4</text>
+    <text x="655" y="184" fill="#1b8a6b"><tspan font-style="italic">i</tspan>=5</text>
+    <text x="700" y="166"><tspan font-style="italic">i</tspan>=6</text>
+    <text x="810" y="166"><tspan font-style="italic">i</tspan>=7</text>
+    <text x="920" y="166"><tspan font-style="italic">i</tspan>=8</text>
   </g>
-
-  <!-- コントロールボリューム（点線の囲み。層の端の質点は半分の幅、通気層は層の厚さ全体、水膜の質点は幅 0） -->
   <g fill="none" stroke="#52514e" stroke-width="1" stroke-dasharray="4 3">
-    <rect x="82" y="198" width="51" height="26"/>
-    <rect x="137" y="198" width="106" height="26"/>
-    <rect x="247" y="198" width="51" height="26"/>
-    <rect x="362" y="198" width="116" height="26"/>
-    <rect x="542" y="198" width="51" height="26"/>
-    <rect x="597" y="198" width="106" height="26"/>
-    <rect x="707" y="198" width="51" height="26"/>
+    <rect x="102" y="198" width="51" height="26"/>
+    <rect x="157" y="198" width="106" height="26"/>
+    <rect x="267" y="198" width="51" height="26"/>
+    <rect x="412" y="198" width="196" height="26"/>
+    <rect x="702" y="198" width="51" height="26"/>
+    <rect x="757" y="198" width="106" height="26"/>
+    <rect x="867" y="198" width="51" height="26"/>
   </g>
   <g stroke="#1b8a6b" stroke-width="1.5">
-    <line x1="330" y1="198" x2="330" y2="224"/>
-    <line x1="510" y1="198" x2="510" y2="224"/>
+    <line x1="365" y1="198" x2="365" y2="224"/>
+    <line x1="655" y1="198" x2="655" y2="224"/>
   </g>
   <g text-anchor="middle" font-size="11" fill="#52514e">
-    <text x="107" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">0</tspan></text>
-    <text x="190" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">1</tspan></text>
-    <text x="272" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">2</tspan></text>
-    <text x="420" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">4</tspan></text>
-    <text x="567" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">6</tspan></text>
-    <text x="650" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">7</tspan></text>
-    <text x="732" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">8</tspan></text>
+    <text x="127.5" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">0</tspan></text>
+    <text x="210" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">1</tspan></text>
+    <text x="292.5" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">2</tspan></text>
+    <text x="510" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">4</tspan></text>
+    <text x="727.5" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">6</tspan></text>
+    <text x="810" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">7</tspan></text>
+    <text x="892.5" y="216"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">8</tspan></text>
   </g>
   <g text-anchor="middle" font-size="10" fill="#1b8a6b">
-    <text x="330" y="238"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">3</tspan><tspan dy="-3"> = 0</tspan></text>
-    <text x="510" y="238"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">5</tspan><tspan dy="-3"> = 0</tspan></text>
+    <text x="365" y="238"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">3</tspan><tspan dy="-3"> = 0</tspan></text>
+    <text x="655" y="238"><tspan font-style="italic">w</tspan><tspan font-size="8" dy="3">5</tspan><tspan dy="-3"> = 0</tspan></text>
   </g>
-
-  <!-- 質点 1 の d_L,1 と d_R,1 -->
   <g stroke="#52514e" stroke-width="1" fill="none">
-    <line x1="135" y1="250" x2="190" y2="250"/>
-    <line x1="190" y1="250" x2="245" y2="250"/>
-    <path d="M141,246 L135,250 L141,254 M184,246 L190,250 L184,254 M196,246 L190,250 L196,254 M239,246 L245,250 L239,254"/>
-    <line x1="190" y1="230" x2="190" y2="254" stroke-dasharray="2 2"/>
+    <line x1="155" y1="250" x2="210" y2="250"/>
+    <line x1="210" y1="250" x2="265" y2="250"/>
+    <path d="M161,246 L155,250 L161,254 M204,246 L210,250 L204,254 M216,246 L210,250 L216,254 M259,246 L265,250 L259,254"/>
+    <line x1="210" y1="230" x2="210" y2="254" stroke-dasharray="2 2"/>
   </g>
   <g text-anchor="middle" font-size="11">
-    <text x="162" y="266"><tspan font-style="italic">d</tspan><tspan font-size="8" dy="3">L,1</tspan></text>
-    <text x="218" y="266"><tspan font-style="italic">d</tspan><tspan font-size="8" dy="3">R,1</tspan></text>
+    <text x="182.5" y="266"><tspan font-style="italic">d</tspan><tspan font-size="8" dy="3">L,1</tspan></text>
+    <text x="237.5" y="266"><tspan font-style="italic">d</tspan><tspan font-size="8" dy="3">R,1</tspan></text>
   </g>
-
-  <!-- 凡例 -->
   <g font-size="12">
-    <line x1="40" y1="324" x2="70" y2="324" stroke="#d9822b" stroke-width="3"/>
-    <text x="78" y="328">境目の抵抗が入るつながり</text>
-    <line x1="252" y1="324" x2="282" y2="324" stroke="#9a9893" stroke-width="3"/>
-    <text x="290" y="328">層の中のつながり</text>
-    <rect x="410" y="316" width="30" height="16" fill="none" stroke="#52514e" stroke-dasharray="4 3"/>
-    <text x="448" y="328">コントロールボリューム</text>
-    <path d="M610,316 L618,324 L610,332 L602,324 Z" fill="#1b8a6b"/>
-    <text x="626" y="328">水膜の質点（幅 0）</text>
-  </g>
+    <path d="M60,324 L70.0,324 L73.3,319 L80.0,329 L86.7,319 L93.3,329 L100.0,319 L106.7,329 L110.0,324 L120,324" fill="none" stroke="#d9822b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <text x="128" y="328">境目の抵抗が入るつながり</text>
+    <path d="M310,324 L320.0,324 L323.3,319 L330.0,329 L336.7,319 L343.3,329 L350.0,319 L356.7,329 L360.0,324 L370,324" fill="none" stroke="#9a9893" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <text x="378" y="328">層の中のつながり</text>
+    <rect x="510" y="316" width="30" height="16" fill="none" stroke="#52514e" stroke-dasharray="4 3"/>
+    <text x="548" y="328">コントロールボリューム</text>
+    <path d="M760,316 L768,324 L760,332 L752,324 Z" fill="#1b8a6b"/>
+    <text x="776" y="328">水膜の質点（幅 0）</text>
   </g>
 </svg>
