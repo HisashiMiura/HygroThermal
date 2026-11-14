@@ -1,7 +1,7 @@
 """時間を進めるループ（段階 6、設計の文書 3 章）。
 
 境界条件は、経過時間（秒）を渡すとその時刻の値を返す関数で受け取る（Δt と切り離すため）。
-1 ステップを進める部分は solver.step。
+1 ステップを進める部分は solver.step。木材腐朽を求める層があれば、毎ステップ、腐朽の状態も進める（decay）。
 
 計算方法の文書の評価方法との対応：「時間の進め方」（docs/source/contents/03_13_eval_time.md）。
 コメントの「式 (k)」は、とくに断りがなければその節の式の番号。
@@ -12,8 +12,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from modules import decay
+from modules.air_water_properties import T_0
 from modules.boundary import Boundaries
 from modules.solver import step
+from modules.state import State
 from modules.wall_geometry import WallGeometry
 from modules.wall_state import WallState
 
@@ -43,6 +46,12 @@ class SimulationResult:
 
     # 最後のステップのあとの状態（記録の間隔によらず、続きの計算に使える）
     state_last: WallState
+
+    # 各質点の、記録した時刻の木材腐朽の質量減少率, -, [i, n]（木材腐朽を求めない質点は 0）
+    mass_loss_is_ns: np.ndarray | None = None
+
+    # 最後のステップのあとの木材腐朽の状態（木材腐朽を求める層がなければ None）
+    decay_last: decay.DecayState | None = None
 
     def state(self, n: int) -> WallState:
         """記録 n の壁の状態。"""
@@ -100,12 +109,17 @@ def simulate(
     time_ns = np.empty(n_records)
     t_is_ns = np.empty((len(state_0), n_records))
     mu_is_ns = np.empty((len(state_0), n_records))
+    mass_loss_is_ns = np.zeros((len(state_0), n_records))
     iterations_ns = np.empty(n_steps, dtype=int)
 
     # 最初の状態を記録する
     time_ns[0], t_is_ns[:, 0], mu_is_ns[:, 0] = 0.0, state_0.t_is, state_0.mu_is
 
     state = state_0
+
+    # 木材腐朽を求める質点と、ステップ n と n - 1 の木材腐朽の状態（はじめは腐朽していない）
+    decay_nodes = decay.DecayNodes.from_geometry(geometry)
+    decay_n = decay_nmns = decay.DecayState.initial(len(state_0))
 
     # ステップ 0 の境界条件（通気層の換気量に使う）
     b_n = boundaries_at(0.0)
@@ -119,7 +133,19 @@ def simulate(
         # ステップ n + 1 の境界条件で、1 ステップ進める（換気量だけは、ステップ n の外気で求める）
         # 4 節
         b_npls = boundaries_at(t_npls)
-        state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
+
+        # 木材腐朽を求める層がなければ、腐朽で生まれる水はなし
+        if not decay_nodes.any:
+            state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
+
+        # 木材腐朽を求める層があれば、ステップ n - 1 から n までの腐朽で生まれた水を足して解き、
+        # 求めたステップ n + 1 の温度・相対湿度で、腐朽の状態を進める
+        # 4 節
+        else:
+            j_gen_is_npls = decay.water_generation_is(decay_nodes, decay_n, decay_nmns, dt)
+            state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor, j_gen_is_npls)
+            rh_is_npls = np.array([State(t=t, mu=min(mu, 0.0)).rh for t, mu in zip(state.t_is, state.mu_is)])
+            decay_nmns, decay_n = decay_n, decay.advance(decay_n, decay_nodes, state.t_is - T_0, rh_is_npls, dt)
 
         # 次のステップの始めの境界条件は、このステップの終わりの境界条件
         b_n = b_npls
@@ -129,6 +155,7 @@ def simulate(
         if (n + 1) % record_every == 0:
             r = (n + 1) // record_every
             time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = t_npls, state.t_is, state.mu_is
+            mass_loss_is_ns[:, r] = decay_n.mass_loss_is
 
     return SimulationResult(
         time_ns=time_ns,
@@ -136,4 +163,6 @@ def simulate(
         mu_is_ns=mu_is_ns,
         iterations_ns=iterations_ns,
         state_last=state,
+        mass_loss_is_ns=mass_loss_is_ns,
+        decay_last=decay_n if decay_nodes.any else None,
     )

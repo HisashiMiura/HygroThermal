@@ -106,6 +106,26 @@ class TestMaterialLayerInputPorosity:
             MaterialLayerInput.from_dict(d)
 
 
+class TestMaterialLayerInputWoodDecay:
+
+    def test_default_false(self):
+        # 木材腐朽は省いてよく、省くと False（求めない）
+        assert MaterialLayerInput.from_dict(_material_layer_dict()).wood_decay is False
+
+    def test_read(self):
+        d = _material_layer_dict()
+        d['wood_decay'] = True
+        assert MaterialLayerInput.from_dict(d).wood_decay is True
+
+    @pytest.mark.parametrize('value', [1, 'yes', None])
+    def test_invalid_value(self, value):
+        # 真偽値でなければエラー
+        d = _material_layer_dict()
+        d['wood_decay'] = value
+        with pytest.raises(ValueError, match='wood_decay'):
+            MaterialLayerInput.from_dict(d)
+
+
 def _air_layer_dict() -> dict:
     """通気層の正しい入力の dict（25 mm、α = 0.085）。"""
     return {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0}

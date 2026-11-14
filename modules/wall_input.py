@@ -17,8 +17,8 @@ from modules.material_loaders import MATERIAL_SOURCES
 # 材料の層の入力の dict のキー（すべて必ず指定する）
 _MATERIAL_LAYER_KEYS = ('source', 'name', 'thickness', 'n_div', 'initial_temperature', 'initial_rh')
 
-# 材料の層の入力の dict の、省いてよいキー（空隙率。省くと自由水の上限を確かめない）
-_MATERIAL_LAYER_OPTIONAL_KEYS = ('porosity',)
+# 材料の層の入力の dict の、省いてよいキー（空隙率は省くと自由水の上限を確かめない。木材腐朽は省くと求めない）
+_MATERIAL_LAYER_OPTIONAL_KEYS = ('porosity', 'wood_decay')
 
 # 通気層の入力の dict のキー（すべて必ず指定する。'air_layer' は True）
 _AIR_LAYER_KEYS = ('air_layer', 'thickness', 'alpha', 'initial_temperature', 'initial_rh')
@@ -121,6 +121,9 @@ class MaterialLayerInput:
     # 空隙率 ψ, -（省くと None：自由水の上限を確かめない。計算方法の文書の「熱・水分の収支」の 7 節）
     porosity: float | None = None
 
+    # 木材腐朽を求めるか（省くと False。計算方法の文書の「木材腐朽」）
+    wood_decay: bool = False
+
     def __post_init__(self):
         """作るときに値を確かめる（直接作っても、from_dict で作っても働く）。
 
@@ -155,13 +158,17 @@ class MaterialLayerInput:
         if self.porosity is not None and (isinstance(self.porosity, bool) or not 0.0 < self.porosity <= 1.0):
             raise ValueError(f'空隙率 porosity は 0 より大きく 1 以下にしてください（{self.porosity!r}）。')
 
+        # 木材腐朽を求めるかが、真偽値でなければエラー
+        if not isinstance(self.wood_decay, bool):
+            raise ValueError(f'木材腐朽を求めるか wood_decay は True か False にしてください（{self.wood_decay!r}）。')
+
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         """dict から作る。
 
         Args:
             d: {'source', 'name', 'thickness', 'n_div', 'initial_temperature', 'initial_rh'}（すべて必ず指定する）と、
-               'porosity'（省いてよい）
+               'porosity'・'wood_decay'（省いてよい）
         """
 
         _check_keys(d, _MATERIAL_LAYER_KEYS, where='材料の層の入力', optional=_MATERIAL_LAYER_OPTIONAL_KEYS)

@@ -43,11 +43,11 @@ _SURFACE = '#fcfcfb'
 
 
 def _main_wall_input() -> WallInput:
-    """今の main.py・Fortran の入力の壁 7 層（test/test_solver.py の _main_wall と同じ）。"""
+    """今の main.py・Fortran の入力の壁 7 層（test/test_solver.py の _main_wall と同じ）。構造用合板の 2 層で木材腐朽を求める。"""
 
-    def m(name, thickness, n_div, temperature, rh):
+    def m(name, thickness, n_div, temperature, rh, wood_decay=False):
         return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,
-                'initial_temperature': temperature, 'initial_rh': rh}
+                'initial_temperature': temperature, 'initial_rh': rh, 'wood_decay': wood_decay}
 
     return WallInput.from_dict({
         'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
@@ -55,9 +55,9 @@ def _main_wall_input() -> WallInput:
             m('サイディング', 0.016, 5, 15.0, 50.0),
             {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0},
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
-            m('構造用合板1', 0.009, 6, 10.0, 80.0),
+            m('構造用合板1', 0.009, 6, 10.0, 80.0, wood_decay=True),
             m('グラスウール1', 0.1, 5, 10.0, 50.0),
-            m('構造用合板1', 0.012, 6, 10.0, 80.0),
+            m('構造用合板1', 0.012, 6, 10.0, 80.0, wood_decay=True),
             m('石膏ボード', 0.042, 5, 10.0, 50.0),
         ],
         'interfaces': [

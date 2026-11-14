@@ -313,11 +313,12 @@ def moisture_residual_is(
         outdoor_npls: OutdoorBoundary,
         indoor_npls: IndoorBoundary,
         q_v_is_n: np.ndarray | None = None,
-        r_bv_npls: float = 0.0
+        r_bv_npls: float = 0.0,
+        j_gen_is_npls: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
 
-    たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分 + 浸入する雨水 - 流れ落ちる水）。
+    たまる量 -（左のつながりの流れ - 右のつながりの流れ + 換気で入る水分 + 浸入する雨水 - 流れ落ちる水 + 腐朽で生まれる水）。
     正しいステップ n + 1 の温度・水分化学ポテンシャルを入れると 0 になる。
 
     Args:
@@ -331,6 +332,8 @@ def moisture_residual_is(
         indoor_npls: ステップ n + 1 の室内の境界条件
         q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
         r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface。省くと雨なし）
+        j_gen_is_npls: ステップ n + 1 の、各質点の腐朽で生まれる水 j_gen,i,n+1, kg/(m2 s), [i]
+            （decay.water_generation_is。省くと 0）
 
     Returns:
         質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]
@@ -338,11 +341,16 @@ def moisture_residual_is(
     Notes:
         計算方法の文書の「熱・水分の収支」の式 (8) に対応する（左辺 - 右辺）。換気で入る水分は式 (5)、
         浸入する雨水は式 (14)（「熱・水分の収支」）、流れ落ちる水は式 (13)（「熱・水分の収支」）。
+        腐朽で生まれる水は「木材腐朽」の式 (10)。
     """
 
     # 換気量を省いたときは、換気なし（どの質点も 0）
     if q_v_is_n is None:
         q_v_is_n = np.zeros(len(t_is_npls))
+
+    # 腐朽で生まれる水を省いたときは、0
+    if j_gen_is_npls is None:
+        j_gen_is_npls = np.zeros(len(t_is_npls))
 
     # ステップ n + 1 とステップ n の水分量 W_i,n+1・W_i,n, kg/m2, [i]
     # 式 (1)・(2)（「熱・水分の収支」）
@@ -374,7 +382,8 @@ def moisture_residual_is(
     j_rain_is_npls = rain_is(geometry, r_bv_npls)
     j_drain_is_npls = drainage_is(geometry, t_is_npls, mu_is_npls)
 
-    res_m_is = (w_is_npls - w_is_n) / dt - (j_left_is_npls - j_right_is_npls + j_vent_is_npls + j_rain_is_npls - j_drain_is_npls)
+    res_m_is = (w_is_npls - w_is_n) / dt - (
+        j_left_is_npls - j_right_is_npls + j_vent_is_npls + j_rain_is_npls - j_drain_is_npls + j_gen_is_npls)
     return res_m_is
 
 

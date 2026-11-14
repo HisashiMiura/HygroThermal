@@ -77,6 +77,9 @@ class MaterialNode:
     # 空隙率 ψ, -（None なら、自由水の上限を確かめない。「熱・水分の収支」の式 (20)）
     porosity: float | None = None
 
+    # 木材腐朽を求めるか（「木材腐朽」）
+    wood_decay: bool = False
+
     def __post_init__(self):
         """作るときに値を確かめる。"""
 
@@ -712,7 +715,7 @@ def _make_nodes(
             d_right = 0.0 if j == layer.n_div - 1 else dx / 2
 
             nodes.append(MaterialNode(d_left=d_left, d_right=d_right, material=material, layer_index=i,
-                                      porosity=layer.porosity))
+                                      porosity=layer.porosity, wood_decay=layer.wood_decay))
 
     return tuple(nodes)
 

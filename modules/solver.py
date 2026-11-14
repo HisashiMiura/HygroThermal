@@ -49,7 +49,8 @@ def step(
         dt: float,
         outdoor_n: OutdoorBoundary,
         outdoor_npls: OutdoorBoundary,
-        indoor_npls: IndoorBoundary
+        indoor_npls: IndoorBoundary,
+        j_gen_is_npls: np.ndarray | None = None
     ) -> tuple[WallState, int]:
     """熱と水分を一緒に 1 ステップ進める。
 
@@ -66,6 +67,8 @@ def step(
         outdoor_n: ステップ n の外気の境界条件（通気層の換気量だけに使う）
         outdoor_npls: ステップ n + 1 の外気の境界条件
         indoor_npls: ステップ n + 1 の室内の境界条件
+        j_gen_is_npls: ステップ n + 1 の、各質点の腐朽で生まれる水 j_gen,i,n+1, kg/(m2 s), [i]
+            （decay.water_generation_is。未知数によらない。省くと 0）
 
     Returns:
         次の時刻の状態、ニュートン法の修正の回数
@@ -104,7 +107,8 @@ def step(
         res_h_is = heat_residual_is(
             geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n, r_bv_npls) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n, r_bv_npls) / MOISTURE_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n, r_bv_npls,
+            j_gen_is_npls) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         # 式 (2)
