@@ -349,7 +349,93 @@ ASHRAE Standard 160 の雨量の式は、鉛直な壁に当たる雨の式であ
 
 ### 8.5 風速の分布で平均をとらない理由
 
-1 時間の中の風速は、一定ではなく、ばらつく。風速の分布（たとえばレイリー分布）で、外表面に当たる雨水の平均をとる方法もある。しかし、式 {eq}`bf-rbv` は風速に比例するので、分布で平均をとった値は、平均の風速を入れた値と同じになる。そのため、分布で平均をとらない。
+1 時間の中の風速は、一定ではなく、ばらつく。風速のばらつきを分布で表し、外表面に当たる雨水の平均をとる方法もある。風速の分布には、式 {eq}`bf-rayleigh` のレイリー分布がよく使われる。
+
+$$
+f(v) = \frac{\pi}{2} \thinspace \frac{v}{V^2} \thinspace \exp \left( - \frac{\pi}{4} \left( \frac{v}{V} \right)^2 \right)
+$$ (bf-rayleigh)
+
+ここで、
+
+:::{container} symbols
+$f(v)$
+: ：風速が $v$ になる確率密度（s/m）
+
+$v$
+: ：風速（m/s）
+
+$V$
+: ：平均の風速（m/s）
+:::
+
+である。
+
+この分布で、外表面に当たる雨水の平均をとると、式 {eq}`bf-rbv-mean` になる。
+
+$$
+\overline{r_{\mathrm{bv}}} = \int_0^\infty \frac{F_{\mathrm{E}} \thinspace F_{\mathrm{D}} \thinspace F_{\mathrm{L}} \thinspace c_{\mathrm{w}} \thinspace v \thinspace r_{\mathrm{h}}}{3600} \thinspace f(v) \thinspace dv = \frac{F_{\mathrm{E}} \thinspace F_{\mathrm{D}} \thinspace F_{\mathrm{L}} \thinspace c_{\mathrm{w}} \thinspace r_{\mathrm{h}}}{3600} \int_0^\infty v \thinspace f(v) \thinspace dv
+$$ (bf-rbv-mean)
+
+ここで、
+
+:::{container} symbols
+$\overline{r_{\mathrm{bv}}}$
+: ：風速の分布で平均をとった、外表面に当たる雨水（kg/(m² s)）
+
+$F_{\mathrm{E}}$
+: ：雨水暴露係数（-）
+
+$F_{\mathrm{D}}$
+: ：雨水付着係数（-）
+
+$F_{\mathrm{L}}$
+: ：経験的な定数。 $F_{\mathrm{L}} = 0.2$（kg s/(m³ mm)）
+
+$c_{\mathrm{w}}$
+: ：風向と外表面の向きで決まる係数。風が外表面に向かって吹く成分の、風速に対する比で、 $\max \left( \cos \theta, \thinspace 0 \right)$ である（-）
+
+$\theta$
+: ：風向と外表面の外向きの法線の逆向きがなす角（rad）
+
+$v$
+: ：風速（m/s）
+
+$r_{\mathrm{h}}$
+: ：水平面の降水量（mm/h）
+
+$f(v)$
+: ：風速が $v$ になる確率密度（s/m）
+:::
+
+である。
+
+外表面に当たる雨水の式 {eq}`bf-rbv` は風速に比例し、風速の分布で変わるのは風速 $v$ だけなので、 $v$ 以外は積分の外に出せる。残る積分は風速の平均で、式 {eq}`bf-rayleigh` のレイリー分布では、ちょうど平均の風速 $V$ になる。
+
+$$
+\int_0^\infty v \thinspace f(v) \thinspace dv = V
+$$ (bf-rayleigh-mean)
+
+ここで、
+
+:::{container} symbols
+$v$
+: ：風速（m/s）
+
+$f(v)$
+: ：風速が $v$ になる確率密度（s/m）
+
+$V$
+: ：平均の風速（m/s）
+:::
+
+である。
+
+したがって、レイリー分布で平均をとった値は、平均の風速 $V$ を式 {eq}`bf-rbv` に入れた値と同じになる。これは、レイリー分布に限らず、平均が $V$ になるどの分布でも同じである。そのため、分布で平均をとらず、気象データの風速（平均の風速）をそのまま使う。
+
+分布で平均をとった値が、平均の風速を入れた値と違ってくるのは、次の場合である。
+
+- 雨量の式が、風速に比例しない（たとえば、風速の 2 乗に比例する）場合。
+- 風速だけでなく、風向もばらつく場合。 $\max \left( \cos \theta, \thinspace 0 \right)$ は風向について直線でないので、風向のばらつきで平均をとった値は、平均の風向を入れた値と違ってくる。今のプログラムでは、風向のばらつきは扱わない。
 
 ### 8.6 雨水が持ち込む熱
 
