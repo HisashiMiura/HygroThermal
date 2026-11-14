@@ -5,6 +5,7 @@
 表 3：反応速度定数の式の値
 表 4：腐朽で生まれる水の影響（厚さ 50 mm の木材の単板、20 deg.C・98.5% 一定、1 年）
 表 5：判定に使う値（1 日の平均か、時間刻みごとか）と、1 年後の表面の質量減少率（相対湿度が 1 日の周期で上下する単板）
+表 6：係数 WS の値と、発芽までの時間の式の値 t'_i
 """
 
 import numpy as np
@@ -19,10 +20,10 @@ from modules.wall_builder import build_wall
 from modules.wall_input import WallInput
 
 
-def _f_g(theta: float, rh: float) -> tuple[float, float]:
+def _f_g(theta: float, rh: float, ws: float = decay.WS) -> tuple[float, float]:
     """発芽までの時間の式の係数 f と g（「木材腐朽」の式 (2)・(3)）。"""
-    f = 0.1384 * theta + 0.4370 * rh - 42.9450 + decay.WS * (0.0340 * theta - 0.0210 * rh + 1.7210)
-    g = -2.2270 * theta - 0.0347 * rh + 0.0244 * theta * rh + decay.WS * (-0.504 * theta + 0.0096 * rh + 0.0047 * theta * rh)
+    f = 0.1384 * theta + 0.4370 * rh - 42.9450 + ws * (0.0340 * theta - 0.0210 * rh + 1.7210)
+    g = -2.2270 * theta - 0.0347 * rh + 0.0244 * theta * rh + ws * (-0.504 * theta + 0.0096 * rh + 0.0047 * theta * rh)
     return f, g
 
 
@@ -112,8 +113,19 @@ def table_5():
               f'1 日の平均で判定 {_post(g, off, daily=True)[-1]:.3f}、時間刻みごとに判定 {on.mass_loss_is_ns[-1, -1]:.3f}')
 
 
+def table_6():
+    print('表 6　係数 WS の値と、発芽までの時間の式の値 t\'_i（月）')
+    for theta, rh in ((5.0, 98.0), (10.0, 98.0), (15.0, 95.0), (20.0, 95.0), (20.0, 98.0)):
+        cells = []
+        for ws in (-1.0, 0.0, 1.0):
+            f, g = _f_g(theta, rh, ws)
+            cells.append(f'WS = {ws:.0f}：{-g / f:.2f}')
+        print(f'  {theta:.0f} deg.C・{rh:.0f}%：' + '、'.join(cells))
+
+
 def main():
     tables_1_to_3()
+    table_6()
     table_4()
     table_5()
 
