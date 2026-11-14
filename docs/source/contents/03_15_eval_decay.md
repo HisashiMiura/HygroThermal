@@ -77,6 +77,9 @@ $t_{\mathrm{i}}$
 $t'_{\mathrm{i}}$
 : ：質量減少率の式の値が 0 になる時間（月）
 
+$t_{\mathrm{i,min}}$
+: ：発芽までの時間の下限。 $t_{\mathrm{i,min}} = 21 \times 86400$（s）
+
 $t_{\mathrm{mon}}$
 : ：1 か月の長さ。 $t_{\mathrm{mon}} = 30 \times 86400$（s/月）
 
@@ -135,7 +138,7 @@ $n$
 
 発芽期は、層の表面の質点だけで求める。表面の質点 $i$ が発芽していないとき、ステップ $n + 1$ の温度 $\theta_{i,n+1}$ と相対湿度 $\varphi_{i,n+1}$ から、次のように進める。
 
-菌が発芽に向けて活動する相対湿度の下限 $\varphi_{\mathrm{c}}$ は、式 {eq}`dc-rhc` により計算される。相対湿度がこの値以上のあいだ、発芽への進み具合を進め、進み具合が 1 に達したら発芽したとする。この値以上でも、発芽するまでは腐朽は進まず、発芽したあとも、5 節の $\varphi_{\mathrm{g}}$ 以上でなければ腐朽は進まない。
+菌が発芽に向けて活動する相対湿度の下限 $\varphi_{\mathrm{c}}$ は、式 {eq}`dc-rhc` により計算される。相対湿度がこの値以上のあいだ、発芽への進み具合を進め（この値より低いあいだは進めない）、進み具合が 1 に達したら発芽したとする。この値以上でも、発芽するまでは腐朽は進まず、発芽したあとも、5 節の $\varphi_{\mathrm{g}}$ 以上でなければ腐朽は進まない。
 
 $$
 \varphi_{\mathrm{c}} =
@@ -161,22 +164,22 @@ $$
 t'_{\mathrm{i}} = - \frac{g}{f}
 $$ (dc-ti-dash)
 
-発芽までの時間 $t_{\mathrm{i}}$ は、式 {eq}`dc-ti` により計算される。 $f \le 0$ のときは、質量減少率が時間とともに増えないので、発芽しない（無限大）。 $f > 0$ で $g \ge 0$ のときは、 $t'_{\mathrm{i}} \le 0$ となり、すぐに発芽する（0）。
+発芽までの時間 $t_{\mathrm{i}}$ は、式 {eq}`dc-ti` により計算される。 $f \le 0$ のときは、質量減少率が時間とともに増えないので、発芽しない（無限大）。 $f > 0$ のときは、下限を $t_{\mathrm{i,min}}$（3 週間）とする。 $g \ge 0$ で $t'_{\mathrm{i}} \le 0$ となるときも、 $t_{\mathrm{i,min}}$ とする。
 
 $$
 t_{\mathrm{i}} =
 \begin{cases}
 \infty & \left( f \le 0 \right) \\
-t_{\mathrm{mon}} \max \left( t'_{\mathrm{i}}, \thinspace 0 \right) & \left( f > 0 \right)
+\max \left( t_{\mathrm{mon}} \thinspace t'_{\mathrm{i}}, \thinspace t_{\mathrm{i,min}} \right) & \left( f > 0 \right)
 \end{cases}
 $$ (dc-ti)
 
-ステップ $n + 1$ の、発芽への進み具合 $D_{i,n+1}$ は、 $\theta = \theta_{i,n+1}$、 $\varphi = \varphi_{i,n+1}$ の $\varphi_{\mathrm{c}}$ と $t_{\mathrm{i}}$ を使って、式 {eq}`dc-d` により計算される。0 deg.C 以下のときと、相対湿度が $\varphi_{\mathrm{c}}$ より低いときは、0 に戻す。それ以外のときは、時間刻みを発芽までの時間で割った分だけ進める。 $t_{\mathrm{i}} = \infty$ なら進まず、 $t_{\mathrm{i}} = 0$ ならすぐに 1 に達する（ $D_{i,n+1} = \infty$）。
+ステップ $n + 1$ の、発芽への進み具合 $D_{i,n+1}$ は、 $\theta = \theta_{i,n+1}$、 $\varphi = \varphi_{i,n+1}$ の $\varphi_{\mathrm{c}}$ と $t_{\mathrm{i}}$ を使って、式 {eq}`dc-d` により計算される。0 deg.C 以下のときと、相対湿度が $\varphi_{\mathrm{c}}$ より低いときは、進めない（0 には戻さない）。それ以外のときは、時間刻みを発芽までの時間で割った分だけ進める。 $t_{\mathrm{i}} = \infty$ なら進まない。
 
 $$
 D_{i,n+1} =
 \begin{cases}
-0 & \left( \theta_{i,n+1} \le 0 \quad \text{または} \quad \varphi_{i,n+1} \lt \varphi_{\mathrm{c}} \right) \\
+D_{i,n} & \left( \theta_{i,n+1} \le 0 \quad \text{または} \quad \varphi_{i,n+1} \lt \varphi_{\mathrm{c}} \right) \\
 D_{i,n} + \dfrac{\Delta t}{t_{\mathrm{i}}} & (\text{それ以外})
 \end{cases}
 $$ (dc-d)

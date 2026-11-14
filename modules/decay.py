@@ -22,6 +22,9 @@ _SECONDS_PER_MONTH = 30.0 * 86400.0
 # 樹種と表面の状態を表す係数 WS, -（式 (2)・(3)。値の根拠は作成者に確かめる）
 WS = -1.0
 
+# 発芽までの時間の下限 t_i,min, s（式 (5)。発芽への進み具合の進む速さを、1 / t_i,min で頭打ちにする）
+T_INIT_MIN = 21.0 * 86400.0
+
 # 腐朽が進む相対湿度の下限 φ_g, %（5 節）
 RH_GROWTH = 98.0
 
@@ -70,9 +73,9 @@ def initial_response_time(theta: float, rh: float) -> float:
     # 式 (4)
     t_i_dash = -g / f
 
-    # 発芽までの時間 t_i, s（g が 0 以上で t'_i が 0 以下なら、すぐに発芽する）
+    # 発芽までの時間 t_i, s（下限 t_i,min。g が 0 以上で t'_i が 0 以下のときも t_i,min）
     # 式 (5)
-    t_i = max(t_i_dash, 0.0) * _SECONDS_PER_MONTH
+    t_i = max(t_i_dash * _SECONDS_PER_MONTH, T_INIT_MIN)
     return t_i
 
 
@@ -188,14 +191,11 @@ def advance(
         # 発芽期（表面の質点だけ）
         if nodes.is_surface_is[i] and not germinated_is[i]:
 
-            # 発芽への進み具合 D_i,n+1, -（0 deg.C 以下か、φ_c より低ければ 0 に戻す。
-            # それ以外は、その時刻の発芽までの時間 t_i で時間刻みを割った分だけ進む。t_i = 0 ならすぐに 1 に達する）
+            # 発芽への進み具合 D_i,n+1, -（0 deg.C 以下か、φ_c より低ければ進まない（0 には戻さない）。
+            # それ以外は、その時刻の発芽までの時間 t_i で時間刻みを割った分だけ進む）
             # 式 (6)
-            if theta <= 0.0 or rh < rh_critical(theta):
-                progress_is[i] = 0.0
-            else:
-                t_i = initial_response_time(theta, rh)
-                progress_is[i] += np.inf if t_i == 0.0 else dt / t_i
+            if not (theta <= 0.0 or rh < rh_critical(theta)):
+                progress_is[i] += dt / initial_response_time(theta, rh)
 
             # 発芽したか G_i,n+1（進み具合が 1 に達したら発芽する）
             # 式 (7)
