@@ -1,4 +1,4 @@
-"""04_07「材料の中の自由水のモデル」：表 1・表 2、5.4 節、9.3 節。"""
+"""04_07「材料の中の自由水のモデル」：表 1・表 2、5.4 節、7 節（空隙率を与えたときに止まる日）。"""
 
 import numpy as np
 
@@ -38,11 +38,11 @@ def table_2_and_5_4():
     print(f'5.4 節　吸湿する材料の、乾燥密度 × 傾きの最小：{min(slopes)[0]:.0f} kg/m3（{min(slopes)[1]}）')
 
 
-def section_9_3():
-    """9.3 節：構造用合板 1 層に、外気 -5 deg.C・90%、室内 25 deg.C・95% を 30 日（1 時間刻み）。空隙率による違い。"""
+def section_7():
+    """7 節：構造用合板 1 層に、外気 -5 deg.C・90%、室内 25 deg.C・95% を 30 日（1 時間刻み）。空隙率による違い。"""
     outdoor = OutdoorBoundary.from_theta_rh(theta=-5.0, rh=90.0)
     indoor = IndoorBoundary.from_theta_rh(theta=25.0, rh=95.0)
-    print('9.3 節　空隙率を与えた場合')
+    print('7 節　空隙率を与えた場合')
     for porosity in (0.64, 0.864):
         g, st = build_wall(WallInput.from_dict({
             'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
@@ -62,7 +62,7 @@ def section_9_3():
 def main():
     table_1()
     table_2_and_5_4()
-    section_9_3()
+    section_7()
 
 
 if __name__ == '__main__':

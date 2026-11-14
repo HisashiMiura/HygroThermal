@@ -1,4 +1,6 @@
-"""04_06「境目にたまる水（水膜）のモデル」10.3 節：7 層の壁で、雨水を浸入させた 2 年間の計算。
+"""04_06「境目にたまる水（水膜）のモデル」：4.4 節の例（2 層の壁で水膜ができて、なくなる）と、8.7 節（7 層の壁で、雨水を浸入させた 2 年間の計算）。
+
+8.7 節：
 
 通気層と石膏ボードの境目（境目 2）に、外表面に当たる雨水の 1% を浸入させる。
 水膜の右（石膏ボードの側）の湿気コンダクタンスを、デフォルト（1.0e-5）、2e-9、2e-10 の 3 通りにする。
@@ -44,7 +46,43 @@ def _weather():
         radiation_unit=RadiationUnit.MJ_PER_M2_H, rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
 
 
+def film_two_layer():
+    """4.4 節の例：構造用合板 12 mm ＋ グラスウール 100 mm、境目の水膜の左を防湿層。冬 30 日、続けて夏 60 日（1 時間刻み）。"""
+    from modules.balance import drainage_is
+    from modules.boundary import IndoorBoundary, OutdoorBoundary
+    from modules.solver import step
+    from modules.wall_builder import build_wall
+    from modules.wall_input import WallInput
+    m = lambda name, d, n: {'source': 'whamcavity', 'name': name, 'thickness': d, 'n_div': n,
+                            'initial_temperature': 10.0, 'initial_rh': 60.0}
+    surface = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+               'exposure_factor': 1.0, 'deposition_factor': 1.0}
+    print('4.4 節の例　水膜ができて、なくなる（2 層の壁）')
+    for rh_in in (40.0, 70.0):
+        g, st = build_wall(WallInput.from_dict({
+            'surface': surface,
+            'layers': [m('構造用合板1', 0.012, 4), m('グラスウール1', 0.1, 5)],
+            'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11},
+                           {'left': {'g_h': 100.0, 'g_m': 2.0e-11}, 'right': {'g_h': 100.0, 'g_m': 1.55e-6}},
+                           {'g_h': 9.2, 'g_m': 2.6e-8}],
+            'len_vertical': 1.0, 'len_horizontal': 1.0}))
+        i_film = 4
+        for label, days, outdoor, indoor in (
+                ('冬 30 日', 30, OutdoorBoundary.from_theta_rh(theta=-5.0, rh=80.0), IndoorBoundary.from_theta_rh(theta=20.0, rh=rh_in)),
+                ('続けて夏 60 日', 60, OutdoorBoundary.from_theta_rh(theta=25.0, rh=40.0), IndoorBoundary.from_theta_rh(theta=25.0, rh=40.0))):
+            drained, its = 0.0, []
+            for _ in range(24 * days):
+                st, it = step(g, st, 3600.0, outdoor, outdoor, indoor)
+                drained += drainage_is(g, st.t_is, st.mu_is).sum() * 3600.0
+                its.append(it)
+            w_film = g.nodes[i_film].water_amount(st.state(i_film))
+            free = sum(n.free_water(st.state(i)) for i, n in enumerate(g.nodes) if hasattr(n, 'free_water'))
+            print(f'  室内 {rh_in:.0f}%・{label}：水膜の水分量 {w_film * 1000:.1f} g/m2（相対湿度 {st.rh_is[i_film]:.1f}%）、'
+                  f'流れ落ちた水 {drained:.2f} kg/m2、材料の自由水 {free:.3f} kg/m2、修正の回数 平均 {np.mean(its):.2f} 回・最大 {max(its)} 回')
+
+
 def main():
+    film_two_layer()
     geometry = c.example_geometry()
     i_air = next(i for i, n in enumerate(geometry.nodes) if type(n).__name__ == 'AirNode')
     i_film, i_gyp = i_air + 1, i_air + 2

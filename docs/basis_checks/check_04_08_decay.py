@@ -6,7 +6,10 @@
 表 4：腐朽で生まれる水の影響（厚さ 50 mm の木材の単板、20 deg.C・98.5% 一定、1 年）
 表 5：判定に使う値（1 日の平均か、時間刻みごとか）と、1 年後の表面の質量減少率（相対湿度が 1 日の周期で上下する単板）
 表 6：係数 WS の値と、発芽までの時間の式の値 t'_i
+図 1：反応速度定数の式と、齋藤ら（2008）の図 8 から読み取った実験の値（docs/source/contents/figures/decay_reaction_rate.svg）
 """
+
+import os
 
 import numpy as np
 from scipy.optimize import brentq
@@ -123,7 +126,66 @@ def table_6():
         print(f'  {theta:.0f} deg.C・{rh:.0f}%：' + '、'.join(cells))
 
 
+# 齋藤ら（2008）の図 8 から目で読み取った、反応速度定数の実験の値（温度 deg.C、1e-10 1/s）
+_KM_READ = ((0.0, 0.0), (5.0, 7.0), (10.0, 44.0), (20.0, 130.0), (30.0, 153.0), (40.0, 30.0))
+
+_FIGURE = os.path.join(c.ROOT, 'docs', 'source', 'contents', 'figures', 'decay_reaction_rate.svg')
+
+
+def figure_1():
+    """図 1：反応速度定数の式（3 次式と、負を 0 で切ったもの）と、実験の値の読み取り。0〜6 deg.C の拡大を右上に入れる。"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    text, text2, grid, surf = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
+    blue, orange, gray = '#2a78d6', '#eb6834', '#9a9893'
+    plt.rcParams.update({'font.family': 'Hiragino Sans', 'font.size': 10, 'axes.edgecolor': text2, 'axes.labelcolor': text,
+                         'xtick.color': text2, 'ytick.color': text2, 'svg.fonttype': 'path', 'svg.hashsalt': 'decay_km'})
+    cubic = lambda t: 2.77 - 3.23 * t + 0.865 * t ** 2 - 0.0189 * t ** 3
+    theta = np.linspace(0.0, 45.0, 901)
+    fig, ax = plt.subplots(figsize=(9, 4.4), facecolor=surf)
+    ax.set_facecolor(surf)
+    ax.axvspan(40.0, 45.0, color=grid, alpha=0.6, linewidth=0)
+    ax.text(42.5, 185, '腐朽が進まない\n（40 deg.C を超える）', ha='center', va='top', fontsize=8, color=text2)
+    ax.axhline(0.0, color=text2, linewidth=0.8)
+    ax.plot(theta, cubic(theta), color=blue, linewidth=2, label='式 (18) の 3 次式', zorder=3)
+    ax.plot(*zip(*_KM_READ), linestyle='none', marker='o', markersize=7, color=orange, markeredgecolor=surf,
+            markeredgewidth=1.2, label='実験の値（齋藤らの図 8 からの読み取り）', zorder=4)
+    ax.set_xlim(0.0, 45.0)
+    ax.set_ylim(-20.0, 190.0)
+    ax.set_xlabel('温度, deg.C')
+    ax.set_ylabel('反応速度定数, 10$^{-10}$ 1/s')
+    ax.grid(True, color=grid, linewidth=0.8)
+    for side in ('top', 'right'):
+        ax.spines[side].set_visible(False)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.62, 0.16), frameon=False, fontsize=9, labelcolor=text)
+
+    # 0〜6 deg.C の拡大：3 次式が 1.29〜2.72 deg.C で負になり、そこを 0 で切る
+    inset = ax.inset_axes([0.07, 0.6, 0.24, 0.34])
+    inset.set_facecolor(surf)
+    small = np.linspace(0.0, 6.0, 601)
+    roots = sorted(r.real for r in np.roots([-0.0189, 0.865, -3.23, 2.77]) if abs(r.imag) < 1e-12 and r.real < 10)
+    inset.axvspan(roots[0], roots[1], color=grid, alpha=0.9, linewidth=0)
+    inset.axhline(0.0, color=text2, linewidth=0.8)
+    inset.plot(small, cubic(small), color=blue, linewidth=1.2, linestyle='--')
+    inset.plot(small, np.maximum(cubic(small), 0.0), color=blue, linewidth=2)
+    inset.plot(*zip(*[p for p in _KM_READ if p[0] <= 6.0]), linestyle='none', marker='o', markersize=5, color=orange,
+               markeredgecolor=surf, markeredgewidth=1)
+    inset.set_xlim(0.0, 6.0)
+    inset.set_ylim(-1.0, 8.0)
+    inset.tick_params(labelsize=7)
+    inset.set_title('0〜6 deg.C の拡大', fontsize=8, color=text2, loc='left')
+    print(f'  式が負になる温度：{roots[0]:.2f}〜{roots[1]:.2f} deg.C')
+    for side in ('top', 'right'):
+        inset.spines[side].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(_FIGURE, metadata={'Date': None})
+    print(f'図 1 を書き出しました：{os.path.relpath(_FIGURE, c.ROOT)}')
+
+
 def main():
+    figure_1()
     tables_1_to_3()
     table_6()
     table_4()
