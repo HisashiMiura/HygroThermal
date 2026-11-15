@@ -1,0 +1,122 @@
+{
+  "wall": {
+    "surface": {
+      "direction": "e",
+      "angle": 90.0,
+      "albedo": 0.3,
+      "absorptance": 0.9,
+      "emissivity": 0.9,
+      "eva_height": 4.2,
+      "exposure_factor": 1.0,
+      "deposition_factor": 1.0
+    },
+    "layers": [
+      {
+        "source": "whamcavity",
+        "name": "サイディング",
+        "thickness": 0.016,
+        "n_div": 5,
+        "initial_temperature": 15.0,
+        "initial_rh": 50.0
+      },
+      {
+        "air_layer": true,
+        "thickness": 0.025,
+        "alpha": 0.085,
+        "initial_temperature": 15.0,
+        "initial_rh": 50.0
+      },
+      {
+        "source": "whamcavity",
+        "name": "石膏ボード",
+        "thickness": 0.042,
+        "n_div": 5,
+        "initial_temperature": 10.0,
+        "initial_rh": 50.0
+      },
+      {
+        "source": "whamcavity",
+        "name": "構造用合板1",
+        "thickness": 0.009,
+        "n_div": 6,
+        "initial_temperature": 10.0,
+        "initial_rh": 80.0,
+        "wood_decay": true
+      },
+      {
+        "source": "whamcavity",
+        "name": "グラスウール1",
+        "thickness": 0.1,
+        "n_div": 5,
+        "initial_temperature": 10.0,
+        "initial_rh": 50.0
+      },
+      {
+        "source": "whamcavity",
+        "name": "構造用合板1",
+        "thickness": 0.012,
+        "n_div": 6,
+        "initial_temperature": 10.0,
+        "initial_rh": 80.0,
+        "wood_decay": true
+      },
+      {
+        "source": "whamcavity",
+        "name": "石膏ボード",
+        "thickness": 0.042,
+        "n_div": 5,
+        "initial_temperature": 10.0,
+        "initial_rh": 50.0
+      }
+    ],
+    "interfaces": [
+      {
+        "g_h": 22.4,
+        "g_m": 2e-11
+      },
+      {},
+      {},
+      {},
+      {},
+      {
+        "left": {
+          "g_h": 100.0,
+          "g_m": 1.55e-06
+        },
+        "right": {
+          "g_h": 100.0,
+          "g_m": 2e-11
+        }
+      },
+      {},
+      {
+        "g_h": 9.2,
+        "g_m": 2.6e-10
+      }
+    ],
+    "len_vertical": 7.0,
+    "len_horizontal": 0.42
+  },
+  "outdoor": {
+    "weather_file": "../modules/weather.csv",
+    "latitude": 36.7,
+    "longitude": 137.21,
+    "radiation_kind": "interval",
+    "radiation_interval": "before",
+    "radiation_unit": "MJ/(m2 h)",
+    "rain_interval": "before",
+    "wind_height": 6.5,
+    "wind_exponent": 0.25
+  },
+  "indoor": {
+    "type": "cosine",
+    "theta_in_ave": 22.5,
+    "theta_in_amp": 4.5,
+    "rh_in": 60.0
+  },
+  "simulation": {
+    "dt": 3600.0,
+    "years": 2,
+    "record_interval": 3600.0
+  }
+}

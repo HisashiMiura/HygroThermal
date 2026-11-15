@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Self
 
 from modules.direction import Direction
+from modules.input_check import check_keys
 from modules.material_loaders import MATERIAL_SOURCES
 
 
@@ -48,27 +49,6 @@ _SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'e
 
 # 壁の入力の dict のキー（すべて必ず指定する）
 _WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal')
-
-
-def _check_keys(d: dict, required: tuple[str, ...], where: str, optional: tuple[str, ...] = ()):
-    """dict のキーを確かめる。必ず指定するキーがない、または知らないキー（打ち間違いなど）があればエラーにする。
-
-    Args:
-        d: 入力の dict
-        required: 必ず指定するキー
-        where: エラーのメッセージに出す、どの入力か
-        optional: 省いてよいキー（必ず指定するキーと、省いてよいキーのほかは使えない）
-    """
-
-    # 必ず指定するキーのうち、dict にないものを集める。1 つでもあればエラー
-    missing = [k for k in required if k not in d]
-    if missing:
-        raise ValueError(f'{where} に {missing} がありません。')
-
-    # dict のキーのうち、使えるキーにないもの（打ち間違いなど）を集める。1 つでもあればエラー
-    unknown = sorted(set(d) - set(required) - set(optional))
-    if unknown:
-        raise ValueError(f'{where} に知らないキー {unknown} があります（使えるキー: {list(required) + list(optional)}）。')
 
 
 def _from_dict_at(from_dict, d, at: str):
@@ -169,7 +149,7 @@ class MaterialLayerInput:
                'porosity'・'wood_decay'（省いてよい）
         """
 
-        _check_keys(d, _MATERIAL_LAYER_KEYS, where='材料の層の入力', optional=_MATERIAL_LAYER_OPTIONAL_KEYS)
+        check_keys(d, _MATERIAL_LAYER_KEYS, where='材料の層の入力', optional=_MATERIAL_LAYER_OPTIONAL_KEYS)
 
         return cls(**{k: d[k] for k in _MATERIAL_LAYER_KEYS + _MATERIAL_LAYER_OPTIONAL_KEYS if k in d})
 
@@ -222,7 +202,7 @@ class AirLayerInput:
             d: {'air_layer': True, 'thickness', 'alpha', 'initial_temperature', 'initial_rh'}（すべて必ず指定する）
         """
 
-        _check_keys(d, _AIR_LAYER_KEYS, where='通気層の入力')
+        check_keys(d, _AIR_LAYER_KEYS, where='通気層の入力')
 
         # 'air_layer' の値が True でなければエラー（材料の層なら、このキー自体を書かない決まり）
         if d['air_layer'] is not True:
@@ -291,7 +271,7 @@ class InterfaceInput:
             d: {'g_h', 'g_m'}（すべて必ず指定する）
         """
 
-        _check_keys(d, _INTERFACE_KEYS, where='境目の入力')
+        check_keys(d, _INTERFACE_KEYS, where='境目の入力')
 
         return cls(**{k: d[k] for k in _INTERFACE_KEYS})
 
@@ -448,7 +428,7 @@ class SurfaceInput:
             d: {'direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height', 'exposure_factor', 'deposition_factor'}（すべて必ず指定する）
         """
 
-        _check_keys(d, _SURFACE_KEYS, where='外表面の入力')
+        check_keys(d, _SURFACE_KEYS, where='外表面の入力')
 
         # 方位の文字列を Direction に直す。どれにも当たらなければエラー
         try:
@@ -555,7 +535,7 @@ class WallInput:
             d: {'surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal'}（すべて必ず指定する）
         """
 
-        _check_keys(d, _WALL_KEYS, where='壁の入力')
+        check_keys(d, _WALL_KEYS, where='壁の入力')
 
         # 層・境目がリスト（またはタプル）でなければエラー
         for key in ('layers', 'interfaces'):
