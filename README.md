@@ -1,5 +1,8 @@
 # HygroThermal
 
+[![tests](https://github.com/HisashiMiura/HygroThermal/actions/workflows/tests.yml/badge.svg)](https://github.com/HisashiMiura/HygroThermal/actions/workflows/tests.yml)
+[![Documentation Status](https://readthedocs.org/projects/hygrothermal/badge/?version=latest)](https://hygrothermal.readthedocs.io/ja/latest/)
+
 建築外皮の熱・水分同時移動解析のプログラム。齋藤宏昭氏の Fortran 版「Whamcavity」（2021 年 8 月）を、Python で作り直したもの。
 
 多層の壁を 1 次元で扱い、各質点の温度と水分化学ポテンシャルを時間を追って求める。通気層の換気、外表面の雨水、層の境目にたまる水（水膜）、材料の中の自由水、木材腐朽を扱う。
