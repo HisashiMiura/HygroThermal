@@ -6,8 +6,9 @@ docs/reference/papers/
 docs/reference/material_review/*.pdf
 *.egg-info/
 
-# 例のスクリプトが書き出す結果（図・数値）
+# 例のスクリプトと、例の入力のファイルで計算したときに書き出す結果
 examples/output/
+examples/*_output/
 
 # 計算方法のサイト（Sphinx が作るもの）
 docs/build/

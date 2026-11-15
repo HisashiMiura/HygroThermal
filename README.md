@@ -7,9 +7,9 @@
 ## 必要なもの
 
 - Python 3.11 以上
-- numpy、pandas、scipy、openpyxl（`pyproject.toml` の依存）
+- numpy、pandas、scipy、openpyxl、h5py（`pyproject.toml` の依存）
 
-リポジトリの一番上のフォルダで、次のように入れる。
+リポジトリの一番上のフォルダで、次のように入れる。コマンド `hygrothermal` も使えるようになる。
 
 ```
 pip install -e ".[dev]"
@@ -17,22 +17,32 @@ pip install -e ".[dev]"
 
 `[dev]` は、テスト（pytest）と図（matplotlib）のためのもの。計算方法の文書を作るときは `[docs]` も入れる。
 
-## テスト
+## 使い方
+
+入力のファイル（JSON）を 1 つ用意して、コマンドに渡す。結果（CSV と HDF5）は、入力のファイルと同じフォルダの `入力のファイルの名前_output/` に書き出す。
 
 ```
-python -m pytest
+hygrothermal examples/main_wall.json
 ```
 
-## 例の計算
+例の `examples/main_wall.json` は、7 層の壁（外側から、サイディング、通気層、せっこうボード、構造用合板、グラスウール、構造用合板、せっこうボード）を、例の気象データ（`modules/weather.csv`）と室内の余弦の条件で 2 年間計算する入力である。計算に 3 分ほどかかる。
 
-7 層の壁（外側から、サイディング、通気層、せっこうボード、構造用合板、グラスウール、構造用合板、せっこうボード）を、例の気象データ（`modules/weather.csv`）と室内の余弦の条件で 2 年間計算し、結果の図を描く。
+入力のファイル・気象データのファイル・結果のファイルの形は、計算方法の文書の「プログラムの仕様」に示す。
+
+https://hygrothermal.readthedocs.io/ja/latest/contents/02_00_spec.html
+
+同じ壁を計算して結果の図も描くスクリプトもある。図（png）と数値は `examples/output/` に書き出す。
 
 ```
 python examples/one_year_main_wall.py            # 時間刻み 3600 秒
 python examples/one_year_main_wall.py --dt 900   # 時間刻み 900 秒
 ```
 
-結果の数値（npz）と図（png）は `examples/output/` に書き出す（git には入れない）。
+## テスト
+
+```
+python -m pytest
+```
 
 ## 計算方法の文書
 
