@@ -22,7 +22,7 @@ def _input(porosity: float | None = None, wood_decay: bool = True) -> dict:
     return {
         'wall': {
             'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
-                        'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+                        'exposure_factor': 1.0, 'deposition_factor': 1.0},
             'layers': [layer],
             'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
             'len_vertical': 1.0, 'len_horizontal': 1.0},

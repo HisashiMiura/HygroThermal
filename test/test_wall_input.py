@@ -244,7 +244,7 @@ class TestInterfaceInput:
 
 def _surface_dict() -> dict:
     """外表面の正しい入力の dict（東向きの垂直な壁、Fortran の入力の値）。"""
-    return {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
+    return {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
 
 
 class TestSurfaceInput:
@@ -252,7 +252,7 @@ class TestSurfaceInput:
     def test_read(self):
         surface = SurfaceInput.from_dict(_surface_dict())
         assert surface.direction == Direction.E
-        assert (surface.angle, surface.albedo, surface.absorptance, surface.emissivity, surface.eva_height) == (90.0, 0.3, 0.9, 0.9, 4.2)
+        assert (surface.angle, surface.albedo, surface.absorptance, surface.emissivity) == (90.0, 0.3, 0.9, 0.9)
 
     def test_frozen(self):
         surface = SurfaceInput.from_dict(_surface_dict())
@@ -266,7 +266,7 @@ class TestSurfaceInput:
         d.update(direction=direction, angle=angle)
         assert SurfaceInput.from_dict(d).angle == angle
 
-    @pytest.mark.parametrize('key', ['direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height'])
+    @pytest.mark.parametrize('key', ['direction', 'angle', 'albedo', 'absorptance', 'emissivity'])
     def test_missing_key(self, key):
         d = _surface_dict()
         del d[key]
@@ -289,7 +289,6 @@ class TestSurfaceInput:
         ({'albedo': -0.1}, 'albedo'),
         ({'absorptance': 1.1}, 'absorptance'),
         ({'emissivity': -0.1}, 'emissivity'),
-        ({'eva_height': 0.0}, 'eva_height'),
     ])
     def test_invalid_value(self, changes, key):
         d = _surface_dict()

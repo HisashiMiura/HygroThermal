@@ -57,7 +57,7 @@ def _panel(rh_at, wood_decay: bool):
     m = next(x for x in load_materials('whamcavity') if x.name == '木材')
     rh_0 = brentq(lambda r: m.get_u(r) - 0.2, 50.0, 99.99)
     g, st = build_wall(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
                     'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [{'source': 'whamcavity', 'name': '木材', 'thickness': 0.05, 'n_div': 51, 'initial_temperature': 20.0,
                     'initial_rh': rh_0, 'wood_decay': wood_decay}],

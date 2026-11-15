@@ -55,7 +55,7 @@ def film_two_layer():
     from modules.wall_input import WallInput
     m = lambda name, d, n: {'source': 'whamcavity', 'name': name, 'thickness': d, 'n_div': n,
                             'initial_temperature': 10.0, 'initial_rh': 60.0}
-    surface = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+    surface = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
                'exposure_factor': 1.0, 'deposition_factor': 1.0}
     print('4.4 節の例　水膜ができて、なくなる（2 層の壁）')
     for rh_in in (40.0, 70.0):

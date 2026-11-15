@@ -10,7 +10,7 @@ from modules.wall_geometry import Surface
 
 def _surface(direction: Direction, angle: float) -> Surface:
     """アルベド 0.2、日射吸収率 0.8、長波長放射率 0.9 の外表面。"""
-    return Surface(direction=direction, angle=angle, albedo=0.2, absorptance=0.8, emissivity=0.9, eva_height=4.2, exposure_factor=1.0, deposition_factor=1.0)
+    return Surface(direction=direction, angle=angle, albedo=0.2, absorptance=0.8, emissivity=0.9, exposure_factor=1.0, deposition_factor=1.0)
 
 
 def _sun(altitude: float, azimuth: float, i_dn: float, i_sky: float, r_eff: float = 0.0) -> SolarRadiation:

@@ -22,7 +22,7 @@ def _indoor(t: float) -> IndoorBoundary:
 def _one_layer_geometry() -> WallGeometry:
     """1 層の壁：構造用合板1 9 mm（分割数 6）、外表面 22.4、内表面 9.2。"""
     return WallGeometry.from_input(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [{'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6,
                     'initial_temperature': 10.0, 'initial_rh': 50.0}],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
@@ -72,7 +72,7 @@ class TestHeatFlow:
 def _plywood2_geometry() -> WallGeometry:
     """1 層の壁：構造用合板2 12 mm（分割数 5、湿気伝導率が一定）、外表面の湿気 2.0e-11、内表面 2.6e-10。"""
     return WallGeometry.from_input(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [{'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 5,
                     'initial_temperature': 20.0, 'initial_rh': 50.0}],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
@@ -156,7 +156,7 @@ def _plywood_gw_geometry() -> WallGeometry:
     """2 層の壁：構造用合板1 9 mm（分割数 6）＋ グラスウール1 100 mm（分割数 5）、接触 50・7.75e-7。"""
     m = {'source': 'whamcavity', 'initial_temperature': 20.0, 'initial_rh': 50.0}
     return WallGeometry.from_input(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [m | {'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6},
                    m | {'name': 'グラスウール1', 'thickness': 0.1, 'n_div': 5}],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {'g_h': 9.2, 'g_m': 2.6e-10}],
@@ -376,7 +376,7 @@ def _air_layer_geometry() -> WallGeometry:
     """
     m = {'source': 'whamcavity', 'name': '構造用合板2', 'thickness': 0.012, 'n_div': 2, 'initial_temperature': 20.0, 'initial_rh': 50.0}
     return WallGeometry.from_input(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [m, {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 20.0, 'initial_rh': 50.0}, m],
         'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {}, {}, {'g_h': 9.2, 'g_m': 2.6e-10}],
         'len_vertical': 7.0,

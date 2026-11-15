@@ -11,7 +11,7 @@ from modules.wall_geometry import Surface
 
 def _surface(direction: Direction, f_e: float = 1.0, f_d: float = 1.0) -> Surface:
     """鉛直な壁の外表面（雨水暴露係数 f_e、雨水付着係数 f_d）。"""
-    return Surface(direction=direction, angle=90.0, albedo=0.2, absorptance=0.8, emissivity=0.9, eva_height=4.2,
+    return Surface(direction=direction, angle=90.0, albedo=0.2, absorptance=0.8, emissivity=0.9,
                    exposure_factor=f_e, deposition_factor=f_d)
 
 

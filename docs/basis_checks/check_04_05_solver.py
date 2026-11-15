@@ -10,7 +10,7 @@ from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.wall_builder import build_wall
 from modules.wall_input import WallInput
 
-_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
             'exposure_factor': 1.0, 'deposition_factor': 1.0}
 
 

@@ -45,7 +45,7 @@ def section_7():
     print('7 節　空隙率を与えた場合')
     for porosity in (0.64, 0.864):
         g, st = build_wall(WallInput.from_dict({
-            'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+            'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
                         'exposure_factor': 1.0, 'deposition_factor': 1.0},
             'layers': [{'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6,
                         'initial_temperature': 0.0, 'initial_rh': 95.0, 'porosity': porosity}],

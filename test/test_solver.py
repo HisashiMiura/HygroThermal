@@ -14,7 +14,7 @@ from modules.wall_geometry import AirNode, MaterialNode, WallGeometry
 from modules.wall_input import WallInput
 from modules.wall_state import WallState
 
-_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
+_SURFACE = {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0}
 
 
 def _outdoor(theta: float, rh: float) -> OutdoorBoundary:

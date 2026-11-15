@@ -50,7 +50,7 @@ def _main_wall_input() -> WallInput:
                 'initial_temperature': temperature, 'initial_rh': rh, 'wood_decay': wood_decay}
 
     return WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [
             m('サイディング', 0.016, 5, 15.0, 50.0),
             {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0},

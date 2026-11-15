@@ -612,9 +612,6 @@ class Surface:
     # 外表面の長波長放射率, -
     emissivity: float
 
-    # 風速を求める評価高さ, m
-    eva_height: float
-
     # 雨水暴露係数 F_E, -
     exposure_factor: float
 
@@ -833,7 +830,7 @@ class WallGeometry:
         # 入力の外表面を、計算の側の外表面に写す
         s = wall_input.surface
         surface = Surface(direction=s.direction, angle=s.angle, albedo=s.albedo,
-                          absorptance=s.absorptance, emissivity=s.emissivity, eva_height=s.eva_height,
+                          absorptance=s.absorptance, emissivity=s.emissivity,
                           exposure_factor=s.exposure_factor, deposition_factor=s.deposition_factor)
 
         return cls(nodes=nodes, links=links, surface=surface,

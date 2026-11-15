@@ -45,7 +45,7 @@ _DEFAULT_MATERIAL_SURFACE = {'g_h': 1000.0, 'g_m': 1.0e-5}
 _DEFAULT_AIR_SURFACE = {'g_h': 9.2, 'g_m': 3.43e-8}
 
 # 外表面の入力の dict のキー（すべて必ず指定する）
-_SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height', 'exposure_factor', 'deposition_factor')
+_SURFACE_KEYS = ('direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'exposure_factor', 'deposition_factor')
 
 # 壁の入力の dict のキー（すべて必ず指定する）
 _WALL_KEYS = ('surface', 'layers', 'interfaces', 'len_vertical', 'len_horizontal')
@@ -375,9 +375,6 @@ class SurfaceInput:
     # 外表面の長波長放射率, -
     emissivity: float
 
-    # 風速を求める評価高さ, m
-    eva_height: float
-
     # 雨水暴露係数 F_E, -（ASHRAE Standard 160 の表 4.6.1。建物の高さと暴露の分類で選ぶ）
     exposure_factor: float
 
@@ -410,10 +407,6 @@ class SurfaceInput:
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f'{key} は 0 以上 1 以下にしてください（{value}）。')
 
-        # 評価高さが 0 より大きくなければエラー
-        if not self.eva_height > 0.0:
-            raise ValueError(f'評価高さ eva_height は 0 より大きくしてください（{self.eva_height}）。')
-
         # 雨水暴露係数・雨水付着係数が 0 以上でなければエラー
         for key in ('exposure_factor', 'deposition_factor'):
             value = getattr(self, key)
@@ -425,7 +418,7 @@ class SurfaceInput:
         """dict から作る。方位は文字列（'s'・'sw'・'w'・'nw'・'n'・'ne'・'e'・'se'・'top'・'bottom'）で受け取る。
 
         Args:
-            d: {'direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'eva_height', 'exposure_factor', 'deposition_factor'}（すべて必ず指定する）
+            d: {'direction', 'angle', 'albedo', 'absorptance', 'emissivity', 'exposure_factor', 'deposition_factor'}（すべて必ず指定する）
         """
 
         check_keys(d, _SURFACE_KEYS, where='外表面の入力')

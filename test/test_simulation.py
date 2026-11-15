@@ -95,7 +95,7 @@ def _plywood(porosity: float):
     from modules.wall_builder import build_wall
     from modules.wall_input import WallInput
     return build_wall(WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
                     'exposure_factor': 1.0, 'deposition_factor': 1.0},
         'layers': [{'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6,
                     'initial_temperature': 0.0, 'initial_rh': 95.0, 'porosity': porosity}],
