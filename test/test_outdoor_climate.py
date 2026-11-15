@@ -166,6 +166,19 @@ class TestFromCsv:
         assert w.n_rh_clamped == 2
         assert w.get_outdoor_boundary(5 * _H).state.rh == pytest.approx(100.0)
 
+    def test_missing_column(self, tmp_path):
+        # 読む列がなければ、列の名前を示してエラー
+        n = HOURS_PER_YEAR
+        d = pd.DataFrame({'気温': np.zeros(n), '絶対湿度': np.full(n, 3.0), '気圧': np.full(n, 101325.0),
+                          '法線面直達日射量': np.zeros(n), '水平面天空日射量': np.zeros(n), '夜間放射': np.zeros(n),
+                          '降水量': np.zeros(n), '南北風': np.zeros(n)})
+        path = tmp_path / 'weather.csv'
+        d.to_csv(path, index=False, encoding='shift_jis')
+        with pytest.raises(ValueError, match='東西風'):
+            WeatherOutdoor.from_csv(str(path), latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
+                                    radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
+                                    rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
+
 
 class TestInvalid:
 

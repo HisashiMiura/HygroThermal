@@ -20,6 +20,9 @@ from modules.boundary import OutdoorBoundary, SolarRadiation
 from modules.air_water_properties import T_0, get_p_vs
 from modules.time_axis import HOURS_PER_YEAR, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 
+# 気象データの CSV から読む列の名前（ほかの列は読まない。並びは問わない）
+CSV_COLUMNS = ('気温', '絶対湿度', '気圧', '法線面直達日射量', '水平面天空日射量', '夜間放射', '降水量', '南北風', '東西風')
+
 
 class RadiationKind(Enum):
     """日射・夜間放射の値の種類（計算方法の文書の「外気の条件」の 5 節・6 節）。"""
@@ -204,6 +207,11 @@ class WeatherOutdoor:
         """
 
         d = pd.read_csv(path, encoding='shift_jis')
+
+        # 読む列がなければエラー
+        missing = [c for c in CSV_COLUMNS if c not in d.columns]
+        if missing:
+            raise ValueError(f'気象データのファイルに列 {missing} がありません（{path}）。')
 
         # 外気の温度 θ_ex,h, deg.C, [h]
         theta_ex_hs = d['気温'].to_numpy(dtype=float)
