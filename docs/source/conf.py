@@ -5,7 +5,7 @@
 できたサイトは docs/build/html/index.html。Read the Docs では .readthedocs.yaml の設定で同じように作る。
 """
 
-project = 'HydroThermal'
+project = 'HygroThermal'
 author = 'Hisashi Miura'
 copyright = '2026, Hisashi Miura'
 language = 'ja'
@@ -18,7 +18,7 @@ source_suffix = {'.md': 'markdown'}
 
 # 見た目（hc-energy と同じ Read the Docs のテーマ）
 html_theme = 'sphinx_rtd_theme'
-html_title = 'HydroThermal 計算方法'
+html_title = 'HygroThermal 計算方法'
 
 # 見た目の調整（式の番号の位置、長い式、記号の一覧）
 html_static_path = ['_static']

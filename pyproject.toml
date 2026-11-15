@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hydrothermal"
+name = "hygrothermal"
 version = "0.1.0"
 description = "建築外皮の熱・水分同時移動解析（Whamcavity の Python 版）"
 readme = "README.md"

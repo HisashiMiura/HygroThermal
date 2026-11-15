@@ -1,4 +1,4 @@
-# HydroThermal
+# HygroThermal
 
 建築外皮の熱・水分同時移動解析のプログラム。齋藤宏昭氏の Fortran 版「Whamcavity」（2021 年 8 月）を、Python で作り直したもの。
 
