@@ -14,6 +14,7 @@ import _common as c
 import modules.simulation as simulation
 import modules.solver as solver
 from modules.air_water_properties import L_V, R_V
+from modules.output import node_positions
 from modules.state import State
 from modules.wall_geometry import FilmNode, MaterialNode
 
@@ -59,7 +60,7 @@ def _figure(geometry, rh_diff_max: dict):
     import matplotlib.pyplot as plt
 
     keep = [i for i, n in enumerate(geometry.nodes) if not isinstance(n, FilmNode)]
-    x_is = c.ex._node_positions(geometry)[keep] * 1000
+    x_is = node_positions(geometry)[keep] * 1000
     text, text2, grid, surf = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
     plt.rcParams.update({'font.family': 'Hiragino Sans', 'font.size': 10, 'axes.edgecolor': text2, 'axes.labelcolor': text,
                          'xtick.color': text2, 'ytick.color': text2, 'svg.fonttype': 'path', 'svg.hashsalt': 'vapour_storage'})

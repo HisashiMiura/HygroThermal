@@ -1,10 +1,11 @@
-"""Fortran の入力の壁 7 層を、気象データと室内の余弦の条件で 2 年間計算し、結果の図を描く。
+"""例の入力のファイル examples/main_wall.json（Fortran の入力の壁 7 層）を、時間刻みと年数だけ変えて計算し、結果の図を描く。
 
 使い方（リポジトリの一番上のフォルダで）：
     python examples/one_year_main_wall.py            # Δt = 3600 秒
     python examples/one_year_main_wall.py --dt 900   # Δt = 900 秒（Δt で答えが変わらないかを比べる）
 
 結果の数値（npz）と図（png）は examples/output/ に書き出す（git には入れない）。
+壁・外気・室内は入力のファイルのとおりで、時間刻みは --dt、年数は --years で変える（記録は 1 時間ごと）。
 通気層の換気、境目の水膜、材料の中の自由水、木材腐朽（構造用合板の 2 層）を含む。雨水を浸入させる境目はない。
 """
 
@@ -22,17 +23,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from modules.boundary import Boundaries
 from modules.indoor_climate import CosineIndoor
-from modules.outdoor_climate import RadiationInterval, RadiationKind, RadiationUnit, WeatherOutdoor
+from modules.outdoor_climate import WeatherOutdoor
+from modules.output import node_positions, rh_is_ns
 from modules.simulation import SimulationResult, simulate
-from modules.state import State
+from modules.simulation_input import SimulationInput
 from modules.air_water_properties import T_0
 from modules.time_axis import SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_YEAR
 from modules.wall_builder import build_wall
-from modules.wall_geometry import MaterialNode, WallGeometry
+from modules.wall_geometry import WallGeometry
 from modules.wall_input import WallInput
 
 _HERE = os.path.dirname(__file__)
 _OUTPUT = os.path.join(_HERE, 'output')
+
+# 例の入力のファイル
+_INPUT = os.path.join(_HERE, 'main_wall.json')
 
 # 図の色（データの図の決まりに沿った、色覚の違いでも見分けやすい順の 5 色）と、文字・線の色
 _SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4']
@@ -43,47 +48,8 @@ _SURFACE = '#fcfcfb'
 
 
 def _main_wall_input() -> WallInput:
-    """Fortran の入力の壁 7 層（test/test_solver.py の _main_wall と同じ）。構造用合板の 2 層で木材腐朽を求める。"""
-
-    def m(name, thickness, n_div, temperature, rh, wood_decay=False):
-        return {'source': 'whamcavity', 'name': name, 'thickness': thickness, 'n_div': n_div,
-                'initial_temperature': temperature, 'initial_rh': rh, 'wood_decay': wood_decay}
-
-    return WallInput.from_dict({
-        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'exposure_factor': 1.0, 'deposition_factor': 1.0},
-        'layers': [
-            m('サイディング', 0.016, 5, 15.0, 50.0),
-            {'air_layer': True, 'thickness': 0.025, 'alpha': 0.085, 'initial_temperature': 15.0, 'initial_rh': 50.0},
-            m('石膏ボード', 0.042, 5, 10.0, 50.0),
-            m('構造用合板1', 0.009, 6, 10.0, 80.0, wood_decay=True),
-            m('グラスウール1', 0.1, 5, 10.0, 50.0),
-            m('構造用合板1', 0.012, 6, 10.0, 80.0, wood_decay=True),
-            m('石膏ボード', 0.042, 5, 10.0, 50.0),
-        ],
-        'interfaces': [
-            {'g_h': 22.4, 'g_m': 2.0e-11},
-            {}, {}, {}, {},
-            {'left': {'g_h': 100.0, 'g_m': 1.55e-6}, 'right': {'g_h': 100.0, 'g_m': 2.0e-11}},
-            {},
-            {'g_h': 9.2, 'g_m': 2.6e-10},
-        ],
-        'len_vertical': 7.0, 'len_horizontal': 0.42,
-    })
-
-
-def _node_positions(geometry: WallGeometry) -> np.ndarray:
-    """各質点の位置（外表面からの距離）, m, [i]。"""
-    x_is, x_edge = [], 0.0
-    for node in geometry.nodes:
-        # 材料の質点は左の端からの距離、空気の質点は層の真ん中
-        x_is.append(x_edge + (node.d_left if isinstance(node, MaterialNode) else node.width / 2))
-        x_edge += node.width
-    return np.array(x_is)
-
-
-def _rh_is_ns(t_is_ns: np.ndarray, mu_is_ns: np.ndarray) -> np.ndarray:
-    """温度と水分化学ポテンシャルの配列から、相対湿度, %, [i, n]。"""
-    return np.vectorize(lambda t, mu: State(t=t, mu=mu).rh)(t_is_ns, mu_is_ns)
+    """例の入力のファイルの壁（Fortran の入力の壁 7 層。構造用合板の 2 層で木材腐朽を求める）。"""
+    return SimulationInput.from_json(_INPUT).wall
 
 
 def _daily_mean(v_ns: np.ndarray, per_day: int) -> np.ndarray:
@@ -105,18 +71,9 @@ def run(dt: float, years: int) -> tuple[WallGeometry, SimulationResult, WeatherO
     """壁を作って、years 年間計算する。"""
 
     geometry, state_0 = build_wall(_main_wall_input())
-    weather = WeatherOutdoor.from_csv(
-        os.path.join(_HERE, '..', 'modules', 'weather.csv'),
-        latitude=36.7,
-        longitude=137.21,
-        radiation_kind=RadiationKind.INTERVAL,
-        radiation_interval=RadiationInterval.BEFORE,
-        radiation_unit=RadiationUnit.MJ_PER_M2_H,
-        rain_interval=RadiationInterval.BEFORE,
-        wind_height=6.5,
-        wind_exponent=0.25,
-    )
-    indoor = CosineIndoor(theta_in_ave=22.5, theta_in_amp=4.5, rh_in=60.0)
+    sim_input = SimulationInput.from_json(_INPUT)
+    weather = sim_input.outdoor.load()
+    indoor = sim_input.indoor
 
     def boundaries_at(time_s: float) -> Boundaries:
         return Boundaries(outdoor=weather.get_outdoor_boundary(time_s), indoor=indoor.get_indoor_boundary(time_s))
@@ -139,7 +96,7 @@ def plot(geometry: WallGeometry, result: SimulationResult, weather: WeatherOutdo
     time_2 = np.concatenate(([SECONDS_PER_YEAR], time_ns[year2]))
     sel = np.concatenate(([np.argmax(year2) - 1], np.flatnonzero(year2)))
     t_is = result.t_is_ns[:, sel]
-    rh_is = _rh_is_ns(t_is, result.mu_is_ns[:, sel])
+    rh_is = rh_is_ns(t_is, result.mu_is_ns[:, sel])
 
     # 外気と室内（記録と同じ時刻）
     outdoor_ns = [weather.get_outdoor_boundary(t) for t in time_2]
@@ -183,7 +140,7 @@ def plot(geometry: WallGeometry, result: SimulationResult, weather: WeatherOutdo
         plt.close(fig)
 
     # 質点ごとの 2 年目の相対湿度（最低・平均・最高）を、壁の厚さ方向に並べる
-    x_is = _node_positions(geometry) * 1000.0
+    x_is = node_positions(geometry) * 1000.0
     fig, ax = plt.subplots(figsize=(10, 5), facecolor=_SURFACE)
     ax.set_facecolor(_SURFACE)
     ax.fill_between(x_is, rh_is.min(axis=1), rh_is.max(axis=1), color=_SERIES[0], alpha=0.25, linewidth=0, label='最低〜最高')

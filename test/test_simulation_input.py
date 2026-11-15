@@ -4,7 +4,6 @@ import os
 
 import pytest
 
-import examples.one_year_main_wall as ex
 from modules.indoor_climate import CosineIndoor
 from modules.outdoor_climate import RadiationInterval, RadiationKind, RadiationUnit, WeatherOutdoor
 from modules.simulation_input import OutdoorInput, SimulationInput, SimulationSettings
@@ -27,10 +26,15 @@ def _from_dict(d: dict) -> SimulationInput:
 
 
 class TestExample:
-    """例の壁の入力のファイルが、例のスクリプト（examples/one_year_main_wall.py）と同じ中身であること。"""
+    """例の壁の入力のファイル（examples/main_wall.json）を読んだ中身。"""
 
     def test_wall(self):
-        assert SimulationInput.from_json(_EXAMPLE_JSON).wall == ex._main_wall_input()
+        # 7 層（通気層 1 枚）、境目 8 個。構造用合板の 2 層で木材腐朽を求める
+        w = SimulationInput.from_json(_EXAMPLE_JSON).wall
+        names = [getattr(x, 'name', '通気層') for x in w.layers]
+        assert names == ['サイディング', '通気層', '石膏ボード', '構造用合板1', 'グラスウール1', '構造用合板1', '石膏ボード']
+        assert [getattr(x, 'wood_decay', False) for x in w.layers] == [False, False, False, True, False, True, False]
+        assert len(w.interfaces) == 8 and (w.len_vertical, w.len_horizontal) == (7.0, 0.42)
 
     def test_outdoor(self):
         o = SimulationInput.from_json(_EXAMPLE_JSON).outdoor
@@ -57,7 +61,7 @@ class TestExample:
 
 
 def _example_weather() -> WeatherOutdoor:
-    """例のスクリプトの気象データ（examples/one_year_main_wall.py の run の中と同じ設定）。"""
+    """例の気象データを、入力のファイルを通さずに、同じ設定で読んだもの。"""
     return WeatherOutdoor.from_csv(
         os.path.join(_ROOT, 'modules', 'weather.csv'), latitude=36.7, longitude=137.21,
         radiation_kind=RadiationKind.INTERVAL, radiation_interval=RadiationInterval.BEFORE,
