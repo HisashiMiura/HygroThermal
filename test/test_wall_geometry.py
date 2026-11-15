@@ -342,7 +342,8 @@ class TestMakeLinks:
         used = [l.interface for l in _make_links(nodes, interfaces) if l.interface is not None]
         expected = [interfaces[0]] + [x for f in interfaces[1:-1] for x in (f.left, f.right)] + [interfaces[-1]]
         assert len(used) == 14
-        assert [(u.r_h, u.r_m) for u in used] == pytest.approx([(1 / x.g_h, 1 / x.g_m) for x in expected])
+        # pytest.approx は入れ子の並びを比べられないので、熱抵抗と透湿抵抗を交互に並べた 1 列にして比べる
+        assert [r for u in used for r in (u.r_h, u.r_m)] == pytest.approx([r for x in expected for r in (1 / x.g_h, 1 / x.g_m)])
 
     def test_order(self):
         # k 番目のつながりは、質点 k - 1 と質点 k の間。両端は外気と室内

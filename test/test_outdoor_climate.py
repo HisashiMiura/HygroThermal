@@ -128,13 +128,15 @@ class TestAt:
         assert w.get_outdoor_boundary(0.5 * _H).state.rh == pytest.approx(100.0)
 
 
-class TestFromCsv:
+@pytest.fixture(scope='module')
+def weather():
+    """例の気象データ（TestFromCsv で使う。読むのに時間がかかるので、モジュールで 1 回だけ読む）。"""
+    return WeatherOutdoor.from_csv(_CSV, latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
+                                   radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
+                                   rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
 
-    @pytest.fixture(scope='class')
-    def weather(self):
-        return WeatherOutdoor.from_csv(_CSV, latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
-                                       radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
-                                       rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)
+
+class TestFromCsv:
 
     def test_values(self, weather):
         # 1 月 1 日 12 時の気温は CSV の 12 時の行、11 時 30 分の直達日射は 12 時の行（MJ/(m2 h) を W/m2 に直したもの）
