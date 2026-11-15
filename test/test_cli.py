@@ -42,7 +42,7 @@ def _write_input(tmp_path, d: dict) -> str:
 
 def _read_table(path: str) -> tuple[list[str], np.ndarray]:
     """結果の表（1 行目が見出し）を読む。値の形は [行, 列]。"""
-    with open(path, encoding='utf-8', newline='') as f:
+    with open(path, encoding='utf-8-sig', newline='') as f:
         rows = list(csv.reader(f))
     return rows[0], np.array([[float(v) for v in r] for r in rows[1:]])
 
@@ -66,11 +66,17 @@ class TestCompleted:
         assert sorted(os.listdir(completed[1])) == ['mass_loss.csv', 'nodes.csv', 'relative_humidity.csv', 'result.h5', 'temperature.csv']
 
     def test_nodes_csv(self, completed):
-        with open(os.path.join(completed[1], 'nodes.csv'), encoding='utf-8', newline='') as f:
+        with open(os.path.join(completed[1], 'nodes.csv'), encoding='utf-8-sig', newline='') as f:
             rows = list(csv.DictReader(f))
         assert [r['kind'] for r in rows] == ['material'] * 4
         assert sum(float(r['width']) for r in rows) == pytest.approx(0.009)
         assert {r['material'] for r in rows} == {'構造用合板1'}
+
+    def test_csv_bom(self, completed):
+        # CSV は BOM 付きの UTF-8（Excel で開いても日本語が化けない）
+        for name in ('nodes.csv', 'temperature.csv', 'relative_humidity.csv', 'mass_loss.csv'):
+            with open(os.path.join(completed[1], name), 'rb') as f:
+                assert f.read(3) == b'\xef\xbb\xbf'
 
     def test_csv_same_values(self, completed):
         # CSV の値は、読み直すと計算の結果と同じ値に戻る

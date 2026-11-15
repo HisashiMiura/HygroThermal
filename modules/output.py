@@ -1,6 +1,6 @@
 """計算の結果の書き出し：CSV（表計算のソフトで見る用）と HDF5（値を 2 進数のまま残す用）。
 
-CSV の小数は、読み直したときに同じ値に戻る、いちばん短い書き方（Python の repr）で書く。
+CSV は BOM 付きの UTF-8 で書く（Excel で開いても日本語が化けないように）。小数は、読み直したときに同じ値に戻る、いちばん短い書き方（Python の repr）で書く。
 HDF5 には、CSV と同じ値に加えて、水分化学ポテンシャルの欄の状態量、修正の回数、計算の入力、止まったかどうかを入れ、
 それぞれに単位と意味を属性として付ける。
 """
@@ -23,6 +23,9 @@ TEMPERATURE_CSV = 'temperature.csv'
 RH_CSV = 'relative_humidity.csv'
 MASS_LOSS_CSV = 'mass_loss.csv'
 RESULT_H5 = 'result.h5'
+
+# CSV の文字コード（BOM 付きの UTF-8。Excel で開いても日本語が化けないように）
+_CSV_ENCODING = 'utf-8-sig'
 
 
 def _f(v: float) -> str:
@@ -89,7 +92,7 @@ def _node_rows(geometry: WallGeometry) -> list[dict]:
 def _write_table(path: str, time_ns: np.ndarray, v_is_ns: np.ndarray):
     """行が記録した時刻、列が質点の表を書く（1 列目は経過時間, s）。"""
     header = ['time_s'] + [f'node_{i}' for i in range(v_is_ns.shape[0])]
-    with open(path, 'w', encoding='utf-8', newline='') as f:
+    with open(path, 'w', encoding=_CSV_ENCODING, newline='') as f:
         w = csv.writer(f)
         w.writerow(header)
         for n, t in enumerate(time_ns):
@@ -109,7 +112,7 @@ def write_csv(out_dir: str, geometry: WallGeometry, result: SimulationResult):
 
     # 質点の表
     rows = _node_rows(geometry)
-    with open(os.path.join(out_dir, NODES_CSV), 'w', encoding='utf-8', newline='') as f:
+    with open(os.path.join(out_dir, NODES_CSV), 'w', encoding=_CSV_ENCODING, newline='') as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
         for row in rows:
