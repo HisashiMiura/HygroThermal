@@ -36,13 +36,17 @@ python examples/one_year_main_wall.py --dt 900   # 時間刻み 900 秒
 
 ## 計算方法の文書
 
-計算方法（支配方程式、評価方法、根拠）は `docs/source/` に Markdown で書き、Sphinx でサイトにする。
+計算方法（支配方程式、評価方法、根拠）は、次のサイトで読める。
+
+https://hygrothermal.readthedocs.io/
+
+文書は `docs/source/` に Markdown で書き、Sphinx でサイトにする。手元で作るときは、次のようにする。
 
 ```
 python -m sphinx -b html docs/source docs/build/html
 ```
 
-`docs/build/html/index.html` を開くと読める。Read the Docs でも同じものを作る（`.readthedocs.yaml`）。
+`docs/build/html/index.html` を開くと読める。上のサイトは、GitHub に push すると Read the Docs が作り直す（設定は `.readthedocs.yaml`）。
 
 ## フォルダの構成
 
