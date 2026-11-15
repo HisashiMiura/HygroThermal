@@ -5,6 +5,8 @@
     hygrothermal input.json -o result/      # 結果を result/ に書く
     python -m modules.cli input.json        # パッケージを入れずに使うとき（リポジトリの一番上のフォルダで）
 
+計算の途中経過は、30 日分進むごとにエラーの出力（stderr）に 1 行表示する。-q（--quiet）を付けると表示しない。
+
 計算が止まったとき（結露など）は、止まるまでの結果を書き出し、理由を表示して、終了コード 1 で終わる。
 入力がおかしいときは、何も書き出さずに、理由を表示して、終了コード 2 で終わる。
 """
@@ -13,22 +15,32 @@ import argparse
 import os
 import sys
 import time
+from collections.abc import Callable
 
 from modules.boundary import Boundaries
 from modules.newton import NewtonNotConverged
 from modules.output import RESULT_H5, RunStatus, write_csv, write_hdf5
-from modules.simulation import SimulationResult, simulate
+from modules.simulation import Progress, SimulationResult, simulate
 from modules.simulation_input import SimulationInput
 from modules.solver import PoresFilled
+from modules.time_axis import SECONDS_PER_DAY
 from modules.wall_builder import build_wall
 from modules.wall_geometry import WallGeometry
 
 
-def run(input_path: str) -> tuple[WallGeometry, SimulationResult, RunStatus]:
+# 途中経過を表示する間隔, d
+PROGRESS_INTERVAL_DAYS = 30
+
+
+def run(
+        input_path: str,
+        progress_factory: Callable[[float], Progress] | None = None
+    ) -> tuple[WallGeometry, SimulationResult, RunStatus]:
     """入力のファイルを読んで計算する。
 
     Args:
         input_path: 入力のファイルの場所
+        progress_factory: 計算する期間, s を受け取り、進み具合を知らせる関数を返す関数（None なら知らせない）
 
     Returns:
         壁の形、計算の結果（止まったときは止まるまで）、計算が最後まで進んだか
@@ -47,8 +59,9 @@ def run(input_path: str) -> tuple[WallGeometry, SimulationResult, RunStatus]:
 
     settings = sim_input.simulation
     try:
+        progress = None if progress_factory is None else progress_factory(settings.n_steps * settings.dt)
         result = simulate(geometry, state_0, dt=settings.dt, n_steps=settings.n_steps, boundaries_at=boundaries_at,
-                          record_every=settings.record_every)
+                          record_every=settings.record_every, progress=progress)
         return geometry, result, RunStatus(completed=True)
     except (NewtonNotConverged, PoresFilled) as e:
         status = RunStatus(completed=False, message=f'{type(e).__name__}: {e}', time_failed=e.time_failed)
@@ -72,6 +85,26 @@ def write(out_dir: str, geometry: WallGeometry, result: SimulationResult, status
     write_hdf5(os.path.join(out_dir, RESULT_H5), geometry, result, status, input_text)
 
 
+def _print_progress(total_s: float) -> Progress:
+    """PROGRESS_INTERVAL_DAYS 日分進むごとと、最後のステップで、進み具合をエラーの出力（stderr）に 1 行表示する関数を作る。
+
+    Args:
+        total_s: 計算する期間, s
+    """
+    start = time.time()
+    interval_s = PROGRESS_INTERVAL_DAYS * SECONDS_PER_DAY
+    next_s = [interval_s]
+
+    def progress(time_s: float):
+        if time_s >= next_s[0] or time_s >= total_s:
+            print(f'{time_s / SECONDS_PER_DAY:.1f} 日 / {total_s / SECONDS_PER_DAY:.0f} 日（{100 * time_s / total_s:.0f}%）、'
+                  f'経過 {time.time() - start:.0f} 秒', file=sys.stderr)
+            while next_s[0] <= time_s:
+                next_s[0] += interval_s
+
+    return progress
+
+
 def _default_out_dir(input_path: str) -> str:
     """結果を書くフォルダの既定：入力のファイルと同じフォルダの「入力のファイルの名前_output」。"""
     stem = os.path.splitext(os.path.basename(input_path))[0]
@@ -91,12 +124,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog='hygrothermal', description='壁の熱・水分同時移動の計算')
     parser.add_argument('input', help='入力のファイル（JSON）')
     parser.add_argument('-o', '--output', help='結果を書き出すフォルダ（省くと、入力のファイルと同じフォルダの「名前_output」）')
+    parser.add_argument('-q', '--quiet', action='store_true', help='計算の途中経過を表示しない')
     args = parser.parse_args(argv)
     out_dir = args.output or _default_out_dir(args.input)
 
     start = time.time()
     try:
-        geometry, result, status = run(args.input)
+        geometry, result, status = run(args.input, progress_factory=None if args.quiet else _print_progress)
     except (ValueError, OSError) as e:
         print(f'入力がおかしいので、計算できません：{e}', file=sys.stderr)
         return 2

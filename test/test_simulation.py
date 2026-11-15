@@ -173,3 +173,13 @@ class TestDrained:
         i_film = [i for i, node in enumerate(g.nodes) if type(node).__name__ == 'FilmNode']
         assert result.drained_is_ns[i_film, -1].min() > 0.0
         assert np.count_nonzero(result.drained_is_ns[:, -1]) == len(i_film)
+
+
+class TestProgress:
+
+    def test_called_every_step(self):
+        # 毎ステップ、解き終えたステップの終わりの時刻を渡す
+        g, state_0 = _one_layer('構造用合板1', 0.009, 4, 20.0, 50.0)
+        times = []
+        simulate(g, state_0, dt=180.0, n_steps=5, boundaries_at=_constant(0.0, 80.0, 20.0, 50.0), progress=times.append)
+        assert times == [180.0, 360.0, 540.0, 720.0, 900.0]

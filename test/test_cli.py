@@ -129,6 +129,23 @@ class TestCompleted:
         assert 'mass_loss.csv' not in os.listdir(tmp_path / 'out')
 
 
+class TestProgress:
+
+    def test_printed(self, tmp_path, capsys):
+        # 30 日分進むごとと最後に、1 行ずつ表示する（1 年は 12 回 ＋ 最後の 1 回）
+        path = _write_input(tmp_path, _input(wood_decay=False))
+        assert cli.main([path, '-o', str(tmp_path / 'out')]) == 0
+        lines = [x for x in capsys.readouterr().err.splitlines() if ' 日 / ' in x]
+        assert len(lines) == 13
+        assert lines[0].startswith('30.0 日 / 365 日（8%）')
+        assert lines[-1].startswith('365.0 日 / 365 日（100%）')
+
+    def test_quiet(self, tmp_path, capsys):
+        path = _write_input(tmp_path, _input(wood_decay=False))
+        assert cli.main([path, '-o', str(tmp_path / 'out'), '-q']) == 0
+        assert ' 日 / ' not in capsys.readouterr().err
+
+
 class TestStopped:
 
     def test_partial(self, tmp_path, capsys):

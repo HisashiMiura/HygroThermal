@@ -25,6 +25,9 @@ from modules.wall_state import WallState
 # 境界条件の関数：計算を始めてからの経過時間, s → その時刻の外気と室内の境界条件
 BoundariesAt = Callable[[float], Boundaries]
 
+# 進み具合を知らせる関数：解き終えたステップの終わりの時刻（計算を始めてからの経過時間）, s を受け取る
+Progress = Callable[[float], None]
+
 
 @dataclass(frozen=True, eq=False)
 class SimulationResult:
@@ -69,7 +72,8 @@ def simulate(
         dt: float,
         n_steps: int,
         boundaries_at: BoundariesAt,
-        record_every: int = 1
+        record_every: int = 1,
+        progress: Progress | None = None
     ) -> SimulationResult:
     """境界条件に沿って、n_steps ステップ進める。
 
@@ -83,6 +87,7 @@ def simulate(
         n_steps: 進めるステップの数
         boundaries_at: 経過時間, s → その時刻の境界条件
         record_every: 何ステップごとに記録するか（1 なら毎ステップ）
+        progress: 進み具合を知らせる関数（毎ステップ、解き終えたステップの終わりの時刻 t_n+1 を渡す。None なら知らせない）
 
     Returns:
         時間を進めた結果
@@ -183,6 +188,10 @@ def simulate(
 
             # 次のステップの始めの境界条件は、このステップの終わりの境界条件
             b_n = b_npls
+
+            # 進み具合を知らせる
+            if progress is not None:
+                progress(t_npls)
 
             # record_every ステップごとに記録する
             # 5 節
