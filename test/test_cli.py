@@ -63,7 +63,9 @@ class TestCompleted:
         assert completed[0] == 0
 
     def test_files(self, completed):
-        assert sorted(os.listdir(completed[1])) == ['mass_loss.csv', 'nodes.csv', 'relative_humidity.csv', 'result.h5', 'temperature.csv']
+        # 1 層の壁なので、水膜の質点はない（水膜の水分量と、流れ落ちた水の CSV は書かない）
+        assert sorted(os.listdir(completed[1])) == ['free_water.csv', 'mass_loss.csv', 'nodes.csv', 'relative_humidity.csv', 'result.h5',
+                                                    'temperature.csv', 'water_content.csv']
 
     def test_nodes_csv(self, completed):
         with open(os.path.join(completed[1], 'nodes.csv'), encoding='utf-8-sig', newline='') as f:
@@ -90,6 +92,22 @@ class TestCompleted:
         _, v = _read_table(os.path.join(out_dir, 'mass_loss.csv'))
         np.testing.assert_array_equal(v[:, 1:].T, result.mass_loss_is_ns)
         assert len(result.time_ns) == 366
+
+    def test_water_content(self, completed):
+        # 材料の含水量は、水分量（kg/m2）をコントロールボリュームの幅で割ったもの。HDF5 の水分量と合う
+        _, out_dir, result = completed
+        header, v = _read_table(os.path.join(out_dir, 'water_content.csv'))
+        assert header == ['time_s', 'node_0', 'node_1', 'node_2', 'node_3']
+        with h5py.File(os.path.join(out_dir, 'result.h5'), 'r') as f:
+            w = f['water_amount'][()]
+            width = f['nodes/width'][()]
+            assert f['water_amount'].attrs['unit'] == 'kg/m2'
+            np.testing.assert_array_equal(f['drained'][()], np.zeros_like(w))
+        np.testing.assert_allclose(v[:, 1:].T, w / width[:, None], rtol=1e-15)
+        # この計算では自由水はたまらないので、含水量は、相対湿度 100% の平衡含水量（構造用合板1 は 637.5 kg/m3）を超えない
+        _, free = _read_table(os.path.join(out_dir, 'free_water.csv'))
+        np.testing.assert_array_equal(free[:, 1:], 0.0)
+        assert 0.0 < v[:, 1:].min() and v[:, 1:].max() < 637.5
 
     def test_hdf5(self, completed):
         _, out_dir, result = completed

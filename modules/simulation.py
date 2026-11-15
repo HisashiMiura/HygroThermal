@@ -14,11 +14,12 @@ import numpy as np
 
 from modules import decay
 from modules.air_water_properties import T_0
+from modules.balance import drainage_is
 from modules.boundary import Boundaries
 from modules.newton import NewtonNotConverged
 from modules.solver import PoresFilled, step
 from modules.state import State
-from modules.wall_geometry import WallGeometry
+from modules.wall_geometry import FilmNode, WallGeometry
 from modules.wall_state import WallState
 
 # 境界条件の関数：計算を始めてからの経過時間, s → その時刻の外気と室内の境界条件
@@ -53,6 +54,9 @@ class SimulationResult:
 
     # 最後のステップのあとの木材腐朽の状態（木材腐朽を求める層がなければ None）
     decay_last: decay.DecayState | None = None
+
+    # 各質点の、記録した時刻までに流れ落ちた水の累計 D_i,n, kg/m2, [i, n]（水膜の質点のほかは 0）
+    drained_is_ns: np.ndarray | None = None
 
     def state(self, n: int) -> WallState:
         """記録 n の壁の状態。"""
@@ -114,6 +118,7 @@ def simulate(
     t_is_ns = np.empty((len(state_0), n_records))
     mu_is_ns = np.empty((len(state_0), n_records))
     mass_loss_is_ns = np.zeros((len(state_0), n_records))
+    drained_is_ns = np.zeros((len(state_0), n_records))
     iterations_ns = np.empty(n_steps, dtype=int)
 
     # 最初の状態を記録する
@@ -128,6 +133,10 @@ def simulate(
     # ステップ 0 の境界条件（通気層の換気量に使う）
     b_n = boundaries_at(0.0)
 
+    # 水膜の質点があるか（なければ、流れ落ちる水はない）と、ステップ n までに流れ落ちた水の累計 D_i,n, kg/m2, [i]（はじめは 0）
+    has_film = any(isinstance(node, FilmNode) for node in geometry.nodes)
+    d_is_n = np.zeros(len(state_0))
+
     def result(n_done: int) -> SimulationResult:
         """ステップ 0 〜 n_done - 1 を解いたところまでの結果。"""
         r_done = 1 + n_done // record_every
@@ -139,6 +148,7 @@ def simulate(
             state_last=state,
             mass_loss_is_ns=mass_loss_is_ns[:, :r_done],
             decay_last=decay_n if decay_nodes.any else None,
+            drained_is_ns=drained_is_ns[:, :r_done],
         )
 
     # 解けなかったら、止まるまでの結果と、解けなかったステップの終わりの時刻を例外に付けて出し直す
@@ -166,6 +176,11 @@ def simulate(
                 rh_is_npls = np.array([State(t=t, mu=min(mu, 0.0)).rh for t, mu in zip(state.t_is, state.mu_is)])
                 decay_nmns, decay_n = decay_n, decay.advance(decay_n, decay_nodes, state.t_is - T_0, rh_is_npls, dt)
 
+            # ステップ n + 1 までに流れ落ちた水の累計 D_i,n+1, kg/m2, [i]
+            # 式 (2)。流れ落ちる水は、収支と同じくステップ n + 1 の状態で求める
+            if has_film:
+                d_is_n = d_is_n + drainage_is(geometry, state.t_is, state.mu_is) * dt
+
             # 次のステップの始めの境界条件は、このステップの終わりの境界条件
             b_n = b_npls
 
@@ -175,6 +190,7 @@ def simulate(
                 r = (n + 1) // record_every
                 time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = t_npls, state.t_is, state.mu_is
                 mass_loss_is_ns[:, r] = decay_n.mass_loss_is
+                drained_is_ns[:, r] = d_is_n
     except (NewtonNotConverged, PoresFilled) as e:
         e.partial_result = result(n)
         e.time_failed = t_npls

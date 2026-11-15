@@ -134,3 +134,42 @@ class TestStopped:
         partial = e.value.partial_result
         assert (len(partial.time_ns), len(partial.iterations_ns), e.value.time_failed) == (1, 0, 3600.0)
         np.testing.assert_array_equal(partial.state_last.t_is, state_0.t_is)
+
+
+class TestDrained:
+    """流れ落ちた水の累計（「時間の進め方」の式 (2)）。"""
+
+    def _wall(self):
+        """構造用合板 12 mm ＋ グラスウール 50 mm。境目の水膜に、外表面に当たる雨水の 1% を浸入させる。"""
+        from modules.wall_builder import build_wall
+        from modules.wall_input import WallInput
+        m = lambda name, d, n: {'source': 'whamcavity', 'name': name, 'thickness': d, 'n_div': n,
+                                'initial_temperature': 10.0, 'initial_rh': 70.0}
+        return build_wall(WallInput.from_dict({
+            'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9,
+                        'exposure_factor': 1.0, 'deposition_factor': 1.0},
+            'layers': [m('構造用合板1', 0.012, 4), m('グラスウール1', 0.05, 4)],
+            'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'rain_fraction': 0.01}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+            'len_vertical': 1.0, 'len_horizontal': 1.0}))
+
+    def test_same_as_sum_of_steps(self):
+        import dataclasses
+        from modules.balance import drainage_is
+        g, state_0 = self._wall()
+        # 東の壁に向かって（西へ）吹く風と雨
+        outdoor = dataclasses.replace(_outdoor(10.0, 90.0), rain=10.0, wind_east=-8.0)
+        b = Boundaries(outdoor=outdoor, indoor=_indoor(20.0, 50.0))
+        result = simulate(g, state_0, dt=3600.0, n_steps=48, boundaries_at=lambda time: b, record_every=6)
+
+        # 1 ステップずつ進めて、ステップの終わりの状態で流れ落ちる水を足していったもの
+        state, d_is, expected = state_0, np.zeros(len(state_0)), [np.zeros(len(state_0))]
+        for n in range(48):
+            state, _ = step(g, state, 3600.0, outdoor, outdoor, b.indoor)
+            d_is = d_is + drainage_is(g, state.t_is, state.mu_is) * 3600.0
+            if (n + 1) % 6 == 0:
+                expected.append(d_is)
+        np.testing.assert_array_equal(result.drained_is_ns, np.array(expected).T)
+        # 雨水が入って、流れ落ちた水がある（水膜の質点だけ）
+        i_film = [i for i, node in enumerate(g.nodes) if type(node).__name__ == 'FilmNode']
+        assert result.drained_is_ns[i_film, -1].min() > 0.0
+        assert np.count_nonzero(result.drained_is_ns[:, -1]) == len(i_film)
