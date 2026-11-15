@@ -13,7 +13,12 @@ dependencies = [
     "pandas",
     "scipy",
     "openpyxl",
+    "h5py",
 ]
+
+# コマンド hygrothermal（入力のファイルを読んで計算し、結果を書き出す）
+[project.scripts]
+hygrothermal = "modules.cli:main"
 
 [project.optional-dependencies]
 # 開発用：テストと、材料物性レビューの図

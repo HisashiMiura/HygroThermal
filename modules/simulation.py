@@ -15,7 +15,8 @@ import numpy as np
 from modules import decay
 from modules.air_water_properties import T_0
 from modules.boundary import Boundaries
-from modules.solver import step
+from modules.newton import NewtonNotConverged
+from modules.solver import PoresFilled, step
 from modules.state import State
 from modules.wall_geometry import WallGeometry
 from modules.wall_state import WallState
@@ -86,6 +87,9 @@ def simulate(
         Condensation: 通気層の空気の質点で結露して、相対湿度 100% 以下では収支が合わないとき（solver.step）
         PoresFilled: 空隙率を与えた材料の質点の水分量が、空隙を水で満たす水分量を超えたとき（solver.step）
         NewtonNotConverged: それ以外の理由で収束しなかったとき（solver.step）
+        どの例外にも、止まるまでの結果を属性 partial_result（SimulationResult。記録は止まる前の最後の記録まで、
+        修正の回数と state_last は解けた最後のステップまで）に、解けなかったステップの終わりの時刻 t_n+1（s）を
+        属性 time_failed に付けて出す。
 
     Notes:
         計算方法の文書の「時間の進め方」に対応する。
@@ -124,45 +128,56 @@ def simulate(
     # ステップ 0 の境界条件（通気層の換気量に使う）
     b_n = boundaries_at(0.0)
 
-    for n in range(n_steps):
+    def result(n_done: int) -> SimulationResult:
+        """ステップ 0 〜 n_done - 1 を解いたところまでの結果。"""
+        r_done = 1 + n_done // record_every
+        return SimulationResult(
+            time_ns=time_ns[:r_done],
+            t_is_ns=t_is_ns[:, :r_done],
+            mu_is_ns=mu_is_ns[:, :r_done],
+            iterations_ns=iterations_ns[:n_done],
+            state_last=state,
+            mass_loss_is_ns=mass_loss_is_ns[:, :r_done],
+            decay_last=decay_n if decay_nodes.any else None,
+        )
 
-        # ステップ n + 1 の時刻 t_n+1, s
-        # 式 (1)
-        t_npls = (n + 1) * dt
+    # 解けなかったら、止まるまでの結果と、解けなかったステップの終わりの時刻を例外に付けて出し直す
+    try:
+        for n in range(n_steps):
 
-        # ステップ n + 1 の境界条件で、1 ステップ進める（換気量だけは、ステップ n の外気で求める）
-        # 4 節
-        b_npls = boundaries_at(t_npls)
+            # ステップ n + 1 の時刻 t_n+1, s
+            # 式 (1)
+            t_npls = (n + 1) * dt
 
-        # 木材腐朽を求める層がなければ、腐朽で生まれる水はなし
-        if not decay_nodes.any:
-            state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
+            # ステップ n + 1 の境界条件で、1 ステップ進める（換気量だけは、ステップ n の外気で求める）
+            # 4 節
+            b_npls = boundaries_at(t_npls)
 
-        # 木材腐朽を求める層があれば、ステップ n - 1 から n までの腐朽で生まれた水を足して解き、
-        # 求めたステップ n + 1 の温度・相対湿度で、腐朽の状態を進める
-        # 4 節
-        else:
-            j_gen_is_npls = decay.water_generation_is(decay_nodes, decay_n, decay_nmns, dt)
-            state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor, j_gen_is_npls)
-            rh_is_npls = np.array([State(t=t, mu=min(mu, 0.0)).rh for t, mu in zip(state.t_is, state.mu_is)])
-            decay_nmns, decay_n = decay_n, decay.advance(decay_n, decay_nodes, state.t_is - T_0, rh_is_npls, dt)
+            # 木材腐朽を求める層がなければ、腐朽で生まれる水はなし
+            if not decay_nodes.any:
+                state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor)
 
-        # 次のステップの始めの境界条件は、このステップの終わりの境界条件
-        b_n = b_npls
+            # 木材腐朽を求める層があれば、ステップ n - 1 から n までの腐朽で生まれた水を足して解き、
+            # 求めたステップ n + 1 の温度・相対湿度で、腐朽の状態を進める
+            # 4 節
+            else:
+                j_gen_is_npls = decay.water_generation_is(decay_nodes, decay_n, decay_nmns, dt)
+                state, iterations_ns[n] = step(geometry, state, dt, b_n.outdoor, b_npls.outdoor, b_npls.indoor, j_gen_is_npls)
+                rh_is_npls = np.array([State(t=t, mu=min(mu, 0.0)).rh for t, mu in zip(state.t_is, state.mu_is)])
+                decay_nmns, decay_n = decay_n, decay.advance(decay_n, decay_nodes, state.t_is - T_0, rh_is_npls, dt)
 
-        # record_every ステップごとに記録する
-        # 5 節
-        if (n + 1) % record_every == 0:
-            r = (n + 1) // record_every
-            time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = t_npls, state.t_is, state.mu_is
-            mass_loss_is_ns[:, r] = decay_n.mass_loss_is
+            # 次のステップの始めの境界条件は、このステップの終わりの境界条件
+            b_n = b_npls
 
-    return SimulationResult(
-        time_ns=time_ns,
-        t_is_ns=t_is_ns,
-        mu_is_ns=mu_is_ns,
-        iterations_ns=iterations_ns,
-        state_last=state,
-        mass_loss_is_ns=mass_loss_is_ns,
-        decay_last=decay_n if decay_nodes.any else None,
-    )
+            # record_every ステップごとに記録する
+            # 5 節
+            if (n + 1) % record_every == 0:
+                r = (n + 1) // record_every
+                time_ns[r], t_is_ns[:, r], mu_is_ns[:, r] = t_npls, state.t_is, state.mu_is
+                mass_loss_is_ns[:, r] = decay_n.mass_loss_is
+    except (NewtonNotConverged, PoresFilled) as e:
+        e.partial_result = result(n)
+        e.time_failed = t_npls
+        raise
+
+    return result(n_steps)

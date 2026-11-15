@@ -88,3 +88,49 @@ class TestSimulate:
         args = {'dt': 180.0, 'n_steps': 1, 'boundaries_at': _constant(0.0, 80.0, 20.0, 50.0)} | kwargs
         with pytest.raises(ValueError, match=match):
             simulate(g, state_0, **args)
+
+
+def _plywood(porosity: float):
+    """構造用合板 9 mm 1 層（空隙率を与える）。外気 -5 deg.C・90%、室内 25 deg.C・95% で、自由水がたまる。"""
+    from modules.wall_builder import build_wall
+    from modules.wall_input import WallInput
+    return build_wall(WallInput.from_dict({
+        'surface': {'direction': 'e', 'angle': 90.0, 'albedo': 0.3, 'absorptance': 0.9, 'emissivity': 0.9, 'eva_height': 4.2,
+                    'exposure_factor': 1.0, 'deposition_factor': 1.0},
+        'layers': [{'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 6,
+                    'initial_temperature': 0.0, 'initial_rh': 95.0, 'porosity': porosity}],
+        'interfaces': [{'g_h': 22.4, 'g_m': 2.0e-11}, {'g_h': 9.2, 'g_m': 2.6e-10}],
+        'len_vertical': 1.0, 'len_horizontal': 1.0}))
+
+
+class TestStopped:
+    """計算が止まったとき、止まるまでの結果を例外に付ける。"""
+
+    def test_partial_result(self):
+        from modules.solver import PoresFilled
+        g, state_0 = _plywood(0.64)
+        b = _constant(-5.0, 90.0, 25.0, 95.0)
+        with pytest.raises(PoresFilled) as e:
+            simulate(g, state_0, dt=86400.0, n_steps=60, boundaries_at=b, record_every=2)
+        partial, n_done = e.value.partial_result, len(e.value.partial_result.iterations_ns)
+        assert 0 < n_done < 60
+        assert e.value.time_failed == (n_done + 1) * 86400.0
+        # 記録は止まる前の最後の記録まで（2 ステップごと）
+        assert len(partial.time_ns) == 1 + n_done // 2
+        assert partial.time_ns[-1] == (n_done // 2) * 2 * 86400.0
+        # 止まるまでの結果は、止まらないところまで計算した結果と同じ
+        full = simulate(g, state_0, dt=86400.0, n_steps=n_done, boundaries_at=b, record_every=2)
+        np.testing.assert_array_equal(partial.t_is_ns, full.t_is_ns)
+        np.testing.assert_array_equal(partial.mu_is_ns, full.mu_is_ns)
+        np.testing.assert_array_equal(partial.iterations_ns, full.iterations_ns)
+        np.testing.assert_array_equal(partial.state_last.mu_is, full.state_last.mu_is)
+
+    def test_first_step(self):
+        # 最初のステップで止まったら、記録は最初の状態だけ
+        from modules.solver import PoresFilled
+        g, state_0 = _plywood(0.05)
+        with pytest.raises(PoresFilled) as e:
+            simulate(g, state_0, dt=3600.0, n_steps=10, boundaries_at=_constant(-5.0, 90.0, 25.0, 95.0))
+        partial = e.value.partial_result
+        assert (len(partial.time_ns), len(partial.iterations_ns), e.value.time_failed) == (1, 0, 3600.0)
+        np.testing.assert_array_equal(partial.state_last.t_is, state_0.t_is)
