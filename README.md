@@ -12,13 +12,32 @@
 - Python 3.11 以上
 - numpy、pandas、scipy、openpyxl、h5py（`pyproject.toml` の依存）
 
-リポジトリの一番上のフォルダで、次のように入れる。コマンド `hygrothermal` も使えるようになる。
+### 入れ方
+
+パッケージの版は、ロックファイル `requirements-lock.txt` で固定している（いつ、どの PC で入れても同じ版がそろうように）。conda を使う場合は、このプログラム専用の環境を作り、リポジトリの一番上のフォルダで次のように入れる。
 
 ```
-pip install -e ".[dev]"
+conda create -n hygrothermal python=3.13
+conda activate hygrothermal
+python -m pip install -r requirements-lock.txt
+python -m pip install -e . --no-deps
 ```
 
-`[dev]` は、テスト（pytest）と図（matplotlib）のためのもの。計算方法の文書を作るときは `[docs]` も入れる。
+3 行目でロックファイルの版のパッケージ（テスト用の pytest・matplotlib と、文書用の Sphinx を含む）を入れ、4 行目でこのプログラム自体を入れる。コマンド `hygrothermal` も使えるようになる。`-e` を付けるので、`modules/` のファイルを直すと、入れ直さなくても反映される。
+
+版を固定しなくてよいときは、`python -m pip install -e ".[dev]"` でも入れられる（その時点の最新の版が入る）。
+
+### ロックファイルの版を上げる
+
+ロックファイルは、pip-tools で `pyproject.toml` から作る。版を上げるときは、次のようにして作り直し、入れ直す。
+
+```
+python -m pip install pip-tools
+pip-compile --upgrade --extra dev --extra docs --strip-extras -o requirements-lock.txt pyproject.toml
+python -m pip install -r requirements-lock.txt
+```
+
+上げたあとは、テストを流し、例の壁の結果が前の版と比べて変わっていないか（変わったなら、どれだけか）を確かめてから、ロックファイルをコミットする。
 
 ## 使い方
 
@@ -63,7 +82,7 @@ python -m sphinx -b html docs/source docs/build/html
 
 ## フォルダの構成
 
-| フォルダ | 中身 |
+| フォルダ・ファイル | 中身 |
 |---|---|
 | `modules/` | プログラムの本体と、材料の物性値・気象データのファイル |
 | `test/` | テスト |
@@ -75,3 +94,5 @@ python -m sphinx -b html docs/source docs/build/html
 | `docs/note_*.md` | Fortran 版との違いと、作成者に確かめたいこと |
 | `_fortran/` | もとの Fortran 版と、その入力のファイル（参考として残している） |
 | `notes/` | 調べものに使ったノートブック |
+| `requirements-lock.txt` | パッケージの版を固定したロックファイル（pip-tools で `pyproject.toml` から作る） |
+| `.github/workflows/` | GitHub Actions のテスト（`tests.yml`：push のたびにロックファイルの版で、`latest.yml`：週に 1 回最新の版で） |

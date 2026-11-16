@@ -7,7 +7,7 @@
 リポジトリの一番上のフォルダで、次のように実行する。
 
 ```
-conda run -n heat_load_calc python docs/basis_checks/check_04_01_vapour_storage.py
+conda run -n hygrothermal python docs/basis_checks/check_04_01_vapour_storage.py
 ```
 
 - 例の壁（`examples/one_year_main_wall.py` の 7 層の壁）の 2 年間の計算の結果は、`docs/basis_checks/_out/` に保存して使い回す（git には入れない）。保存した結果があれば計算し直さないので、モデルを変えたあとは `--force` を付けて計算し直す。

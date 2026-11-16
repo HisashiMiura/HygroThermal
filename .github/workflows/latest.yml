@@ -1,0 +1,36 @@
+# テスト（最新の版）：週に 1 回、その時点の最新の版のパッケージで pytest を流す
+# 落ちたら、新しい版のパッケージで何かが変わったという知らせ。急がず、ロックファイルを上げるときに直す
+name: tests (latest packages)
+
+on:
+  schedule:
+    # 毎週月曜日 0 時（UTC。日本時間の 9 時）
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # pyproject.toml の requires-python（3.11 以上）から、今の版まで
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 最新の版のパッケージと、このプログラムを入れる
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: 入った版を記録する
+        run: python -m pip freeze
+
+      - name: テストを流す
+        run: python -m pytest -q
