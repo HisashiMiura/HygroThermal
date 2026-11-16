@@ -7,17 +7,18 @@
 import math
 from dataclasses import dataclass
 from functools import lru_cache
-from types import CodeType
+from collections.abc import Callable
 
 
 @lru_cache(maxsize=None)
-def _compile(formula: str) -> CodeType:
-    """式の文字列を、eval ですぐに実行できる形に変換する。
+def _compile(formula: str) -> Callable[[float], float]:
+    """式の文字列を、相対湿度 r を受け取って値を返す関数（lambda r: 式）に変換する。
 
-    同じ文字列なら、2回目以降は1回目に変換した結果をそのまま返す。
+    同じ文字列なら、2回目以降は1回目に変換した関数をそのまま返す。
+    呼ぶたびに式の文字列を eval で実行するより速い（計算する中身は同じ）。
     """
 
-    return compile(formula, '<isotherm>', 'eval')
+    return eval(compile(f'lambda r: ({formula})', '<isotherm>', 'eval'), {'math': math})
 
 
 @dataclass(frozen=True)
@@ -72,9 +73,9 @@ class FormulaIsotherm:
         # 境目を超えた最初の式で計算する
         for threshold, formula in self.conditional:
             if r > threshold:
-                return eval(_compile(formula), {'math': math}, {'r': r})
+                return _compile(formula)(r)
 
-        return eval(_compile(self.formula), {'math': math}, {'r': r})
+        return _compile(self.formula)(r)
 
     def get_jumps(self) -> list[tuple[float, float, float]]:
         """境目ごとの、下側の式と上側の式の含水率（境目で式がつながっているかを確かめるため）。
@@ -88,8 +89,8 @@ class FormulaIsotherm:
         # 境目の大きい組から順に並んでいるので、ある境目のすぐ下で使う式は、次の組の式（なければ基本の式）
         for k, (threshold, formula_above) in enumerate(self.conditional):
             formula_below = self.conditional[k + 1][1] if k + 1 < len(self.conditional) else self.formula
-            u_below = eval(_compile(formula_below), {'math': math}, {'r': threshold})
-            u_above = eval(_compile(formula_above), {'math': math}, {'r': threshold})
+            u_below = _compile(formula_below)(threshold)
+            u_above = _compile(formula_above)(threshold)
             jumps.append((threshold, u_below, u_above))
 
         return jumps

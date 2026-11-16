@@ -6,6 +6,7 @@
 """
 
 import math
+from functools import lru_cache
 
 
 T_0 = 273.15
@@ -26,7 +27,12 @@ RHO_W = 998.0
 C_A = 1005.0
 """空気の比熱 c_a, J/(kg K)（3 節の表）"""
 
+# 計算した答えを覚えておく数（同じ値で何度も呼ばれる関数に付ける。ニュートン法の数値微分では、ずらさない質点の値が
+# 何度も同じなので、覚えた答えを返して計算を省く。答えは変わらない）
+_CACHE_SIZE = 65536
 
+
+@lru_cache(maxsize=_CACHE_SIZE)
 def get_p_vs(t: float) -> float:
     """飽和水蒸気圧 p_vs を求める。
 
@@ -68,6 +74,7 @@ def get_mu(rh: float, t: float) -> float:
     return mu
 
 
+@lru_cache(maxsize=_CACHE_SIZE)
 def get_rh(mu: float, t: float) -> float:
     """水分化学ポテンシャルから相対湿度 φ を求める。
 

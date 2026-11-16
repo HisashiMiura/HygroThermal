@@ -8,7 +8,7 @@
 
 import numpy as np
 
-from modules.balance import heat_residual_is, moisture_residual_is, ventilation_rate_is
+from modules.balance import heat_residual_is, moisture_residual_is, vapour_flow_ks, ventilation_rate_is, water_amount_is
 from modules.boundary import IndoorBoundary, OutdoorBoundary
 from modules.newton import NewtonNotConverged, newton_solve
 from modules.rain import get_rain_on_surface
@@ -95,6 +95,10 @@ def step(
     # 「通気層の換気」の式 (2)
     q_v_is_n = ventilation_rate_is(geometry, state_n.t_is, outdoor_n)
 
+    # ステップ n の水分量 W_i,n, kg/m2, [i]（1 ステップの中では一定なので、ここで 1 回だけ求めて、水分の収支に渡す）
+    # 「熱・水分の収支」の式 (1)・(2)
+    w_is_n = water_amount_is(geometry, state_n.t_is, state_n.mu_is)
+
     # 未知数の並び x_ps を、温度と水分化学ポテンシャルに分けて、許容値で割った残差を交互に並べて返す関数（この 1 ステップ専用）
     def residual(x_ps: np.ndarray) -> np.ndarray:
 
@@ -102,13 +106,18 @@ def step(
         # 式 (1)・(2)
         t_is_npls, mu_is_npls = x_ps[0::2], x_ps[1::2]
 
+        # ステップ n + 1 の、各つながりの水蒸気の流れ j_v,k,n+1, kg/(m2 s), [k]（熱の収支の凝縮熱と水分の収支の両方に使うので、1 回だけ求める）
+        # 「熱・水分の流れ」の式 (10)
+        j_v_ks_npls = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+
         # 熱と水分の残差を、それぞれの許容値で割る
         # 式 (3)・(4)
         res_h_is = heat_residual_is(
-            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n, r_bv_npls) / HEAT_RESIDUAL_TOL
+            geometry, t_is_npls, mu_is_npls, state_n.t_is, dt, outdoor_npls, indoor_npls, q_sol_npls, q_v_is_n, r_bv_npls,
+            j_v_ks_npls=j_v_ks_npls) / HEAT_RESIDUAL_TOL
         res_m_is = moisture_residual_is(
             geometry, t_is_npls, mu_is_npls, state_n.t_is, state_n.mu_is, dt, outdoor_npls, indoor_npls, q_v_is_n, r_bv_npls,
-            j_gen_is_npls) / MOISTURE_RESIDUAL_TOL
+            j_gen_is_npls, w_is_n=w_is_n, j_v_ks_npls=j_v_ks_npls) / MOISTURE_RESIDUAL_TOL
 
         # 熱と水分の残差を交互に並べる
         # 式 (3)・(4)

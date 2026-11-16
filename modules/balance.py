@@ -314,7 +314,9 @@ def moisture_residual_is(
         indoor_npls: IndoorBoundary,
         q_v_is_n: np.ndarray | None = None,
         r_bv_npls: float = 0.0,
-        j_gen_is_npls: np.ndarray | None = None
+        j_gen_is_npls: np.ndarray | None = None,
+        w_is_n: np.ndarray | None = None,
+        j_v_ks_npls: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]。
 
@@ -334,6 +336,10 @@ def moisture_residual_is(
         r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface。省くと雨なし）
         j_gen_is_npls: ステップ n + 1 の、各質点の腐朽で生まれる水 j_gen,i,n+1, kg/(m2 s), [i]
             （decay.water_generation_is。省くと 0）
+        w_is_n: ステップ n の水分量 W_i,n, kg/m2, [i]（water_amount_is(geometry, t_is_n, mu_is_n) を求めてあれば渡す。
+            1 ステップの中では変わらないので、ニュートン法の修正のたびに求め直さないため。省くとここで求める）
+        j_v_ks_npls: ステップ n + 1 の、各つながりの水蒸気の流れ j_v,k,n+1, kg/(m2 s), [k]
+            （vapour_flow_ks を求めてあれば渡す。熱の収支と同じものを使い回すため。省くとここで求める）
 
     Returns:
         質点ごとの水分の収支の残差 res_m,i, kg/(m2 s), [i]
@@ -355,12 +361,14 @@ def moisture_residual_is(
     # ステップ n + 1 とステップ n の水分量 W_i,n+1・W_i,n, kg/m2, [i]
     # 式 (1)・(2)（「熱・水分の収支」）
     w_is_npls = water_amount_is(geometry, t_is_npls, mu_is_npls)
-    w_is_n = water_amount_is(geometry, t_is_n, mu_is_n)
+    if w_is_n is None:
+        w_is_n = water_amount_is(geometry, t_is_n, mu_is_n)
 
     # ステップ n + 1 の、各つながりの水分の流れ（水蒸気 + 液水） j_v,k,n+1 + j_l,k,n+1, kg/(m2 s), [k]
     # 「熱・水分の流れ」の式 (10)・(11)
-    j_ks_npls = (vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
-                 + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls))
+    if j_v_ks_npls is None:
+        j_v_ks_npls = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+    j_ks_npls = j_v_ks_npls + liquid_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
 
     # 質点 i の左のつながり（つながり i）と右のつながり（つながり i + 1）の水分の流れ, kg/(m2 s), [i]
     j_left_is_npls = j_ks_npls[:-1]
@@ -397,7 +405,8 @@ def heat_residual_is(
         indoor_npls: IndoorBoundary,
         q_sol_npls: float = 0.0,
         q_v_is_n: np.ndarray | None = None,
-        r_bv_npls: float = 0.0
+        r_bv_npls: float = 0.0,
+        j_v_ks_npls: np.ndarray | None = None
     ) -> np.ndarray:
     """質点ごとの熱の収支の残差 res_h,i, W/m2, [i]。
 
@@ -415,6 +424,8 @@ def heat_residual_is(
         q_sol_npls: ステップ n + 1 の、外表面に外から直接入る熱 q_sol,n+1, W/m2（surface_radiation.get_solar_heat_gain）
         q_v_is_n: ステップ n の、各質点の壁 1 m2 あたりの換気量 q_v,i,n, m3/(m2 s), [i]（ventilation_rate_is。省くと換気なし）
         r_bv_npls: ステップ n + 1 の、外表面に当たる雨水 r_bv,n+1, kg/(m2 s)（rain.get_rain_on_surface。省くと雨なし）
+        j_v_ks_npls: ステップ n + 1 の、各つながりの水蒸気の流れ j_v,k,n+1, kg/(m2 s), [k]
+            （vapour_flow_ks を求めてあれば渡す。水分の収支と同じものを使い回すため。省くとここで求める）
 
     Returns:
         質点ごとの熱の収支の残差 res_h,i, W/m2, [i]
@@ -435,7 +446,8 @@ def heat_residual_is(
     # ステップ n + 1 の、各つながりの熱の流れ q_k,n+1 と水蒸気の流れ j_v,k,n+1, W/m2・kg/(m2 s), [k]
     # 「熱・水分の流れ」の式 (9)・(10)
     q_ks_npls = heat_flow_ks(geometry, t_is_npls, outdoor_npls, indoor_npls)
-    j_v_ks_npls = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
+    if j_v_ks_npls is None:
+        j_v_ks_npls = vapour_flow_ks(geometry, t_is_npls, mu_is_npls, outdoor_npls, indoor_npls)
 
     # 質点 i の左のつながり（つながり i）と右のつながり（つながり i + 1）の熱の流れ, W/m2, [i]
     q_left_is_npls = q_ks_npls[:-1]
