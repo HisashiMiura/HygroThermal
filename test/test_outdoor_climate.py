@@ -130,7 +130,7 @@ class TestAt:
 
 @pytest.fixture(scope='module')
 def weather():
-    """例の気象データ（TestFromCsv で使う。読むのに時間がかかるので、モジュールで 1 回だけ読む）。"""
+    """付属の気象データ（TestFromCsv で使う。読むのに時間がかかるので、モジュールで 1 回だけ読む）。"""
     return WeatherOutdoor.from_csv(_CSV, latitude=36.7, longitude=137.21, radiation_kind=RadiationKind.INTERVAL,
                                    radiation_interval=RadiationInterval.BEFORE, radiation_unit=RadiationUnit.MJ_PER_M2_H,
                                    rain_interval=RadiationInterval.BEFORE, wind_height=6.5, wind_exponent=0.25)

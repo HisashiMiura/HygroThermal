@@ -1,4 +1,4 @@
-"""例の入力のファイル examples/main_wall.json（Fortran の入力の壁 7 層）を、時間刻みと年数だけ変えて計算し、結果の図を描く。
+"""計算例の入力のファイル examples/main_wall.json（Fortran の入力の壁 7 層）を、時間刻みと年数だけ変えて計算し、結果の図を描く。
 
 使い方（リポジトリの一番上のフォルダで）：
     python examples/one_year_main_wall.py            # Δt = 3600 秒
@@ -36,7 +36,7 @@ from modules.wall_input import WallInput
 _HERE = os.path.dirname(__file__)
 _OUTPUT = os.path.join(_HERE, 'output')
 
-# 例の入力のファイル
+# 計算例の入力のファイル
 _INPUT = os.path.join(_HERE, 'main_wall.json')
 
 # 図の色（データの図の決まりに沿った、色覚の違いでも見分けやすい順の 5 色）と、文字・線の色
@@ -48,7 +48,7 @@ _SURFACE = '#fcfcfb'
 
 
 def _main_wall_input() -> WallInput:
-    """例の入力のファイルの壁（Fortran の入力の壁 7 層。構造用合板の 2 層で木材腐朽を求める）。"""
+    """計算例の入力のファイルの壁（Fortran の入力の壁 7 層。構造用合板の 2 層で木材腐朽を求める）。"""
     return SimulationInput.from_json(_INPUT).wall
 
 

@@ -10,23 +10,23 @@ from modules.simulation_input import OutdoorInput, SimulationInput, SimulationSe
 
 _ROOT = os.path.join(os.path.dirname(__file__), '..')
 
-# 例の壁の入力のファイル
+# 計算例の壁の入力のファイル
 _EXAMPLE_JSON = os.path.join(_ROOT, 'examples', 'main_wall.json')
 
 
 def _example_dict() -> dict:
-    """例の壁の入力のファイルの中身。"""
+    """計算例の壁の入力のファイルの中身。"""
     with open(_EXAMPLE_JSON, encoding='utf-8') as f:
         return json.load(f)
 
 
 def _from_dict(d: dict) -> SimulationInput:
-    """例の壁の入力のファイルと同じフォルダを起点にして作る。"""
+    """計算例の壁の入力のファイルと同じフォルダを起点にして作る。"""
     return SimulationInput.from_dict(d, base_dir=os.path.dirname(_EXAMPLE_JSON))
 
 
 class TestExample:
-    """例の壁の入力のファイル（examples/main_wall.json）を読んだ中身。"""
+    """計算例の壁の入力のファイル（examples/main_wall.json）を読んだ中身。"""
 
     def test_wall(self):
         # 7 層（通気層 1 枚）、境目 8 個。構造用合板の 2 層で木材腐朽を求める
@@ -46,7 +46,7 @@ class TestExample:
         assert o.rain_interval is RadiationInterval.BEFORE
 
     def test_weather_same_as_example(self):
-        # 読んだ気象データの、外気の境界条件が例のスクリプトと同じ
+        # 読んだ気象データの、外気の境界条件が計算例のスクリプトと同じ
         weather = _example_weather()
         loaded = SimulationInput.from_json(_EXAMPLE_JSON).outdoor.load()
         for t in (0.0, 3600.0 * 12.5, 3600.0 * 5000.0):
@@ -61,7 +61,7 @@ class TestExample:
 
 
 def _example_weather() -> WeatherOutdoor:
-    """例の気象データを、入力のファイルを通さずに、同じ設定で読んだもの。"""
+    """付属の気象データを、入力のファイルを通さずに、同じ設定で読んだもの。"""
     return WeatherOutdoor.from_csv(
         os.path.join(_ROOT, 'modules', 'weather.csv'), latitude=36.7, longitude=137.21,
         radiation_kind=RadiationKind.INTERVAL, radiation_interval=RadiationInterval.BEFORE,

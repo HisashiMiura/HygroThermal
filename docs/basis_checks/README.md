@@ -10,8 +10,8 @@
 conda run -n hygrothermal python docs/basis_checks/check_04_01_vapour_storage.py
 ```
 
-- 例の壁（`examples/one_year_main_wall.py` の 7 層の壁）の 2 年間の計算の結果は、`docs/basis_checks/_out/` に保存して使い回す（git には入れない）。保存した結果があれば計算し直さないので、モデルを変えたあとは `--force` を付けて計算し直す。
-- 例の壁の 2 年間の計算は、時間刻み 3600 s で約 3 分、900 s で約 10 分かかる。
+- 計算例の壁（`examples/one_year_main_wall.py` の 7 層の壁）の 2 年間の計算の結果は、`docs/basis_checks/_out/` に保存して使い回す（git には入れない）。保存した結果があれば計算し直さないので、モデルを変えたあとは `--force` を付けて計算し直す。
+- 計算例の壁の 2 年間の計算は、時間刻み 3600 s で約 3 分、900 s で約 10 分かかる。
 - `check_04_01_vapour_storage.py` は、ほかのスクリプトが使う基準の計算（`_out/base.npz`）も作るので、最初に実行する。そのあとのスクリプトは、並べて実行してよい。
 
 ## スクリプトと、数字を載せている所

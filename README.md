@@ -37,7 +37,7 @@ pip-compile --upgrade --extra dev --extra docs --strip-extras -o requirements-lo
 python -m pip install -r requirements-lock.txt
 ```
 
-上げたあとは、テストを流し、例の壁の結果が前の版と比べて変わっていないか（変わったなら、どれだけか）を確かめてから、ロックファイルをコミットする。
+上げたあとは、テストを流し、計算例の壁の結果が前の版と比べて変わっていないか（変わったなら、どれだけか）を確かめてから、ロックファイルをコミットする。
 
 ## 使い方
 
@@ -47,7 +47,7 @@ python -m pip install -r requirements-lock.txt
 hygrothermal examples/main_wall.json
 ```
 
-例の `examples/main_wall.json` は、7 層の壁（外側から、サイディング、通気層、せっこうボード、構造用合板、グラスウール、構造用合板、せっこうボード）を、例の気象データ（`modules/weather.csv`）と室内の余弦の条件で 2 年間計算する入力である。計算に 3 分ほどかかる。
+計算例の `examples/main_wall.json` は、7 層の壁（外側から、サイディング、通気層、せっこうボード、構造用合板、グラスウール、構造用合板、せっこうボード）を、付属の気象データ（`modules/weather.csv`）と室内の余弦の条件で 2 年間計算する入力である。計算に 3 分ほどかかる。
 
 入力のファイル・気象データのファイル・結果のファイルの形は、計算方法の文書の「プログラムの仕様」に示す。
 
@@ -86,7 +86,7 @@ python -m sphinx -b html docs/source docs/build/html
 |---|---|
 | `modules/` | プログラムの本体と、材料の物性値・気象データのファイル |
 | `test/` | テスト |
-| `examples/` | 例の計算のスクリプト |
+| `examples/` | 計算例のスクリプト |
 | `docs/source/` | 計算方法の文書（Sphinx） |
 | `docs/basis_checks/` | 計算方法の文書の根拠のページに載せている試算を出すスクリプト |
 | `docs/design/` | プログラムの組み立ての設計と、決めたことの記録 |

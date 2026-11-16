@@ -1,6 +1,6 @@
 """根拠のページの試算に共通の部品。
 
-例の壁（examples/one_year_main_wall.py の 7 層の壁）の 2 年間の計算を、計算の部品を一時的に差し替えて回し、
+計算例の壁（examples/one_year_main_wall.py の 7 層の壁）の 2 年間の計算を、計算の部品を一時的に差し替えて回し、
 結果を docs/basis_checks/_out/ に保存して使い回す。保存した結果があれば、計算し直さない（--force で計算し直す）。
 """
 
@@ -42,7 +42,7 @@ def patched(*items):
 
 
 def run_example(name: str, dt: float = 3600.0, years: int = 2, patches: tuple = ()) -> dict:
-    """例の壁を years 年間計算した結果（保存した結果があれば、それを読む）。
+    """計算例の壁を years 年間計算した結果（保存した結果があれば、それを読む）。
 
     Args:
         name: 結果の名前（_out/{name}.npz に保存する）
@@ -68,7 +68,7 @@ def run_example(name: str, dt: float = 3600.0, years: int = 2, patches: tuple = 
 
 
 def example_geometry():
-    """例の壁の形。"""
+    """計算例の壁の形。"""
     geometry, _ = build_wall(ex._main_wall_input())
     return geometry
 

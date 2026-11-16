@@ -38,7 +38,7 @@ def _wall_patch(g_m_right: float | None, rain_fraction: float) -> tuple:
 
 
 def _weather():
-    """例の壁の気象データ。"""
+    """計算例の壁の気象データ。"""
     from modules.outdoor_climate import RadiationInterval, RadiationKind, RadiationUnit, WeatherOutdoor
     return WeatherOutdoor.from_csv(
         c.os.path.join(c.ROOT, 'modules', 'weather.csv'), latitude=36.7, longitude=137.21,

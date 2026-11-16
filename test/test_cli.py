@@ -14,7 +14,7 @@ _ROOT = os.path.join(os.path.dirname(__file__), '..')
 
 
 def _input(porosity: float | None = None, wood_decay: bool = True) -> dict:
-    """構造用合板 9 mm 1 層を、例の気象データで 1 年（1 日刻み）計算する入力。"""
+    """構造用合板 9 mm 1 層を、付属の気象データで 1 年（1 日刻み）計算する入力。"""
     layer = {'source': 'whamcavity', 'name': '構造用合板1', 'thickness': 0.009, 'n_div': 4,
              'initial_temperature': 10.0, 'initial_rh': 80.0, 'wood_decay': wood_decay}
     if porosity is not None:
